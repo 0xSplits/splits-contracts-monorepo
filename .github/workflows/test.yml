@@ -1,6 +1,9 @@
-name: test
+name: build, lint and test
 
-on: workflow_dispatch
+on:
+  push:
+    branches:
+      - main
 
 env:
   FOUNDRY_PROFILE: ci
@@ -38,6 +41,9 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Lint
+        run: pnpm lint
 
       - name: Test
         run: pnpm test
