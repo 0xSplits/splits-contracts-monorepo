@@ -1,0 +1,28 @@
+{
+  "name": "splits-v2",
+  "version": "1.0.0",
+  "description": "Splits v2 contracts",
+  "scripts": {
+    "build": "forge build",
+    "clean": "rm -rf cache out",
+    "lint": "pnpm lint:sol && pnpm format",
+    "lint:sol": "forge fmt --check && pnpm solhint {script,src,test}/**/*.sol",
+    "format": "prettier --write **/*.{json,md,yml} --ignore-path=.prettierignore",
+    "test": "forge test",
+    "test:coverage": "forge coverage",
+    "test:coverage:report": "forge coverage --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage"
+  },
+  "keywords": [],
+  "author": "@splits",
+  "license": "ISC",
+  "private": true,
+  "devDependencies": {
+    "@prb/test": "^0.6.4",
+    "forge-std": "github:foundry-rs/forge-std#v1",
+    "prettier": "^3.1.0"
+  },
+  "dependencies": {
+    "solc": "0.8.23-fixed",
+    "solhint": "^4.0.0"
+  }
+}

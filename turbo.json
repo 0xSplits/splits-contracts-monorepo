@@ -9,6 +9,12 @@
     "lint": {
       "dependsOn": ["^lint"]
     },
+    "lint:sol": {
+      "dependsOn": ["^lint:sol"]
+    },
+    "test": {
+      "dependsOn": ["^test"]
+    },
     "dev": {
       "cache": false,
       "persistent": true
