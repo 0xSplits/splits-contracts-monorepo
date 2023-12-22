@@ -5,7 +5,7 @@
   "scripts": {
     "build": "forge build",
     "clean": "rm -rf cache out",
-    "lint": "pnpm lint:sol && pnpm format",
+    "lint": "pnpm lint:sol && prettier --check \"**/*.{json,md,yml}\"",
     "lint:sol": "forge fmt --check && pnpm solhint {script,src,test}/**/*.sol",
     "format": "prettier --write **/*.{json,md,yml} --ignore-path=.prettierignore",
     "test": "forge test",
