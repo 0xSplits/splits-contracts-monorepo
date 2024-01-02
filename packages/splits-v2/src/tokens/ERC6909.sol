@@ -1,32 +1,25 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.0;
+pragma solidity ^0.8.23;
+
+import { IERC6909 } from "../interfaces/IERC6909.sol";
+import { IERC165 } from "../interfaces/IERC165.sol";
 
 /// @notice Minimalist and gas efficient standard ERC6909 implementation.
 /// @author Solmate (https://github.com/transmissions11/solmate/blob/main/src/tokens/ERC6909.sol)
-abstract contract ERC6909 {
-    /*//////////////////////////////////////////////////////////////
-                                 EVENTS
-    //////////////////////////////////////////////////////////////*/
-
-    event OperatorSet(address indexed owner, address indexed operator, bool approved);
-
-    event Approval(address indexed owner, address indexed spender, uint256 indexed id, uint256 amount);
-
-    event Transfer(address caller, address indexed from, address indexed to, uint256 indexed id, uint256 amount);
-
-    /*//////////////////////////////////////////////////////////////
-                             ERC6909 STORAGE
-    //////////////////////////////////////////////////////////////*/
+abstract contract ERC6909 is IERC6909 {
+    /* -------------------------------------------------------------------------- */
+    /*                               ERC6909 STORAGE                              */
+    /* -------------------------------------------------------------------------- */
 
     mapping(address owner => mapping(address operator => bool approved)) public isOperator;
 
-    mapping(address owner => mapping(uint256 tokenId => uint256 balance)) public balanceOf;
+    mapping(address owner => mapping(uint256 id => uint256 amount)) public balanceOf;
 
     mapping(address owner => mapping(address spender => mapping(uint256 tokenId => uint256 amount))) public allowance;
 
-    /*//////////////////////////////////////////////////////////////
-                              ERC6909 LOGIC
-    //////////////////////////////////////////////////////////////*/
+    /* -------------------------------------------------------------------------- */
+    /*                                ERC6909 LOGIC                               */
+    /* -------------------------------------------------------------------------- */
 
     function transfer(address receiver, uint256 id, uint256 amount) public virtual returns (bool) {
         balanceOf[msg.sender][id] -= amount;
@@ -69,18 +62,17 @@ abstract contract ERC6909 {
         return true;
     }
 
-    /*//////////////////////////////////////////////////////////////
-                              ERC165 LOGIC
-    //////////////////////////////////////////////////////////////*/
+    /* -------------------------------------------------------------------------- */
+    /*                                ERC165 LOGIC                                */
+    /* -------------------------------------------------------------------------- */
 
     function supportsInterface(bytes4 interfaceId) public view virtual returns (bool) {
-        return interfaceId == 0x01ffc9a7 // ERC165 Interface ID for ERC165
-            || interfaceId == 0x0f632fb3; // ERC165 Interface ID for ERC6909
+        return interfaceId == type(IERC6909).interfaceId || interfaceId == type(IERC165).interfaceId;
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        INTERNAL MINT/BURN LOGIC
-    //////////////////////////////////////////////////////////////*/
+    /* -------------------------------------------------------------------------- */
+    /*                          INTERNAL MINT/BURN LOGIC                          */
+    /* -------------------------------------------------------------------------- */
 
     function _mint(address receiver, uint256 id, uint256 amount) internal virtual {
         balanceOf[receiver][id] += amount;
