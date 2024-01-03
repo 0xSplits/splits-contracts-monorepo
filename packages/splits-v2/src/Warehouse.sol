@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.23;
 
-import { ERC6909 } from "./tokens/ERC6909.sol";
+import { ERC6909Permit } from "./tokens/ERC6909Permit.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { Cast } from "./libraries/Cast.sol";
 
@@ -9,10 +9,10 @@ import { Cast } from "./libraries/Cast.sol";
  * @title Splits token Warehouse
  * @author Splits
  * @notice ERC6909 compliant token warehouse for splits ecosystem of splitters
- * @dev Token id here is the uint256 cast of the address of the token. This contract automatically wraps eth to weth and
+ * @dev Token id here is address(uint160(uint256 id)). This contract automatically wraps eth to weth and
  * vice versa.
  */
-contract Warehouse is ERC6909 {
+contract Warehouse is ERC6909Permit {
     using Cast for uint256;
 
     /* -------------------------------------------------------------------------- */
@@ -28,6 +28,12 @@ contract Warehouse is ERC6909 {
 
     /// @notice Total supply of a token
     mapping(uint256 id => uint256 amount) public totalSupply;
+
+    /* -------------------------------------------------------------------------- */
+    /*                                 CONSTRUCTOR                                */
+    /* -------------------------------------------------------------------------- */
+
+    constructor(string memory _name) ERC6909Permit(_name) { }
 
     /* -------------------------------------------------------------------------- */
     /*                               ERC6909METADATA                              */
