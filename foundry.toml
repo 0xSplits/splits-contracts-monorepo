@@ -7,3 +7,4 @@ number_underscore = "thousands"
 quote_style = "double"
 tab_width = 4
 wrap_comments = true
+sort_imports = true

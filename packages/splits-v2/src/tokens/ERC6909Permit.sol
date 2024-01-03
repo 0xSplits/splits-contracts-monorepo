@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+import { ERC6909 } from "./ERC6909.sol";
+import { Nonces } from "@openzeppelin/contracts/utils/Nonces.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
-import { Nonces } from "@openzeppelin/contracts/utils/Nonces.sol";
-import { ERC6909 } from "./ERC6909.sol";
 
 /**
  * @dev Implementation of the ERC-6909 Permit extension allowing approvals to spenders and operators to be made via

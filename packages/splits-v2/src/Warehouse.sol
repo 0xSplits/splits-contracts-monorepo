@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.23;
 
+import { Cast } from "./libraries/Cast.sol";
+import { Math } from "./libraries/Math.sol";
 import { ERC6909Permit } from "./tokens/ERC6909Permit.sol";
 import { IERC20Metadata as IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { Cast } from "./libraries/Cast.sol";
-import { Math } from "./libraries/Math.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title Splits token Warehouse
@@ -13,7 +14,7 @@ import { Math } from "./libraries/Math.sol";
  * @notice ERC6909 compliant token warehouse for splits ecosystem of splitters
  * @dev Token id here is address(uint160(uint256 id)).
  */
-contract Warehouse is ERC6909Permit {
+contract Warehouse is ERC6909Permit, ReentrancyGuard {
     using Cast for uint256;
     using Cast for address;
     using Math for uint256[];
@@ -57,6 +58,7 @@ contract Warehouse is ERC6909Permit {
         string memory _gas_token_symbol
     )
         ERC6909Permit(_name)
+        ReentrancyGuard()
     {
         GAS_TOKEN_NAME = _gas_token_name;
         GAS_TOKEN_SYMBOL = _gas_token_symbol;
@@ -100,7 +102,7 @@ contract Warehouse is ERC6909Permit {
     /*                          PUBLIC/EXTERNAL FUNCTIONS                         */
     /* -------------------------------------------------------------------------- */
 
-    function deposit(address _owner, address _token, uint256 _amount) external payable {
+    function deposit(address _owner, address _token, uint256 _amount) external payable nonReentrant {
         if (_token == GAS_TOKEN) {
             if (_amount != msg.value) revert InvalidAmount();
         } else {
@@ -112,7 +114,15 @@ contract Warehouse is ERC6909Permit {
         _deposit(_owner, id, _amount);
     }
 
-    function deposit(address[] calldata _owners, address _token, uint256[] calldata _amounts) external payable {
+    function deposit(
+        address[] calldata _owners,
+        address _token,
+        uint256[] calldata _amounts
+    )
+        external
+        payable
+        nonReentrant
+    {
         if (_owners.length != _amounts.length) revert InvalidDepositParams();
 
         uint256 totalAmounts = _amounts.sum();
