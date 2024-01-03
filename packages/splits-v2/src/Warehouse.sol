@@ -11,8 +11,7 @@ import { Math } from "./libraries/Math.sol";
  * @title Splits token Warehouse
  * @author Splits
  * @notice ERC6909 compliant token warehouse for splits ecosystem of splitters
- * @dev Token id here is address(uint160(uint256 id)). This contract automatically wraps eth to weth and
- * vice versa.
+ * @dev Token id here is address(uint160(uint256 id)).
  */
 contract Warehouse is ERC6909Permit {
     using Cast for uint256;
@@ -35,7 +34,11 @@ contract Warehouse is ERC6909Permit {
     string constant METADATA_PREFIX_SYMBOL = "Splits";
     string constant METADATA_PREFIX_NAME = "Splits Wrapped ";
 
-    address constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    address public constant GAS_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    // GAS_TOKEN.toUint256()
+    uint256 public constant GAS_TOKEN_ID = 1_364_068_194_842_176_056_990_105_843_868_530_818_345_537_040_110;
+    string GAS_TOKEN_NAME;
+    string GAS_TOKEN_SYMBOL;
 
     /* -------------------------------------------------------------------------- */
     /*                                   STORAGE                                  */
@@ -48,7 +51,16 @@ contract Warehouse is ERC6909Permit {
     /*                                 CONSTRUCTOR                                */
     /* -------------------------------------------------------------------------- */
 
-    constructor(string memory _name) ERC6909Permit(_name) { }
+    constructor(
+        string memory _name,
+        string memory _gas_token_name,
+        string memory _gas_token_symbol
+    )
+        ERC6909Permit(_name)
+    {
+        GAS_TOKEN_NAME = _gas_token_name;
+        GAS_TOKEN_SYMBOL = _gas_token_symbol;
+    }
 
     /* -------------------------------------------------------------------------- */
     /*                               ERC6909METADATA                              */
@@ -58,6 +70,9 @@ contract Warehouse is ERC6909Permit {
     /// @param id The id of the token.
     /// @return name The name of the token.
     function name(uint256 id) external view returns (string memory) {
+        if (id == GAS_TOKEN_ID) {
+            return GAS_TOKEN_NAME;
+        }
         return string.concat(METADATA_PREFIX_NAME, IERC20(id.toAddress()).name());
     }
 
@@ -65,6 +80,9 @@ contract Warehouse is ERC6909Permit {
     /// @param id The id of the token.
     /// @return symbol The symbol of the token.
     function symbol(uint256 id) external view returns (string memory) {
+        if (id == GAS_TOKEN_ID) {
+            return GAS_TOKEN_SYMBOL;
+        }
         return string.concat(METADATA_PREFIX_SYMBOL, IERC20(id.toAddress()).name());
     }
 
@@ -72,6 +90,9 @@ contract Warehouse is ERC6909Permit {
     /// @param id The id of the token.
     /// @return decimals The decimals of the token.
     function decimals(uint256 id) external view returns (uint8) {
+        if (id == GAS_TOKEN_ID) {
+            return 18;
+        }
         return IERC20(id.toAddress()).decimals();
     }
 
@@ -80,7 +101,7 @@ contract Warehouse is ERC6909Permit {
     /* -------------------------------------------------------------------------- */
 
     function deposit(address _owner, address _token, uint256 _amount) external payable {
-        if (_token == ETH) {
+        if (_token == GAS_TOKEN) {
             if (_amount != msg.value) revert InvalidAmount();
         } else {
             IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
@@ -96,7 +117,7 @@ contract Warehouse is ERC6909Permit {
 
         uint256 totalAmounts = _amounts.sum();
 
-        if (_token == ETH) {
+        if (_token == GAS_TOKEN) {
             if (totalAmounts != msg.value) revert InvalidAmount();
         } else {
             IERC20(_token).safeTransferFrom(msg.sender, address(this), totalAmounts);
@@ -108,7 +129,7 @@ contract Warehouse is ERC6909Permit {
     }
 
     function depositAfterTransfer(address _owner, address _token, uint256 _amount) external {
-        if (_token == ETH) revert TokenNotSupported();
+        if (_token == GAS_TOKEN) revert TokenNotSupported();
 
         uint256 id = _token.toUint256();
 
@@ -118,7 +139,7 @@ contract Warehouse is ERC6909Permit {
     }
 
     function depositAfterTransfer(address[] calldata _owners, address _token, uint256[] calldata _amounts) external {
-        if (_token == ETH) revert TokenNotSupported();
+        if (_token == GAS_TOKEN) revert TokenNotSupported();
 
         uint256 id = _token.toUint256();
 
