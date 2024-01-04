@@ -3,9 +3,11 @@ pragma solidity ^0.8.23;
 
 import { Cast } from "./libraries/Cast.sol";
 import { Math } from "./libraries/Math.sol";
+
 import { ERC6909Permit } from "./tokens/ERC6909Permit.sol";
 import { IERC20Metadata as IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
@@ -19,6 +21,7 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
     using Cast for address;
     using Math for uint256[];
     using SafeERC20 for IERC20;
+    using Address for address payable;
 
     /* -------------------------------------------------------------------------- */
     /*                                   ERRORS                                   */
@@ -26,8 +29,9 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
 
     error InvalidAmount();
     error TokenNotSupported();
-    error InvalidDepositParams();
+    error LengthMismatch();
     error ZeroOwner();
+    error WithdrawalPaused(address owner);
 
     /* -------------------------------------------------------------------------- */
     /*                            CONSTANTS/IMMUTABLES                            */
@@ -55,8 +59,11 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
     /*                                   STORAGE                                  */
     /* -------------------------------------------------------------------------- */
 
-    /// @notice Total supply of a token
+    /// @notice Total supply of a token.
     mapping(uint256 id => uint256 amount) public totalSupply;
+
+    /// @notice Whether a token withdrawal is paused for a given address.
+    mapping(address owner => bool isPaused) public isWithdrawPaused;
 
     /* -------------------------------------------------------------------------- */
     /*                                 CONSTRUCTOR                                */
@@ -118,6 +125,10 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
     /*                          PUBLIC/EXTERNAL FUNCTIONS                         */
     /* -------------------------------------------------------------------------- */
 
+    /* -------------------------------------------------------------------------- */
+    /*                                  DESPOSIT                                  */
+    /* -------------------------------------------------------------------------- */
+
     /**
      * @notice Deposits token to the warehouse for a specified address.
      * @dev If the token is native, the amount should be sent as value.
@@ -145,7 +156,7 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
      * @param _amounts The amounts of the token to be deposited.
      */
     function deposit(address[] calldata _owners, address _token, uint256[] calldata _amounts) external payable {
-        if (_owners.length != _amounts.length) revert InvalidDepositParams();
+        if (_owners.length != _amounts.length) revert LengthMismatch();
 
         uint256 totalAmount = _amounts.sum();
 
@@ -187,7 +198,7 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
      * @param _amounts The amounts of the token to be deposited.
      */
     function depositAfterTransfer(address[] calldata _owners, address _token, uint256[] calldata _amounts) external {
-        if (_owners.length != _amounts.length) revert InvalidDepositParams();
+        if (_owners.length != _amounts.length) revert LengthMismatch();
         if (_token == NATIVE_TOKEN) revert TokenNotSupported();
 
         uint256 id = _token.toUint256();
@@ -197,6 +208,77 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
         if (totalAmount > IERC20(_token).balanceOf(address(this)) - totalSupply[id]) revert InvalidAmount();
 
         _depsoit(_owners, id, _amounts, totalAmount);
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*                                  WITHDRAW                                  */
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @notice Withdraws token from the warehouse for msg.sender.
+     * @dev It is recommended to withdraw balance - 1 to save gas.
+     * @param _token The address of the token to be withdrawn.
+     * @param _amount The amount of the token to be withdrawn.
+     */
+    function withdraw(address _token, uint256 _amount) external nonReentrant {
+        _withdraw(msg.sender, _token.toUint256(), _token, _amount);
+    }
+
+    /**
+     * @notice Withdraws tokens from the warehouse for msg.sender.
+     * @dev It is recommended to withdraw balance - 1 to save gas.
+     * @param _tokens The addresses of the tokens to be withdrawn.
+     * @param _amounts The amounts of the tokens to be withdrawn.
+     */
+    function withdraw(address[] memory _tokens, uint256[] memory _amounts) external nonReentrant {
+        if (_tokens.length != _amounts.length) revert LengthMismatch();
+
+        for (uint256 i; i < _tokens.length; i++) {
+            _withdraw(msg.sender, _tokens[i].toUint256(), _tokens[i], _amounts[i]);
+        }
+    }
+
+    /**
+     * @notice Withdraws token from the warehouse for a specified address.
+     * @dev It is recommended to withdraw balance - 1 to save gas.
+     * @param _owner The address whose tokens are withdrawn.
+     * @param _token The address of the token to be withdrawn.
+     * @param _amount The amount of the token to be withdrawn.
+     */
+    function withdraw(address _owner, address _token, uint256 _amount) external nonReentrant {
+        if (isWithdrawPaused[_owner]) revert WithdrawalPaused(_owner);
+        if (_owner == address(0)) revert ZeroOwner();
+
+        _withdraw(_owner, _token.toUint256(), _token, _amount);
+    }
+
+    /**
+     * @notice Withdraws tokens from the warehouse for a specified address.
+     * @dev It is recommended to withdraw balance - 1 to save gas.
+     * @param _owner The address whose tokens are withdrawn.
+     * @param _tokens The addresses of the tokens to be withdrawn.
+     * @param _amounts The amounts of the tokens to be withdrawn.
+     */
+    function withdraw(address _owner, address[] memory _tokens, uint256[] memory _amounts) external nonReentrant {
+        if (_tokens.length != _amounts.length) revert LengthMismatch();
+        if (isWithdrawPaused[_owner]) revert WithdrawalPaused(_owner);
+        if (_owner == address(0)) revert ZeroOwner();
+
+        for (uint256 i; i < _tokens.length; i++) {
+            _withdraw(_owner, _tokens[i].toUint256(), _tokens[i], _amounts[i]);
+        }
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*                                OWNER ACTIONS                               */
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @notice Pauses withdrawals for msg.sender.
+     * @param pause Whether to pause or unpause.
+     */
+    function pauseWithdrawals(bool pause) external {
+        isWithdrawPaused[msg.sender] = pause;
     }
 
     /* -------------------------------------------------------------------------- */
@@ -222,6 +304,17 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
         for (uint256 i; i < _owners.length; i++) {
             if (_owners[i] == address(0)) revert ZeroOwner();
             _mint(_owners[i], _id, _amounts[i]);
+        }
+    }
+
+    function _withdraw(address _owner, uint256 _id, address _token, uint256 _amount) internal {
+        _burn(_owner, _id, _amount);
+        totalSupply[_id] -= _amount;
+
+        if (_token == NATIVE_TOKEN) {
+            payable(_owner).sendValue(_amount);
+        } else {
+            IERC20(_token).safeTransfer(_owner, _amount);
         }
     }
 }

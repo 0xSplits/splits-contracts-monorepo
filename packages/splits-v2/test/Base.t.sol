@@ -5,6 +5,7 @@ import { Warehouse } from "../src/Warehouse.sol";
 import { Cast } from "../src/libraries/Cast.sol";
 
 import { ERC20 } from "./utils/ERC20.sol";
+import { WarehouseReentrantReceiver } from "./utils/ReentrantReceiver.sol";
 import { WETH9 } from "./utils/WETH9.sol";
 import { PRBTest } from "@prb/test/PRBTest.sol";
 import { StdCheats } from "forge-std/StdCheats.sol";
@@ -30,6 +31,7 @@ contract BaseTest is PRBTest, StdCheats {
     address ALICE;
     address BOB;
     address CAROL;
+    address BAD_ACTOR;
 
     /* -------------------------------------------------------------------------- */
     /*                                   TOKENS                                   */
@@ -50,6 +52,7 @@ contract BaseTest is PRBTest, StdCheats {
         ALICE = createUser("ALICE");
         BOB = createUser("BOB");
         CAROL = createUser("CAROL");
+        BAD_ACTOR = address(new WarehouseReentrantReceiver());
 
         // Setup warehouse
         warehouse = new Warehouse(WAREHOUSE_NAME, GAS_TOKEN_NAME, GAS_TOKEN_SYMBOL);
