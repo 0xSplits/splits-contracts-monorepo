@@ -79,4 +79,8 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant {
     function idToToken(uint256 id) internal pure returns (address token) {
         token = id.toAddress();
     }
+
+    function assumeAddress(address addr) internal {
+        assumeAddressIsNot(addr, AddressType.ForgeAddress, AddressType.Precompile, AddressType.ZeroAddress);
+    }
 }

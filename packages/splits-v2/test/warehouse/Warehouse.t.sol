@@ -69,7 +69,8 @@ contract WarehouseTest is BaseTest, Fuzzer {
     /* -------------------------------------------------------------------------- */
 
     function testFuzz_depositSingleOwner_whenERC20(address _depositor, address _owner, uint256 _amount) public {
-        vm.assume(_depositor != address(0) && _owner != address(0));
+        assumeAddress(_depositor);
+        assumeAddress(_owner);
 
         deal(token, _depositor, _amount);
 
@@ -84,7 +85,8 @@ contract WarehouseTest is BaseTest, Fuzzer {
     }
 
     function testFuzz_depositSingleOwner_whenNativeToken(address _depositor, address _owner, uint256 _amount) public {
-        vm.assume(_depositor != address(0) && _owner != address(0));
+        assumeAddress(_depositor);
+        assumeAddress(_owner);
 
         deal(_depositor, _amount);
 
@@ -133,7 +135,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
     )
         public
     {
-        vm.assume(_depositor != address(0));
+        assumeAddress(_depositor);
         (address[] memory owners, uint256[] memory amounts) = fuzzMultipleOwnerDeposits(_owners, _amounts);
         uint256 totalAmounts = amounts.sumMem();
 
@@ -158,7 +160,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
     )
         public
     {
-        vm.assume(_depositor != address(0));
+        assumeAddress(_depositor);
         (address[] memory owners, uint256[] memory amounts) = fuzzMultipleOwnerDeposits(_owners, _amounts);
         uint256 totalAmounts = amounts.sumMem();
 
@@ -207,7 +209,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
     /* -------------------------------------------------------------------------- */
 
     function testFuzz_depositAfterTransferSingleOwner_whenERC20(address _owner, uint256 _amount) public {
-        vm.assume(_owner != address(0));
+        assumeAddress(_owner);
 
         deal(token, _owner, _amount);
 
@@ -329,7 +331,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
     /* -------------------------------------------------------------------------- */
 
     function testFuzz_withdrawOwner_whenERC20(address _owner, uint256 _amount) public {
-        vm.assume(_owner != address(0));
+        assumeAddress(_owner);
 
         testFuzz_depositSingleOwner_whenERC20(_owner, _owner, _amount);
 
@@ -341,7 +343,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
     }
 
     function testFuzz_withdrawOwner_whenNative(address _owner, uint256 _amount) public {
-        vm.assume(_owner != address(0) && _owner.code.length == 0);
+        assumeAddress(_owner);
 
         testFuzz_depositSingleOwner_whenNativeToken(_owner, _owner, _amount);
 
@@ -439,7 +441,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
     /* -------------------------------------------------------------------------- */
 
     function testFuzz_withdrawForOwner_singleToken_whenERC20(address _owner, uint256 _amount) public {
-        vm.assume(_owner != address(0));
+        assumeAddress(_owner);
 
         testFuzz_depositSingleOwner_whenERC20(_owner, _owner, _amount);
 
@@ -451,7 +453,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
     }
 
     function testFuzz_withdrawForOwner_singleToken_whenNative(address _owner, uint256 _amount) public {
-        vm.assume(_owner != address(0) && _owner.code.length == 0);
+        assumeAddress(_owner);
 
         testFuzz_depositSingleOwner_whenNativeToken(_owner, _owner, _amount);
 
@@ -510,7 +512,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
     /* -------------------------------------------------------------------------- */
 
     function testFuzz_withdrawForOwner_multipleTokens(address _owner, uint256 _amount) public {
-        vm.assume(_owner != address(0) && _owner.code.length == 0);
+        assumeAddress(_owner);
 
         depositDefaultTokens(_owner, _amount);
 
@@ -583,7 +585,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
     /* -------------------------------------------------------------------------- */
 
     function testFuzz_pauseWithdrawals(address _owner, bool pause) public {
-        vm.assume(_owner != address(0));
+        assumeAddress(_owner);
 
         vm.prank(_owner);
         warehouse.pauseWithdrawals(pause);
