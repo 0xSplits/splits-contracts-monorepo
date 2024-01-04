@@ -35,6 +35,7 @@ contract BaseTest is PRBTest, StdCheats {
     /*                                   TOKENS                                   */
     /* -------------------------------------------------------------------------- */
 
+    address native;
     ERC20 usdc;
     ERC20 weth;
     WETH9 weth9;
@@ -52,6 +53,9 @@ contract BaseTest is PRBTest, StdCheats {
 
         // Setup warehouse
         warehouse = new Warehouse(WAREHOUSE_NAME, GAS_TOKEN_NAME, GAS_TOKEN_SYMBOL);
+
+        // Setup native token
+        native = warehouse.GAS_TOKEN();
     }
 
     function createUser(string memory name) internal returns (address payable user) {

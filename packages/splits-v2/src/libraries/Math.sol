@@ -7,4 +7,10 @@ library Math {
             total += values[i];
         }
     }
+
+    function sumMem(uint256[] memory values) internal pure returns (uint256 total) {
+        for (uint256 i = 0; i < values.length; i++) {
+            total += values[i];
+        }
+    }
 }

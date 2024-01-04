@@ -27,6 +27,7 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
     error InvalidAmount();
     error TokenNotSupported();
     error InvalidDepositParams();
+    error ZeroOwner();
 
     /* -------------------------------------------------------------------------- */
     /*                            CONSTANTS/IMMUTABLES                            */
@@ -68,9 +69,11 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
     /*                               ERC6909METADATA                              */
     /* -------------------------------------------------------------------------- */
 
-    /// @notice Name of a given token.
-    /// @param id The id of the token.
-    /// @return name The name of the token.
+    /**
+     * @notice Name of a given token.
+     * @param id The id of the token.
+     * @return name The name of the token.
+     */
     function name(uint256 id) external view returns (string memory) {
         if (id == GAS_TOKEN_ID) {
             return GAS_TOKEN_NAME;
@@ -78,9 +81,11 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
         return string.concat(METADATA_PREFIX_NAME, IERC20(id.toAddress()).name());
     }
 
-    /// @notice Symbol of a given token.
-    /// @param id The id of the token.
-    /// @return symbol The symbol of the token.
+    /**
+     * @notice Symbol of a given token.
+     * @param id The id of the token.
+     * @return symbol The symbol of the token.
+     */
     function symbol(uint256 id) external view returns (string memory) {
         if (id == GAS_TOKEN_ID) {
             return GAS_TOKEN_SYMBOL;
@@ -88,9 +93,11 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
         return string.concat(METADATA_PREFIX_SYMBOL, IERC20(id.toAddress()).name());
     }
 
-    /// @notice Decimals of a given token.
-    /// @param id The id of the token.
-    /// @return decimals The decimals of the token.
+    /**
+     * @notice Decimals of a given token.
+     * @param id The id of the token.
+     * @return decimals The decimals of the token.
+     */
     function decimals(uint256 id) external view returns (uint8) {
         if (id == GAS_TOKEN_ID) {
             return 18;
@@ -102,7 +109,14 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
     /*                          PUBLIC/EXTERNAL FUNCTIONS                         */
     /* -------------------------------------------------------------------------- */
 
-    function deposit(address _owner, address _token, uint256 _amount) external payable nonReentrant {
+    /**
+     * @notice Deposits token to the warehouse for a specified address.
+     * @dev If the token is native, the amount should be sent as value.
+     * @param _owner The address that will receive the wrapped tokens.
+     * @param _token The address of the token to be deposited.
+     * @param _amount The amount of the token to be deposited.
+     */
+    function deposit(address _owner, address _token, uint256 _amount) external payable {
         if (_token == GAS_TOKEN) {
             if (_amount != msg.value) revert InvalidAmount();
         } else {
@@ -114,30 +128,37 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
         _deposit(_owner, id, _amount);
     }
 
-    function deposit(
-        address[] calldata _owners,
-        address _token,
-        uint256[] calldata _amounts
-    )
-        external
-        payable
-        nonReentrant
-    {
+    /**
+     * @notice Deposits token to the warehouse for a specified list of addresses.
+     * @dev If the token is native, the amount should be sent as value.
+     * @param _owners The addresses that will receive the wrapped tokens.
+     * @param _token The address of the token to be deposited.
+     * @param _amounts The amounts of the token to be deposited.
+     */
+    function deposit(address[] calldata _owners, address _token, uint256[] calldata _amounts) external payable {
         if (_owners.length != _amounts.length) revert InvalidDepositParams();
 
-        uint256 totalAmounts = _amounts.sum();
+        uint256 totalAmount = _amounts.sum();
 
         if (_token == GAS_TOKEN) {
-            if (totalAmounts != msg.value) revert InvalidAmount();
+            if (totalAmount != msg.value) revert InvalidAmount();
         } else {
-            IERC20(_token).safeTransferFrom(msg.sender, address(this), totalAmounts);
+            IERC20(_token).safeTransferFrom(msg.sender, address(this), totalAmount);
         }
 
         uint256 id = _token.toUint256();
 
-        _depsoit(_owners, id, _amounts, totalAmounts);
+        _depsoit(_owners, id, _amounts, totalAmount);
     }
 
+    /**
+     * @notice Deposits token to the warehouse for a specified address after a transfer.
+     * @dev Does not support native token. This should be used as part of a transferAndCall flow.
+     *     If the function is not called after transfer someone can front run the deposit.
+     * @param _owner The address that will receive the wrapped tokens.
+     * @param _token The address of the token to be deposited.
+     * @param _amount The amount of the token to be deposited.
+     */
     function depositAfterTransfer(address _owner, address _token, uint256 _amount) external {
         if (_token == GAS_TOKEN) revert TokenNotSupported();
 
@@ -148,16 +169,25 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
         _deposit(_owner, id, _amount);
     }
 
+    /**
+     * @notice Deposits token to the warehouse for a specified list of addresses after a transfer.
+     * @dev Does not support native token. This should be used as part of a transferAndCall flow.
+     *     If the function is not called after transfer someone can front run the deposit.
+     * @param _owners The addresses that will receive the wrapped tokens.
+     * @param _token The address of the token to be deposited.
+     * @param _amounts The amounts of the token to be deposited.
+     */
     function depositAfterTransfer(address[] calldata _owners, address _token, uint256[] calldata _amounts) external {
+        if (_owners.length != _amounts.length) revert InvalidDepositParams();
         if (_token == GAS_TOKEN) revert TokenNotSupported();
 
         uint256 id = _token.toUint256();
 
-        uint256 totalAmounts = _amounts.sum();
+        uint256 totalAmount = _amounts.sum();
 
-        if (totalAmounts > IERC20(_token).balanceOf(address(this)) - totalSupply[id]) revert InvalidAmount();
+        if (totalAmount > IERC20(_token).balanceOf(address(this)) - totalSupply[id]) revert InvalidAmount();
 
-        _depsoit(_owners, id, _amounts, totalAmounts);
+        _depsoit(_owners, id, _amounts, totalAmount);
     }
 
     /* -------------------------------------------------------------------------- */
@@ -165,6 +195,8 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
     /* -------------------------------------------------------------------------- */
 
     function _deposit(address _owner, uint256 _id, uint256 _amount) internal {
+        if (_owner == address(0)) revert ZeroOwner();
+
         totalSupply[_id] += _amount;
         _mint(_owner, _id, _amount);
     }
@@ -179,6 +211,7 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
     {
         totalSupply[_id] += _totalAmount;
         for (uint256 i; i < _owners.length; i++) {
+            if (_owners[i] == address(0)) revert ZeroOwner();
             _mint(_owners[i], _id, _amounts[i]);
         }
     }
