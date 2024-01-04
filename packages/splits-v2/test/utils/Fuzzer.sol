@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import { console2 } from "forge-std/console2.sol";
-
 contract Fuzzer {
+    error LengthMismatch();
+
     function fuzzMultipleOwnerDeposits(
         address[1000] memory _owners,
         uint96[1000] memory _amounts
@@ -13,7 +13,7 @@ contract Fuzzer {
         returns (address[] memory owners, uint256[] memory amounts)
     {
         if (_owners.length != _amounts.length) {
-            revert("Fuzzer: owners and amounts length mismatch");
+            revert LengthMismatch();
         }
 
         owners = new address[](_owners.length);

@@ -33,14 +33,23 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
     /*                            CONSTANTS/IMMUTABLES                            */
     /* -------------------------------------------------------------------------- */
 
-    string constant METADATA_PREFIX_SYMBOL = "Splits";
-    string constant METADATA_PREFIX_NAME = "Splits Wrapped ";
+    /// @notice prefix for metadata name.
+    string private constant METADATA_PREFIX_SYMBOL = "Splits";
 
-    address public constant GAS_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-    // GAS_TOKEN.toUint256()
-    uint256 public constant GAS_TOKEN_ID = 1_364_068_194_842_176_056_990_105_843_868_530_818_345_537_040_110;
-    string GAS_TOKEN_NAME;
-    string GAS_TOKEN_SYMBOL;
+    /// @notice prefix for metadata symbol.
+    string private constant METADATA_PREFIX_NAME = "Splits Wrapped ";
+
+    /// @notice address of the native token.
+    address public constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
+    /// @notice NATIVE_TOKEN.toUint256()
+    uint256 public constant NATIVE_TOKEN_ID = 1_364_068_194_842_176_056_990_105_843_868_530_818_345_537_040_110;
+
+    /// @notice metadata name of the native token.
+    string private nativeTokenName;
+
+    /// @notice metadata symbol of the native token.
+    string private nativeTokenSymbol;
 
     /* -------------------------------------------------------------------------- */
     /*                                   STORAGE                                  */
@@ -61,8 +70,8 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
         ERC6909Permit(_name)
         ReentrancyGuard()
     {
-        GAS_TOKEN_NAME = _gas_token_name;
-        GAS_TOKEN_SYMBOL = _gas_token_symbol;
+        nativeTokenName = _gas_token_name;
+        nativeTokenSymbol = _gas_token_symbol;
     }
 
     /* -------------------------------------------------------------------------- */
@@ -75,8 +84,8 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
      * @return name The name of the token.
      */
     function name(uint256 id) external view returns (string memory) {
-        if (id == GAS_TOKEN_ID) {
-            return GAS_TOKEN_NAME;
+        if (id == NATIVE_TOKEN_ID) {
+            return nativeTokenName;
         }
         return string.concat(METADATA_PREFIX_NAME, IERC20(id.toAddress()).name());
     }
@@ -87,8 +96,8 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
      * @return symbol The symbol of the token.
      */
     function symbol(uint256 id) external view returns (string memory) {
-        if (id == GAS_TOKEN_ID) {
-            return GAS_TOKEN_SYMBOL;
+        if (id == NATIVE_TOKEN_ID) {
+            return nativeTokenSymbol;
         }
         return string.concat(METADATA_PREFIX_SYMBOL, IERC20(id.toAddress()).name());
     }
@@ -99,7 +108,7 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
      * @return decimals The decimals of the token.
      */
     function decimals(uint256 id) external view returns (uint8) {
-        if (id == GAS_TOKEN_ID) {
+        if (id == NATIVE_TOKEN_ID) {
             return 18;
         }
         return IERC20(id.toAddress()).decimals();
@@ -117,7 +126,7 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
      * @param _amount The amount of the token to be deposited.
      */
     function deposit(address _owner, address _token, uint256 _amount) external payable {
-        if (_token == GAS_TOKEN) {
+        if (_token == NATIVE_TOKEN) {
             if (_amount != msg.value) revert InvalidAmount();
         } else {
             IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
@@ -140,7 +149,7 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
 
         uint256 totalAmount = _amounts.sum();
 
-        if (_token == GAS_TOKEN) {
+        if (_token == NATIVE_TOKEN) {
             if (totalAmount != msg.value) revert InvalidAmount();
         } else {
             IERC20(_token).safeTransferFrom(msg.sender, address(this), totalAmount);
@@ -160,7 +169,7 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
      * @param _amount The amount of the token to be deposited.
      */
     function depositAfterTransfer(address _owner, address _token, uint256 _amount) external {
-        if (_token == GAS_TOKEN) revert TokenNotSupported();
+        if (_token == NATIVE_TOKEN) revert TokenNotSupported();
 
         uint256 id = _token.toUint256();
 
@@ -179,7 +188,7 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
      */
     function depositAfterTransfer(address[] calldata _owners, address _token, uint256[] calldata _amounts) external {
         if (_owners.length != _amounts.length) revert InvalidDepositParams();
-        if (_token == GAS_TOKEN) revert TokenNotSupported();
+        if (_token == NATIVE_TOKEN) revert TokenNotSupported();
 
         uint256 id = _token.toUint256();
 

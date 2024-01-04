@@ -55,7 +55,7 @@ contract BaseTest is PRBTest, StdCheats {
         warehouse = new Warehouse(WAREHOUSE_NAME, GAS_TOKEN_NAME, GAS_TOKEN_SYMBOL);
 
         // Setup native token
-        native = warehouse.GAS_TOKEN();
+        native = warehouse.NATIVE_TOKEN();
     }
 
     function createUser(string memory name) internal returns (address payable user) {

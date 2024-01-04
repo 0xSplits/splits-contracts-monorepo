@@ -30,7 +30,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
     }
 
     function test_name_whenNativeToken_returnsWrappedName() public {
-        assertEq(warehouse.name(warehouse.GAS_TOKEN_ID()), GAS_TOKEN_NAME);
+        assertEq(warehouse.name(warehouse.NATIVE_TOKEN_ID()), GAS_TOKEN_NAME);
     }
 
     /* -------------------------------------------------------------------------- */
@@ -42,7 +42,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
     }
 
     function test_symbol_whenNativeToken_returnsWrappedSymbol() public {
-        assertEq(warehouse.symbol(warehouse.GAS_TOKEN_ID()), GAS_TOKEN_SYMBOL);
+        assertEq(warehouse.symbol(warehouse.NATIVE_TOKEN_ID()), GAS_TOKEN_SYMBOL);
     }
 
     /* -------------------------------------------------------------------------- */
@@ -54,7 +54,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
     }
 
     function test_decimals_whenNativeToken_returns18() public {
-        assertEq(warehouse.decimals(warehouse.GAS_TOKEN_ID()), 18);
+        assertEq(warehouse.decimals(warehouse.NATIVE_TOKEN_ID()), 18);
     }
 
     /* -------------------------------------------------------------------------- */
