@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import { Math } from "../src/libraries/Math.sol";
-import { BaseTest } from "./Base.t.sol";
-import { ERC20 } from "./utils/ERC20.sol";
-import { Fuzzer } from "./utils/Fuzzer.sol";
+import { Math } from "../../src/libraries/Math.sol";
+import { BaseTest } from "../Base.t.sol";
+import { ERC20 } from "../utils/ERC20.sol";
+import { Fuzzer } from "../utils/Fuzzer.sol";
 
 contract WarehouseTest is BaseTest, Fuzzer {
     using Math for uint256[];

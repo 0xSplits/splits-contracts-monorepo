@@ -9,8 +9,9 @@ import { WarehouseReentrantReceiver } from "./utils/ReentrantReceiver.sol";
 import { WETH9 } from "./utils/WETH9.sol";
 import { PRBTest } from "@prb/test/PRBTest.sol";
 import { StdCheats } from "forge-std/StdCheats.sol";
+import { StdInvariant } from "forge-std/StdInvariant.sol";
 
-contract BaseTest is PRBTest, StdCheats {
+contract BaseTest is PRBTest, StdCheats, StdInvariant {
     using Cast for uint256;
     using Cast for address;
 
@@ -31,6 +32,7 @@ contract BaseTest is PRBTest, StdCheats {
     address ALICE;
     address BOB;
     address CAROL;
+    address DAN;
     address BAD_ACTOR;
 
     /* -------------------------------------------------------------------------- */
@@ -52,6 +54,7 @@ contract BaseTest is PRBTest, StdCheats {
         ALICE = createUser("ALICE");
         BOB = createUser("BOB");
         CAROL = createUser("CAROL");
+        DAN = createUser("DAN");
         BAD_ACTOR = address(new WarehouseReentrantReceiver());
 
         // Setup warehouse
