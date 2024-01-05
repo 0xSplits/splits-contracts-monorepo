@@ -259,7 +259,7 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
      * @param _tokens The addresses of the tokens to be withdrawn.
      * @param _amounts The amounts of the tokens to be withdrawn.
      */
-    function withdraw(address _owner, address[] memory _tokens, uint256[] memory _amounts) external nonReentrant {
+    function withdraw(address _owner, address[] calldata _tokens, uint256[] calldata _amounts) external nonReentrant {
         if (_tokens.length != _amounts.length) revert LengthMismatch();
         if (isWithdrawPaused[_owner]) revert WithdrawalPaused(_owner);
         if (_owner == address(0)) revert ZeroOwner();

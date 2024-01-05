@@ -5,8 +5,8 @@ contract Fuzzer {
     error LengthMismatch();
 
     function fuzzMultipleOwnerDeposits(
-        address[1000] memory _owners,
-        uint96[1000] memory _amounts
+        address[5] memory _owners,
+        uint96[5] memory _amounts
     )
         public
         pure

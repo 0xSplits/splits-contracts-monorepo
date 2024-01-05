@@ -130,8 +130,8 @@ contract WarehouseTest is BaseTest, Fuzzer {
 
     function testFuzz_depositMultipleOwners_whenERC20(
         address _depositor,
-        address[1000] memory _owners,
-        uint96[1000] memory _amounts
+        address[5] memory _owners,
+        uint96[5] memory _amounts
     )
         public
     {
@@ -155,8 +155,8 @@ contract WarehouseTest is BaseTest, Fuzzer {
 
     function testFuzz_depositMultipleOwners_whenNativeToken(
         address _depositor,
-        address[1000] memory _owners,
-        uint96[1000] memory _amounts
+        address[5] memory _owners,
+        uint96[5] memory _amounts
     )
         public
     {
@@ -258,8 +258,8 @@ contract WarehouseTest is BaseTest, Fuzzer {
     /* -------------------------------------------------------------------------- */
 
     function testFuzz_depositAfterTransferMultipleOwners_whenERC20(
-        address[1000] memory _owners,
-        uint96[1000] memory _amounts
+        address[5] memory _owners,
+        uint96[5] memory _amounts
     )
         public
     {

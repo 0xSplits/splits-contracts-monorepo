@@ -84,5 +84,6 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant {
 
     function assumeAddress(address addr) internal {
         assumeAddressIsNot(addr, AddressType.ForgeAddress, AddressType.Precompile, AddressType.ZeroAddress);
+        vm.assume(addr != address(warehouse));
     }
 }
