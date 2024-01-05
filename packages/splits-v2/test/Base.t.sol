@@ -15,6 +15,8 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant {
     using Cast for uint256;
     using Cast for address;
 
+    address[] internal assumeAddresses;
+
     /* -------------------------------------------------------------------------- */
     /*                                  WAREHOUSE                                 */
     /* -------------------------------------------------------------------------- */
@@ -62,6 +64,12 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant {
 
         // Setup native token
         native = warehouse.NATIVE_TOKEN();
+
+        assumeAddresses.push(address(warehouse));
+        assumeAddresses.push(address(usdc));
+        assumeAddresses.push(address(weth));
+        assumeAddresses.push(address(weth9));
+        assumeAddresses.push(address(native));
     }
 
     function createUser(string memory name) internal returns (Account memory account) {
@@ -84,6 +92,8 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant {
 
     function assumeAddress(address addr) internal {
         assumeAddressIsNot(addr, AddressType.ForgeAddress, AddressType.Precompile, AddressType.ZeroAddress);
-        vm.assume(addr.code.length == 0);
+        for (uint256 i = 0; i < assumeAddresses.length; i++) {
+            vm.assume(assumeAddresses[i] != addr);
+        }
     }
 }
