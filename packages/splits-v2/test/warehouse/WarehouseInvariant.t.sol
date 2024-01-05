@@ -9,7 +9,7 @@ import { BaseTest } from "../Base.t.sol";
 contract WarehouseInvariantTest is BaseTest {
     using Cast for address;
 
-    WarehouseHandler handler;
+    WarehouseHandler private handler;
 
     function setUp() public override {
         super.setUp();

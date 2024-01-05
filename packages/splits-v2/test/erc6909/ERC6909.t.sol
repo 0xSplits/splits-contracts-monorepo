@@ -5,7 +5,6 @@ import { BaseTest } from "../Base.t.sol";
 
 import { PermitUtils } from "../utils/PermitUtils.sol";
 import { ERC6909Test as ERC6909 } from "./ERC6909Test.sol";
-import { console2 } from "forge-std/console2.sol";
 
 contract ERC6909Test is BaseTest {
     error ERC2612ExpiredSignature(uint256 deadline);

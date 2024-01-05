@@ -4,10 +4,10 @@ pragma solidity ^0.8.23;
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 contract PermitUtils {
-    bytes32 internal DOMAIN_SEPARATOR;
+    bytes32 internal immutable DOMAIN_SEPARATOR;
 
-    constructor(bytes32 _domain_separator) {
-        DOMAIN_SEPARATOR = _domain_separator;
+    constructor(bytes32 _domainSeparator) {
+        DOMAIN_SEPARATOR = _domainSeparator;
     }
 
     bytes32 private constant PERMIT_TYPEHASH = keccak256(

@@ -16,8 +16,8 @@ contract WarehouseTest is BaseTest, Fuzzer {
     error ReentrancyGuardReentrantCall();
     error FailedInnerCall();
 
-    address token;
-    address[] defaultTokens;
+    address public token;
+    address[] public defaultTokens;
 
     function setUp() public override {
         super.setUp();
