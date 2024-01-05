@@ -14,10 +14,10 @@ contract WarehouseInvariantTest is BaseTest {
     function setUp() public override {
         super.setUp();
 
-        address[5] memory users = [ALICE, BOB, CAROL, BAD_ACTOR, DAN];
+        address[5] memory users = [ALICE.addr, BOB.addr, CAROL.addr, BAD_ACTOR, DAN.addr];
         address[2] memory tokens = [address(usdc), native];
 
-        handler = new WarehouseHandler(address(warehouse), ALICE, tokens, users);
+        handler = new WarehouseHandler(address(warehouse), ALICE.addr, tokens, users);
 
         targetContract(address(handler));
     }

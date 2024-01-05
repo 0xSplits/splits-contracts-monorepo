@@ -29,10 +29,10 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant {
     /*                                    USERS                                   */
     /* -------------------------------------------------------------------------- */
 
-    address ALICE;
-    address BOB;
-    address CAROL;
-    address DAN;
+    Account ALICE;
+    Account BOB;
+    Account CAROL;
+    Account DAN;
     address BAD_ACTOR;
 
     /* -------------------------------------------------------------------------- */
@@ -64,12 +64,14 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant {
         native = warehouse.NATIVE_TOKEN();
     }
 
-    function createUser(string memory name) internal returns (address payable user) {
-        user = payable(makeAddr(name));
+    function createUser(string memory name) internal returns (Account memory account) {
+        (address user, uint256 pk) = makeAddrAndKey(name);
         vm.deal(user, 200 ether);
         deal(address(usdc), user, 100 ether);
         vm.prank(user);
         weth9.deposit{ value: 100 ether }();
+
+        return Account(user, pk);
     }
 
     function tokenToId(address token) internal pure returns (uint256 id) {

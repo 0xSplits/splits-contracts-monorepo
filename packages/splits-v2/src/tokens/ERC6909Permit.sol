@@ -73,7 +73,10 @@ contract ERC6909Permit is ERC6909, EIP712, Nonces {
             revert ERC2612ExpiredSignature(deadline);
         }
 
-        bytes32 structHash = keccak256(abi.encode(PERMIT_TYPEHASH, owner, spender, value, _useNonce(owner), deadline));
+        uint256 nonce = _useNonce(owner);
+
+        bytes32 structHash =
+            keccak256(abi.encode(PERMIT_TYPEHASH, owner, spender, isOperator, id, value, nonce, deadline));
 
         bytes32 hash = _hashTypedDataV4(structHash);
 
@@ -86,11 +89,9 @@ contract ERC6909Permit is ERC6909, EIP712, Nonces {
             if (id != 0 || value != 0) {
                 revert InvalidPermitParams();
             }
-            setOperator(spender, isOperator);
+            _setOperator(owner, spender, isOperator);
         } else {
-            allowance[owner][spender][id] = value;
-
-            emit Approval(owner, spender, id, value);
+            _approve(owner, spender, id, value);
         }
     }
 

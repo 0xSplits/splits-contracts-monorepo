@@ -47,19 +47,11 @@ abstract contract ERC6909 is IERC6909 {
     }
 
     function approve(address spender, uint256 id, uint256 amount) public virtual returns (bool) {
-        allowance[msg.sender][spender][id] = amount;
-
-        emit Approval(msg.sender, spender, id, amount);
-
-        return true;
+        return _approve(msg.sender, spender, id, amount);
     }
 
     function setOperator(address operator, bool approved) public virtual returns (bool) {
-        isOperator[msg.sender][operator] = approved;
-
-        emit OperatorSet(msg.sender, operator, approved);
-
-        return true;
+        return _setOperator(msg.sender, operator, approved);
     }
 
     /* -------------------------------------------------------------------------- */
@@ -84,5 +76,21 @@ abstract contract ERC6909 is IERC6909 {
         balanceOf[sender][id] -= amount;
 
         emit Transfer(msg.sender, sender, address(0), id, amount);
+    }
+
+    function _setOperator(address _owner, address _operator, bool _approved) internal virtual returns (bool) {
+        isOperator[_owner][_operator] = _approved;
+
+        emit OperatorSet(_owner, _operator, _approved);
+
+        return true;
+    }
+
+    function _approve(address _owner, address _spender, uint256 _id, uint256 _amount) internal virtual returns (bool) {
+        allowance[_owner][_spender][_id] = _amount;
+
+        emit Approval(_owner, _spender, _id, _amount);
+
+        return true;
     }
 }

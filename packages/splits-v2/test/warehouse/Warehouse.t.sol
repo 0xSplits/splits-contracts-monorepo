@@ -355,7 +355,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
     }
 
     function test_withdrawOwner_Revert_whenWithdrawGreaterThanBalance() public {
-        address owner = ALICE;
+        address owner = ALICE.addr;
 
         testFuzz_depositSingleOwner_whenERC20(owner, owner, 100 ether);
 
@@ -381,7 +381,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
     }
 
     function test_withdrawOwner_Revert_whenNonERC20() public {
-        address owner = ALICE;
+        address owner = ALICE.addr;
 
         vm.prank(owner);
         vm.expectRevert();
@@ -393,7 +393,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
     /* -------------------------------------------------------------------------- */
 
     function testFuzz_withdrawOwner_multipleTokens(uint256 _amount) public {
-        address owner = ALICE;
+        address owner = ALICE.addr;
 
         depositDefaultTokens(owner, _amount);
 
@@ -407,7 +407,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
     }
 
     function test_withdrawOwner_multipleTokens_Revert_whenLengthMismatch() public {
-        address owner = ALICE;
+        address owner = ALICE.addr;
 
         depositDefaultTokens(owner, 100 ether);
 
@@ -417,7 +417,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
     }
 
     function test_withdrawOwner_multipleTokens_Revert_whenWithdrawGreaterThanBalance() public {
-        address owner = ALICE;
+        address owner = ALICE.addr;
 
         depositDefaultTokens(owner, 100 ether);
 
@@ -465,7 +465,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
     }
 
     function test_withdrawForOwner_singleToken_Revert_whenWithdrawGreaterThanBalance() public {
-        address owner = ALICE;
+        address owner = ALICE.addr;
 
         testFuzz_depositSingleOwner_whenERC20(owner, owner, 100 ether);
 
@@ -483,14 +483,14 @@ contract WarehouseTest is BaseTest, Fuzzer {
     }
 
     function test_withdrawForOwner_singleToken_Revert_whenNonERC20() public {
-        address owner = ALICE;
+        address owner = ALICE.addr;
 
         vm.expectRevert();
         warehouse.withdraw(owner, address(this), 100 ether);
     }
 
     function test_withdrawForOwner_singleToken_Revert_whenWithdrawalPaused() public {
-        address owner = ALICE;
+        address owner = ALICE.addr;
 
         testFuzz_depositSingleOwner_whenERC20(owner, owner, 100 ether);
 
@@ -531,14 +531,14 @@ contract WarehouseTest is BaseTest, Fuzzer {
     }
 
     function testFuzz_withdrawForOwner_multipleTokens_Revert_whenLengthMismatch() public {
-        address owner = ALICE;
+        address owner = ALICE.addr;
 
         vm.expectRevert(LengthMismatch.selector);
         warehouse.withdraw(owner, defaultTokens, new uint256[](1));
     }
 
     function test_withdrawForOwner_multipleTokens_Revert_whenWithdrawGreaterThanBalance() public {
-        address owner = ALICE;
+        address owner = ALICE.addr;
 
         depositDefaultTokens(owner, 100 ether);
 
@@ -556,14 +556,14 @@ contract WarehouseTest is BaseTest, Fuzzer {
     }
 
     function test_withdrawForOwner_multipleTokens_Revert_whenNonERC20() public {
-        address owner = ALICE;
+        address owner = ALICE.addr;
 
         vm.expectRevert();
         warehouse.withdraw(owner, new address[](1), new uint256[](1));
     }
 
     function test_withdrawForOwner_multipleTokens_Revert_whenWithdrawalPaused() public {
-        address owner = ALICE;
+        address owner = ALICE.addr;
 
         depositDefaultTokens(owner, 100 ether);
 
