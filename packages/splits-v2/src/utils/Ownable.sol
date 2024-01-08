@@ -27,8 +27,6 @@ abstract contract Ownable {
     /*                          CONSTRUCTOR & INITIALIZER                         */
     /* -------------------------------------------------------------------------- */
 
-    constructor() { }
-
     function __initOwnable(address _owner) internal virtual {
         emit OwnershipTransferred(address(0), _owner);
         owner = _owner;

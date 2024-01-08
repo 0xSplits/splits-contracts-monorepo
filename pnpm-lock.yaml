@@ -27,8 +27,8 @@ importers:
         specifier: 0.8.23-fixed
         version: 0.8.23-fixed
       solhint:
-        specifier: ^4.0.0
-        version: 4.0.0
+        specifier: ^4.1.1
+        version: 4.1.1
     devDependencies:
       '@prb/test':
         specifier: ^0.6.4
@@ -706,8 +706,8 @@ packages:
       - debug
     dev: false
 
-  /solhint@4.0.0:
-    resolution: {integrity: sha512-bFViMcFvhqVd/HK3Roo7xZXX5nbujS7Bxeg5vnZc9QvH0yCWCrQ38Yrn1pbAY9tlKROc6wFr+rK1mxYgYrjZgA==}
+  /solhint@4.1.1:
+    resolution: {integrity: sha512-7G4iF8H5hKHc0tR+/uyZesSKtfppFIMvPSW+Ku6MSL25oVRuyFeqNhOsXHfkex64wYJyXs4fe+pvhB069I19Tw==}
     hasBin: true
     dependencies:
       '@solidity-parser/parser': 0.16.2

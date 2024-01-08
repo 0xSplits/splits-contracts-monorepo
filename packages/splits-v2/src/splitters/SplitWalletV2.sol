@@ -44,13 +44,13 @@ contract SplitWalletV2 is Wallet {
     /* -------------------------------------------------------------------------- */
 
     /// @notice address of Split Warehouse
-    IWarehouse public immutable splitWarehouse;
+    IWarehouse public immutable SPLIT_WAREHOUSE;
 
-    /// @notice address of Split Wallet V2 Factory
-    address public immutable factory;
+    /// @notice address of Split Wallet V2 factory
+    address public immutable FACTORY;
 
     /// @notice address of native token
-    address public immutable native;
+    address public immutable NATIVE;
 
     /* -------------------------------------------------------------------------- */
     /*                                   STORAGE                                  */
@@ -70,9 +70,9 @@ contract SplitWalletV2 is Wallet {
     /* -------------------------------------------------------------------------- */
 
     constructor(address _splitWarehouse, address _factory) {
-        splitWarehouse = IWarehouse(_splitWarehouse);
-        native = splitWarehouse.NATIVE_TOKEN();
-        factory = _factory;
+        SPLIT_WAREHOUSE = IWarehouse(_splitWarehouse);
+        NATIVE = SPLIT_WAREHOUSE.NATIVE_TOKEN();
+        FACTORY = _factory;
     }
 
     /**
@@ -82,12 +82,12 @@ contract SplitWalletV2 is Wallet {
      * @param split the split struct containing the split data that gets initialized
      */
     function initialize(SplitV2Lib.Split calldata split, address _controller, address _creator) external {
-        if (msg.sender != factory) revert UnauthorizedInitializer();
+        if (msg.sender != FACTORY) revert UnauthorizedInitializer();
 
         // throws error if invalid
         split.validate();
         splitHash = split.getHash();
-        emit SplitCreated(_creator, _creator, split);
+        emit SplitCreated(_creator, _controller, split);
 
         Wallet.__initWallet(_controller);
     }
@@ -107,7 +107,7 @@ contract SplitWalletV2 is Wallet {
     {
         if (distributionsPaused) revert DistributionsPaused();
         if (splitHash != _split.getHash()) revert InvalidSplit();
-        if (_token == native) revert InvalidToken();
+        if (_token == NATIVE) revert InvalidToken();
 
         (amounts, distibutorReward) = _split.getDistributions(_amount, distributeByPush);
 
@@ -116,8 +116,8 @@ contract SplitWalletV2 is Wallet {
                 IERC20(_token).safeTransfer(_split.recipients[i], amounts[i]);
             }
         } else {
-            IERC20(_token).safeTransfer(address(splitWarehouse), _amount);
-            splitWarehouse.depositAfterTransfer(_split.recipients, _token, amounts);
+            IERC20(_token).safeTransfer(address(SPLIT_WAREHOUSE), _amount);
+            SPLIT_WAREHOUSE.depositAfterTransfer(_split.recipients, _token, amounts);
         }
 
         if (distibutorReward > 0) {
@@ -138,7 +138,7 @@ contract SplitWalletV2 is Wallet {
     {
         if (distributionsPaused) revert DistributionsPaused();
         if (splitHash != _split.getHash()) revert InvalidSplit();
-        if (native != address(0)) revert InvalidToken();
+        if (NATIVE != address(0)) revert InvalidToken();
 
         (amounts, distibutorReward) = _split.getDistributions(_amount, distributeByPush);
 
@@ -147,14 +147,14 @@ contract SplitWalletV2 is Wallet {
                 payable(_split.recipients[i]).sendValue(amounts[i]);
             }
         } else {
-            splitWarehouse.deposit{ value: _amount }(_split.recipients, native, amounts);
+            SPLIT_WAREHOUSE.deposit{ value: _amount }(_split.recipients, NATIVE, amounts);
         }
 
         if (distibutorReward > 0) {
             payable(_distributor).sendValue(distibutorReward);
         }
 
-        emit SplitDistributed(native, _amount, _distributor);
+        emit SplitDistributed(NATIVE, _amount, _distributor);
     }
 
     /* -------------------------------------------------------------------------- */
