@@ -20,6 +20,9 @@ importers:
       '@openzeppelin/contracts':
         specifier: ^5.0.1
         version: 5.0.1
+      solady:
+        specifier: ^0.0.156
+        version: 0.0.156
       solc:
         specifier: 0.8.23-fixed
         version: 0.8.23-fixed
@@ -681,6 +684,10 @@ packages:
       ansi-styles: 4.3.0
       astral-regex: 2.0.0
       is-fullwidth-code-point: 3.0.0
+    dev: false
+
+  /solady@0.0.156:
+    resolution: {integrity: sha512-Xj8fuPLUGXUcADfw5m/+zv3fmTAf4YGhx8U7+e3UmGGQnjly01FLkbD99GwgVUbM73kWnhjIF9OJT7H/WOiN2Q==}
     dev: false
 
   /solc@0.8.23-fixed:

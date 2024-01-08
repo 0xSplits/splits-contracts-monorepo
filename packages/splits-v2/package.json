@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.0.1",
+    "solady": "^0.0.156",
     "solc": "0.8.23-fixed",
     "solhint": "^4.0.0"
   }
