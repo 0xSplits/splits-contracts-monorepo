@@ -39,6 +39,10 @@ library SplitV2Lib {
         return keccak256(abi.encode(_split));
     }
 
+    function getHashMem(Split memory _split) internal pure returns (bytes32) {
+        return keccak256(abi.encode(_split));
+    }
+
     function validate(Split calldata _split) internal pure {
         if (_split.recipients.length != _split.allocations.length) {
             revert InvalidSplit_LengthMismatch();
@@ -73,7 +77,7 @@ library SplitV2Lib {
     )
         internal
         pure
-        returns (uint256[] memory amounts, uint256 distributorReward)
+        returns (uint256[] memory amounts, uint256 amountDistributed, uint256 distributorReward)
     {
         amounts = new uint256[](_split.recipients.length);
 
@@ -87,6 +91,7 @@ library SplitV2Lib {
 
         for (uint256 i = 0; i < _split.recipients.length; i++) {
             amounts[i] = scaleAmount(_amount, _split.totalAllocation, _split.allocations[i]);
+            amountDistributed += amounts[i];
         }
     }
 

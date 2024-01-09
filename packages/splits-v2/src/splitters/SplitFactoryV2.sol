@@ -14,6 +14,12 @@ contract SplitFactoryV2 {
     using LibClone for address;
 
     /* -------------------------------------------------------------------------- */
+    /*                                   EVENTS                                   */
+    /* -------------------------------------------------------------------------- */
+
+    event SplitCreated(address indexed split, CreateSplitParams _split);
+
+    /* -------------------------------------------------------------------------- */
     /*                                   STRUCT                                   */
     /* -------------------------------------------------------------------------- */
 
@@ -68,7 +74,9 @@ contract SplitFactoryV2 {
     {
         split = SPLIT_WALLET_IMPLEMENTATION.cloneDeterministic(_getSalt(_getBytes(_createSplitParams), _salt));
 
-        SplitWalletV2(split).initialize(_createSplitParams.split, _createSplitParams.owner, _createSplitParams.creator);
+        SplitWalletV2(split).initialize(_createSplitParams.split, _createSplitParams.owner);
+
+        emit SplitCreated(split, _createSplitParams);
     }
 
     /**
@@ -78,7 +86,9 @@ contract SplitFactoryV2 {
     function createSplit(CreateSplitParams calldata _createSplitParams) external returns (address split) {
         split = SPLIT_WALLET_IMPLEMENTATION.clone();
 
-        SplitWalletV2(split).initialize(_createSplitParams.split, _createSplitParams.owner, _createSplitParams.creator);
+        SplitWalletV2(split).initialize(_createSplitParams.split, _createSplitParams.owner);
+
+        emit SplitCreated(split, _createSplitParams);
     }
 
     /**

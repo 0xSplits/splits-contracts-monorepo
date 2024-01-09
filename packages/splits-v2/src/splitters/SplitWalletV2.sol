@@ -33,7 +33,6 @@ contract SplitWalletV2 is Wallet {
     /*                                   EVENTS                                   */
     /* -------------------------------------------------------------------------- */
 
-    event SplitCreated(address indexed _creator, address indexed _controller, SplitV2Lib.Split _split);
     event SplitUpdated(address indexed _controller, SplitV2Lib.Split _split);
     event SplitDistributionsPaused(bool _paused);
     event SplitDistributeByPush(bool _distributeByPush);
@@ -81,13 +80,13 @@ contract SplitWalletV2 is Wallet {
      * are unpaused.
      * @param split the split struct containing the split data that gets initialized
      */
-    function initialize(SplitV2Lib.Split calldata split, address _controller, address _creator) external {
+    function initialize(SplitV2Lib.Split calldata split, address _controller) external {
         if (msg.sender != FACTORY) revert UnauthorizedInitializer();
 
         // throws error if invalid
         split.validate();
         splitHash = split.getHash();
-        emit SplitCreated(_creator, _controller, split);
+        emit SplitUpdated(_controller, split);
 
         Wallet.__initWallet(_controller);
     }
@@ -103,20 +102,20 @@ contract SplitWalletV2 is Wallet {
         address _distributor
     )
         external
-        returns (uint256[] memory amounts, uint256 distibutorReward)
+        returns (uint256[] memory amounts, uint256 amountDistributed, uint256 distibutorReward)
     {
         if (distributionsPaused) revert DistributionsPaused();
         if (splitHash != _split.getHash()) revert InvalidSplit();
         if (_token == NATIVE) revert InvalidToken();
 
-        (amounts, distibutorReward) = _split.getDistributions(_amount, distributeByPush);
+        (amounts, amountDistributed, distibutorReward) = _split.getDistributions(_amount, distributeByPush);
 
         if (distributeByPush) {
             for (uint256 i = 0; i < _split.recipients.length; i++) {
                 IERC20(_token).safeTransfer(_split.recipients[i], amounts[i]);
             }
         } else {
-            IERC20(_token).safeTransfer(address(SPLIT_WAREHOUSE), _amount);
+            IERC20(_token).safeTransfer(address(SPLIT_WAREHOUSE), amountDistributed);
             SPLIT_WAREHOUSE.depositAfterTransfer(_split.recipients, _token, amounts);
         }
 
@@ -134,20 +133,19 @@ contract SplitWalletV2 is Wallet {
     )
         external
         payable
-        returns (uint256[] memory amounts, uint256 distibutorReward)
+        returns (uint256[] memory amounts, uint256 amountDistributed, uint256 distibutorReward)
     {
         if (distributionsPaused) revert DistributionsPaused();
         if (splitHash != _split.getHash()) revert InvalidSplit();
-        if (NATIVE != address(0)) revert InvalidToken();
 
-        (amounts, distibutorReward) = _split.getDistributions(_amount, distributeByPush);
+        (amounts, amountDistributed, distibutorReward) = _split.getDistributions(_amount, distributeByPush);
 
         if (distributeByPush) {
             for (uint256 i = 0; i < _split.recipients.length; i++) {
                 payable(_split.recipients[i]).sendValue(amounts[i]);
             }
         } else {
-            SPLIT_WAREHOUSE.deposit{ value: _amount }(_split.recipients, NATIVE, amounts);
+            SPLIT_WAREHOUSE.deposit{ value: amountDistributed }(_split.recipients, NATIVE, amounts);
         }
 
         if (distibutorReward > 0) {
