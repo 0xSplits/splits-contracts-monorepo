@@ -12,7 +12,7 @@ contract WalleHandler is Wallet {
 }
 
 contract WalletTest is BaseTest {
-    WalleHandler wallet;
+    WalleHandler private wallet;
 
     function setUp() public override {
         super.setUp();

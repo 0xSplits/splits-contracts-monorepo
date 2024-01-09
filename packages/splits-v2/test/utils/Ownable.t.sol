@@ -11,7 +11,7 @@ contract OwnableHandler is Ownable {
 }
 
 contract OwnableTest is BaseTest {
-    OwnableHandler ownable;
+    OwnableHandler private ownable;
 
     error Unauthorized();
 

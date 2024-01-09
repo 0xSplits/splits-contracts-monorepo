@@ -9,7 +9,7 @@ import { BaseTest } from "../Base.t.sol";
 contract SplitWalletV2Test is BaseTest {
     using SplitV2Lib for SplitV2Lib.Split;
 
-    SplitWalletV2 wallet;
+    SplitWalletV2 private wallet;
 
     function setUp() public override {
         super.setUp();

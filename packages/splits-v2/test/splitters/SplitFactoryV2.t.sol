@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import { SplitV2Lib } from "../../src/libraries/SplitV2.sol";
 import { SplitFactoryV2 } from "../../src/splitters/SplitFactoryV2.sol";
 import { SplitWalletV2 } from "../../src/splitters/SplitWalletV2.sol";
 
