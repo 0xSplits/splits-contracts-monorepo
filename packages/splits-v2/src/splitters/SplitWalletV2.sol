@@ -27,7 +27,6 @@ contract SplitWalletV2 is Wallet {
     error UnauthorizedInitializer();
     error DistributionsPaused();
     error InvalidSplit();
-    error InvalidToken();
 
     /* -------------------------------------------------------------------------- */
     /*                                   EVENTS                                   */
@@ -106,7 +105,6 @@ contract SplitWalletV2 is Wallet {
     {
         if (distributionsPaused) revert DistributionsPaused();
         if (splitHash != _split.getHash()) revert InvalidSplit();
-        if (_token == NATIVE) revert InvalidToken();
 
         if (distributeByPush) {
             (amounts, amountDistributed, distibutorReward) = _split.getDistributionsForPush(_amount);

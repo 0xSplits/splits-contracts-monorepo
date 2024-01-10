@@ -37,7 +37,7 @@ abstract contract Ownable {
     /* -------------------------------------------------------------------------- */
 
     modifier onlyOwner() virtual {
-        if (msg.sender != owner && owner != address(this)) revert Unauthorized();
+        if (msg.sender != owner && msg.sender != address(this)) revert Unauthorized();
         _;
     }
 

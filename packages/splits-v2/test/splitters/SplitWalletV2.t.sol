@@ -302,7 +302,7 @@ contract SplitWalletV2Test is BaseTest {
 
         wallet.initialize(split, ALICE.addr);
 
-        vm.expectRevert(SplitWalletV2.InvalidToken.selector);
+        vm.expectRevert();
         wallet.distributeERC20(split, native, _amount, ALICE.addr);
     }
 
