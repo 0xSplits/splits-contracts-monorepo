@@ -10,7 +10,6 @@ contract WarehouseTest is BaseTest, Fuzzer {
     using Math for uint256[];
 
     error InvalidAmount();
-    error TokenNotSupported();
     error ZeroOwner();
     error WithdrawalPaused(address owner);
     error ReentrancyGuardReentrantCall();
@@ -224,7 +223,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
     }
 
     function test_depositAfterTransferSingleOwner_Reverts_whenNativeToken() public {
-        vm.expectRevert(TokenNotSupported.selector);
+        vm.expectRevert();
         warehouse.depositAfterTransfer(address(0), native, 0);
     }
 
@@ -281,7 +280,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
     }
 
     function test_depositAfterTransferMultipleOwners_Reverts_whenNativeToken() public {
-        vm.expectRevert(TokenNotSupported.selector);
+        vm.expectRevert();
         warehouse.depositAfterTransfer(new address[](1), native, new uint256[](1));
     }
 

@@ -85,14 +85,15 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
         // Setup native token
         native = warehouse.NATIVE_TOKEN();
 
+        // Setup split factory
+        splitFactory = new SplitFactoryV2(address(warehouse));
+
         assumeAddresses.push(address(warehouse));
         assumeAddresses.push(address(usdc));
         assumeAddresses.push(address(weth));
         assumeAddresses.push(address(weth9));
         assumeAddresses.push(address(native));
-
-        // Setup split factory
-        splitFactory = new SplitFactoryV2(address(warehouse));
+        assumeAddresses.push(address(splitFactory));
     }
 
     function createUser(string memory name) internal returns (Account memory account) {

@@ -8,7 +8,6 @@ import { ERC6909Permit } from "./tokens/ERC6909Permit.sol";
 import { IERC20Metadata as IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title Splits token Warehouse
@@ -16,7 +15,7 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
  * @notice ERC6909 compliant token warehouse for splits ecosystem of splitters
  * @dev Token id here is address(uint160(uint256 id)).
  */
-contract Warehouse is ERC6909Permit, ReentrancyGuard {
+contract Warehouse is ERC6909Permit {
     using Cast for uint256;
     using Cast for address;
     using Math for uint256[];
@@ -28,10 +27,15 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
     /* -------------------------------------------------------------------------- */
 
     error InvalidAmount();
-    error TokenNotSupported();
     error LengthMismatch();
     error ZeroOwner();
     error WithdrawalPaused(address owner);
+
+    /* -------------------------------------------------------------------------- */
+    /*                                   EVENTS                                   */
+    /* -------------------------------------------------------------------------- */
+
+    event WithdrawalsPaused(address indexed owner, bool paused);
 
     /* -------------------------------------------------------------------------- */
     /*                            CONSTANTS/IMMUTABLES                            */
@@ -71,14 +75,13 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
 
     constructor(
         string memory _name,
-        string memory _gas_token_name,
-        string memory _gas_token_symbol
+        string memory _native_token_name,
+        string memory _native_token_symbol
     )
         ERC6909Permit(_name)
-        ReentrancyGuard()
     {
-        nativeTokenName = _gas_token_name;
-        nativeTokenSymbol = _gas_token_symbol;
+        nativeTokenName = _native_token_name;
+        nativeTokenSymbol = _native_token_symbol;
     }
 
     /* -------------------------------------------------------------------------- */
@@ -180,8 +183,6 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
      * @param _amount The amount of the token to be deposited.
      */
     function depositAfterTransfer(address _owner, address _token, uint256 _amount) external {
-        if (_token == NATIVE_TOKEN) revert TokenNotSupported();
-
         uint256 id = _token.toUint256();
 
         if (_amount > IERC20(_token).balanceOf(address(this)) - totalSupply[id]) revert InvalidAmount();
@@ -199,7 +200,6 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
      */
     function depositAfterTransfer(address[] calldata _owners, address _token, uint256[] calldata _amounts) external {
         if (_owners.length != _amounts.length) revert LengthMismatch();
-        if (_token == NATIVE_TOKEN) revert TokenNotSupported();
 
         uint256 id = _token.toUint256();
 
@@ -220,7 +220,7 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
      * @param _token The address of the token to be withdrawn.
      * @param _amount The amount of the token to be withdrawn.
      */
-    function withdraw(address _token, uint256 _amount) external nonReentrant {
+    function withdraw(address _token, uint256 _amount) external {
         _withdraw(msg.sender, _token.toUint256(), _token, _amount);
     }
 
@@ -230,7 +230,7 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
      * @param _tokens The addresses of the tokens to be withdrawn.
      * @param _amounts The amounts of the tokens to be withdrawn.
      */
-    function withdraw(address[] memory _tokens, uint256[] memory _amounts) external nonReentrant {
+    function withdraw(address[] memory _tokens, uint256[] memory _amounts) external {
         if (_tokens.length != _amounts.length) revert LengthMismatch();
 
         for (uint256 i; i < _tokens.length; i++) {
@@ -245,7 +245,7 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
      * @param _token The address of the token to be withdrawn.
      * @param _amount The amount of the token to be withdrawn.
      */
-    function withdraw(address _owner, address _token, uint256 _amount) external nonReentrant {
+    function withdraw(address _owner, address _token, uint256 _amount) external {
         if (isWithdrawPaused[_owner]) revert WithdrawalPaused(_owner);
         if (_owner == address(0)) revert ZeroOwner();
 
@@ -259,7 +259,7 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
      * @param _tokens The addresses of the tokens to be withdrawn.
      * @param _amounts The amounts of the tokens to be withdrawn.
      */
-    function withdraw(address _owner, address[] calldata _tokens, uint256[] calldata _amounts) external nonReentrant {
+    function withdraw(address _owner, address[] calldata _tokens, uint256[] calldata _amounts) external {
         if (_tokens.length != _amounts.length) revert LengthMismatch();
         if (isWithdrawPaused[_owner]) revert WithdrawalPaused(_owner);
         if (_owner == address(0)) revert ZeroOwner();
@@ -279,6 +279,7 @@ contract Warehouse is ERC6909Permit, ReentrancyGuard {
      */
     function pauseWithdrawals(bool pause) external {
         isWithdrawPaused[msg.sender] = pause;
+        emit WithdrawalsPaused(msg.sender, pause);
     }
 
     /* -------------------------------------------------------------------------- */
