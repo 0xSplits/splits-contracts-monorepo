@@ -139,10 +139,8 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
             recipients[i] = _recievers[i].receiver;
         }
 
-        uint256 maxIncentive = SplitV2Lib.calculateMaxIncentive(totalAllocation);
-
-        _pushIncentive = bound(_pushIncentive, 0, maxIncentive);
-        _pullIncentive = bound(_pullIncentive, 0, maxIncentive);
+        _pushIncentive = bound(_pushIncentive, 0, SplitV2Lib.MAX_INCENTIVE);
+        _pullIncentive = bound(_pullIncentive, 0, SplitV2Lib.MAX_INCENTIVE);
 
         return SplitV2Lib.Split(recipients, allocations, totalAllocation, _pushIncentive, _pullIncentive);
     }

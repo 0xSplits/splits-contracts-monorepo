@@ -108,13 +108,13 @@ contract SplitWalletV2 is Wallet {
         if (splitHash != _split.getHash()) revert InvalidSplit();
         if (_token == NATIVE) revert InvalidToken();
 
-        (amounts, amountDistributed, distibutorReward) = _split.getDistributions(_amount, distributeByPush);
-
         if (distributeByPush) {
+            (amounts, amountDistributed, distibutorReward) = _split.getDistributionsForPush(_amount);
             for (uint256 i = 0; i < _split.recipients.length; i++) {
                 IERC20(_token).safeTransfer(_split.recipients[i], amounts[i]);
             }
         } else {
+            (amounts, amountDistributed, distibutorReward) = _split.getDistributionsForPull(_amount);
             IERC20(_token).safeTransfer(address(SPLIT_WAREHOUSE), amountDistributed);
             SPLIT_WAREHOUSE.depositAfterTransfer(_split.recipients, _token, amounts);
         }
@@ -138,13 +138,13 @@ contract SplitWalletV2 is Wallet {
         if (distributionsPaused) revert DistributionsPaused();
         if (splitHash != _split.getHash()) revert InvalidSplit();
 
-        (amounts, amountDistributed, distibutorReward) = _split.getDistributions(_amount, distributeByPush);
-
         if (distributeByPush) {
+            (amounts, amountDistributed, distibutorReward) = _split.getDistributionsForPush(_amount);
             for (uint256 i = 0; i < _split.recipients.length; i++) {
                 payable(_split.recipients[i]).sendValue(amounts[i]);
             }
         } else {
+            (amounts, amountDistributed, distibutorReward) = _split.getDistributionsForPull(_amount);
             SPLIT_WAREHOUSE.deposit{ value: amountDistributed }(_split.recipients, NATIVE, amounts);
         }
 

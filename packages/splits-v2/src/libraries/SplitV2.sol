@@ -32,6 +32,13 @@ library SplitV2Lib {
     }
 
     /* -------------------------------------------------------------------------- */
+    /*                                  CONSTANTS                                 */
+    /* -------------------------------------------------------------------------- */
+
+    uint256 internal constant MAX_INCENTIVE = 1e5;
+    uint256 internal constant INCENTIVE_SCALE = 1e6;
+
+    /* -------------------------------------------------------------------------- */
     /*                                  FUNCTIONS                                 */
     /* -------------------------------------------------------------------------- */
 
@@ -55,25 +62,18 @@ library SplitV2Lib {
 
         if (totalAllocation != 0) revert InvalidSplit_TotalAllocationMismatch();
 
-        uint256 maxIncentive = calculateMaxIncentive(_split.totalAllocation);
-
-        if (_split.pushDistributionIncentive > maxIncentive) {
+        if (_split.pushDistributionIncentive > MAX_INCENTIVE) {
             revert InvalidSplit_InvalidIncentive();
         }
 
-        if (_split.pullDistributionIncentive > maxIncentive) {
+        if (_split.pullDistributionIncentive > MAX_INCENTIVE) {
             revert InvalidSplit_InvalidIncentive();
         }
     }
 
-    function calculateMaxIncentive(uint256 _totalAllocation) internal pure returns (uint256) {
-        return 10 * _totalAllocation / 100;
-    }
-
-    function getDistributions(
+    function getDistributionsForPush(
         Split calldata _split,
-        uint256 _amount,
-        bool _distributeByPush
+        uint256 _amount
     )
         internal
         pure
@@ -81,29 +81,33 @@ library SplitV2Lib {
     {
         amounts = new uint256[](_split.recipients.length);
 
-        if (_distributeByPush) {
-            distributorReward = scaleAmount(_amount, _split.totalAllocation, _split.pushDistributionIncentive);
-        } else {
-            distributorReward = scaleAmount(_amount, _split.totalAllocation, _split.pullDistributionIncentive);
-        }
+        distributorReward = _amount * _split.pushDistributionIncentive / INCENTIVE_SCALE;
 
         _amount -= distributorReward;
 
         for (uint256 i = 0; i < _split.recipients.length; i++) {
-            amounts[i] = scaleAmount(_amount, _split.totalAllocation, _split.allocations[i]);
+            amounts[i] = _amount * _split.allocations[i] / _split.totalAllocation;
             amountDistributed += amounts[i];
         }
     }
 
-    function scaleAmount(
-        uint256 _amount,
-        uint256 _totalAllocation,
-        uint256 _allocation
+    function getDistributionsForPull(
+        Split calldata _split,
+        uint256 _amount
     )
         internal
         pure
-        returns (uint256)
+        returns (uint256[] memory amounts, uint256 amountDistributed, uint256 distributorReward)
     {
-        return _amount * _allocation / _totalAllocation;
+        amounts = new uint256[](_split.recipients.length);
+
+        distributorReward = _amount * _split.pullDistributionIncentive / INCENTIVE_SCALE;
+
+        _amount -= distributorReward;
+
+        for (uint256 i = 0; i < _split.recipients.length; i++) {
+            amounts[i] = _amount * _split.allocations[i] / _split.totalAllocation;
+            amountDistributed += amounts[i];
+        }
     }
 }

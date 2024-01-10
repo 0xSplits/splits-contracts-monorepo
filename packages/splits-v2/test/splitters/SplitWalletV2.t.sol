@@ -92,7 +92,7 @@ contract SplitWalletV2Test is BaseTest {
     {
         SplitV2Lib.Split memory split = createSplit(_receivers, _pullIncentive, _pushIncentive);
 
-        split.pushDistributionIncentive = SplitV2Lib.calculateMaxIncentive(split.totalAllocation) + 1;
+        split.pushDistributionIncentive = SplitV2Lib.MAX_INCENTIVE + 1;
 
         vm.expectRevert(SplitV2Lib.InvalidSplit_InvalidIncentive.selector);
         wallet.initialize(split, _owner);
@@ -108,7 +108,7 @@ contract SplitWalletV2Test is BaseTest {
     {
         SplitV2Lib.Split memory split = createSplit(_receivers, _pullIncentive, _pushIncentive);
 
-        split.pullDistributionIncentive = SplitV2Lib.calculateMaxIncentive(split.totalAllocation) + 1;
+        split.pullDistributionIncentive = SplitV2Lib.MAX_INCENTIVE + 1;
 
         vm.expectRevert(SplitV2Lib.InvalidSplit_InvalidIncentive.selector);
         wallet.initialize(split, _owner);
@@ -198,7 +198,7 @@ contract SplitWalletV2Test is BaseTest {
         testFuzz_initialize(_receivers, _pullIncentive, _pushIncentive, _owner);
         SplitV2Lib.Split memory split = createSplit(_receivers, _pullIncentive, _pushIncentive);
 
-        split.pushDistributionIncentive = SplitV2Lib.calculateMaxIncentive(split.totalAllocation) + 1;
+        split.pushDistributionIncentive = SplitV2Lib.MAX_INCENTIVE + 1;
 
         vm.prank(_owner);
         vm.expectRevert(SplitV2Lib.InvalidSplit_InvalidIncentive.selector);
@@ -216,7 +216,7 @@ contract SplitWalletV2Test is BaseTest {
         testFuzz_initialize(_receivers, _pullIncentive, _pushIncentive, _owner);
         SplitV2Lib.Split memory split = createSplit(_receivers, _pullIncentive, _pushIncentive);
 
-        split.pullDistributionIncentive = SplitV2Lib.calculateMaxIncentive(split.totalAllocation) + 1;
+        split.pullDistributionIncentive = SplitV2Lib.MAX_INCENTIVE + 1;
 
         vm.prank(_owner);
         vm.expectRevert(SplitV2Lib.InvalidSplit_InvalidIncentive.selector);
@@ -439,6 +439,6 @@ contract SplitWalletV2Test is BaseTest {
             receivers[i - 100] = SplitReceiver(address(uint160(i + 1)), uint32(10));
         }
 
-        return createSplit(receivers, 10, 10);
+        return createSplit(receivers, 1e5, 1e5);
     }
 }
