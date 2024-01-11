@@ -94,15 +94,11 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
         assumeAddresses.push(address(weth9));
         assumeAddresses.push(address(native));
         assumeAddresses.push(address(splitFactory));
+        assumeAddresses.push(splitFactory.SPLIT_WALLET_IMPLEMENTATION());
     }
 
     function createUser(string memory name) internal returns (Account memory account) {
         (address user, uint256 pk) = makeAddrAndKey(name);
-        vm.deal(user, 200 ether);
-        deal(address(usdc), user, 100 ether);
-        vm.prank(user);
-        weth9.deposit{ value: 100 ether }();
-
         return Account(user, pk);
     }
 

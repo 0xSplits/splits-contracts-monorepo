@@ -38,6 +38,7 @@ contract WalletTest is BaseTest {
         Wallet.Call[] memory calls = new Wallet.Call[](1);
         calls[0] = call;
 
+        deal(wallet.owner(), 1);
         vm.prank(wallet.owner());
         wallet.execCalls{ value: 1 }(calls);
 

@@ -116,13 +116,16 @@ contract WarehouseHandler is CommonBase, StdCheats, StdUtils {
         }
     }
 
-    function withdraw(uint256 _token, uint256 _amount) public mockDepositor {
+    function withdraw(uint256 _user, uint256 _token, uint256 _amount) public {
         _token = bound(_token, 0, tokens.length - 1);
         address token = tokens[_token];
 
-        address user = depositor;
+        _user = bound(_user, 0, users.length - 1);
+        address user = users[_user];
         _amount = bound(_amount, 0, warehouse.balanceOf(user, token.toUint256()));
-        warehouse.withdraw(user, token, _amount);
+
+        vm.prank(user);
+        warehouse.withdraw(token, _amount);
     }
 
     function withdrawForUser(uint256 _user, uint256 _token, uint256 _amount) public mockDepositor {
@@ -134,6 +137,21 @@ contract WarehouseHandler is CommonBase, StdCheats, StdUtils {
 
         _amount = bound(_amount, 0, warehouse.balanceOf(user, token.toUint256()));
         warehouse.withdraw(user, token, _amount);
+    }
+
+    function withdrawWithIncentiveForUser(uint256 _user, uint256 _token, uint256 _amount, uint256 _withdrawer) public {
+        _user = bound(_user, 0, users.length - 1);
+        address user = users[_user];
+
+        _token = bound(_token, 0, tokens.length - 1);
+        address token = tokens[_token];
+
+        _withdrawer = bound(_withdrawer, 0, users.length - 1);
+        address withdrawer = users[_withdrawer];
+
+        _amount = bound(_amount, 0, warehouse.balanceOf(user, token.toUint256()));
+        vm.prank(withdrawer);
+        warehouse.withdrawWithIncentive(user, token, _amount, withdrawer);
     }
 
     function transfer(uint256 _sender, uint256 _receiver, uint256 _token, uint256 _amount) public mockUser(_sender) {
@@ -151,17 +169,28 @@ contract WarehouseHandler is CommonBase, StdCheats, StdUtils {
         warehouse.transfer(receiver, token.toUint256(), _amount);
     }
 
-    function transferFrom(uint256 _sender, uint256 _receiver, uint256 _token, uint256 _amount) public {
+    function transferFrom(
+        uint256 _spender,
+        uint256 _sender,
+        uint256 _receiver,
+        uint256 _token,
+        uint256 _amount
+    )
+        public
+        mockUser(_spender)
+    {
+        _spender = bound(_spender, 0, users.length - 1);
         _sender = bound(_sender, 0, users.length - 1);
         _receiver = bound(_receiver, 0, users.length - 1);
 
+        address spender = users[_spender];
         address sender = users[_sender];
         address receiver = users[_receiver];
 
         _token = bound(_token, 0, tokens.length - 1);
         address token = tokens[_token];
 
-        uint256 allowance = warehouse.allowance(sender, address(this), token.toUint256());
+        uint256 allowance = warehouse.allowance(sender, spender, token.toUint256());
         uint256 balance = warehouse.balanceOf(sender, token.toUint256());
 
         _amount = bound(_amount, 0, Math.min(allowance, balance));
@@ -169,25 +198,25 @@ contract WarehouseHandler is CommonBase, StdCheats, StdUtils {
         warehouse.transferFrom(sender, receiver, token.toUint256(), _amount);
     }
 
-    function approve(uint256 _user, uint256 _token, uint256 _amount) public mockUser(_user) {
-        _user = bound(_user, 0, users.length - 1);
-        address user = users[_user];
-
+    function approve(uint256 _user, uint256 _token, uint256 _amount, uint256 _spender) public mockUser(_user) {
         _token = bound(_token, 0, tokens.length - 1);
         address token = tokens[_token];
 
-        _amount = bound(_amount, 0, type(uint256).max);
+        _spender = bound(_spender, 0, users.length - 1);
+        address spender = users[_spender];
 
-        vm.prank(user);
-        warehouse.approve(address(this), token.toUint256(), _amount);
+        warehouse.approve(spender, token.toUint256(), _amount);
     }
 
-    function setOperator(uint256 _user, bool _approved) public mockUser(_user) {
-        _user = bound(_user, 0, users.length - 1);
-        address user = users[_user];
+    function setOperator(uint256 _user, bool _approved, uint256 _operator) public mockUser(_user) {
+        _operator = bound(_operator, 0, users.length - 1);
+        address operator = users[_operator];
 
-        vm.prank(user);
-        warehouse.setOperator(address(this), _approved);
+        warehouse.setOperator(operator, _approved);
+    }
+
+    function setWithdrawIncentive(uint256 _user, uint256 _incentive) public mockUser(_user) {
+        warehouse.setWithdrawIncentive(_incentive);
     }
 
     function filter(

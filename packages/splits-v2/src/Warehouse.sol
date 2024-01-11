@@ -30,12 +30,14 @@ contract Warehouse is ERC6909Permit {
     error LengthMismatch();
     error ZeroOwner();
     error WithdrawalPaused(address owner);
+    error InvalidIncentive();
 
     /* -------------------------------------------------------------------------- */
     /*                                   EVENTS                                   */
     /* -------------------------------------------------------------------------- */
 
     event WithdrawalsPaused(address indexed owner, bool paused);
+    event WithdrawIncentiveSet(address indexed owner, uint256 incentive);
 
     /* -------------------------------------------------------------------------- */
     /*                            CONSTANTS/IMMUTABLES                            */
@@ -59,6 +61,12 @@ contract Warehouse is ERC6909Permit {
     /// @notice metadata symbol of the native token.
     string private nativeTokenSymbol;
 
+    /// @notice Maximum incentive for withdrawing a token.
+    uint256 public constant MAX_INCENTIVE = 1e5;
+
+    /// @notice Scale for the incentive for withdrawing a token.
+    uint256 public constant INCENTIVE_SCALE = 1e6;
+
     /* -------------------------------------------------------------------------- */
     /*                                   STORAGE                                  */
     /* -------------------------------------------------------------------------- */
@@ -68,6 +76,9 @@ contract Warehouse is ERC6909Permit {
 
     /// @notice Whether a token withdrawal is paused for a given address.
     mapping(address owner => bool isPaused) public isWithdrawPaused;
+
+    /// @notice Incentive for withdrawing a token.
+    mapping(address owner => uint256 incentive) public withdrawIncentive;
 
     /* -------------------------------------------------------------------------- */
     /*                                 CONSTRUCTOR                                */
@@ -269,6 +280,51 @@ contract Warehouse is ERC6909Permit {
         }
     }
 
+    /**
+     * @notice Withdraws token from the warehouse for a specified address with incentives for the withdrawer.
+     * @dev It is recommended to withdraw balance - 1 to save gas.
+     * @param _owner The address whose tokens are withdrawn.
+     * @param _token The address of the token to be withdrawn.
+     * @param _amount The amount of the token to be withdrawn.
+     * @param _withdrawer The address that will receive the withdrawer incentive.
+     */
+    function withdrawWithIncentive(address _owner, address _token, uint256 _amount, address _withdrawer) external {
+        if (isWithdrawPaused[_owner]) revert WithdrawalPaused(_owner);
+        if (_owner == address(0)) revert ZeroOwner();
+
+        uint256 reward = _amount * withdrawIncentive[_owner] / INCENTIVE_SCALE;
+        _withdraw(_owner, _token.toUint256(), _token, _amount, reward, _withdrawer);
+    }
+
+    /**
+     * @notice Withdraws tokens from the warehouse for a specified address with incentives for the withdrawer.
+     * @dev It is recommended to withdraw balance - 1 to save gas.
+     * @param _owner The address whose tokens are withdrawn.
+     * @param _tokens The addresses of the tokens to be withdrawn.
+     * @param _amounts The amounts of the tokens to be withdrawn.
+     * @param _withdrawer The address that will receive the withdrawer incentive.
+     */
+    function withdrawWithIncentive(
+        address _owner,
+        address[] calldata _tokens,
+        uint256[] calldata _amounts,
+        address _withdrawer
+    )
+        external
+    {
+        if (_tokens.length != _amounts.length) revert LengthMismatch();
+        if (isWithdrawPaused[_owner]) revert WithdrawalPaused(_owner);
+        if (_owner == address(0)) revert ZeroOwner();
+
+        uint256 incentive = withdrawIncentive[_owner];
+        uint256 reward;
+
+        for (uint256 i; i < _tokens.length; i++) {
+            reward = _amounts[i] * incentive / INCENTIVE_SCALE;
+            _withdraw(_owner, _tokens[i].toUint256(), _tokens[i], _amounts[i], reward, _withdrawer);
+        }
+    }
+
     /* -------------------------------------------------------------------------- */
     /*                                OWNER ACTIONS                               */
     /* -------------------------------------------------------------------------- */
@@ -280,6 +336,16 @@ contract Warehouse is ERC6909Permit {
     function pauseWithdrawals(bool pause) external {
         isWithdrawPaused[msg.sender] = pause;
         emit WithdrawalsPaused(msg.sender, pause);
+    }
+
+    /**
+     * @notice Sets the incentive for withdrawing tokens for msg.sender.
+     * @param _incentive The incentive for withdrawing tokens.
+     */
+    function setWithdrawIncentive(uint256 _incentive) external {
+        if (_incentive > MAX_INCENTIVE) revert InvalidIncentive();
+        withdrawIncentive[msg.sender] = _incentive;
+        emit WithdrawIncentiveSet(msg.sender, _incentive);
     }
 
     /* -------------------------------------------------------------------------- */
@@ -316,6 +382,28 @@ contract Warehouse is ERC6909Permit {
             payable(_owner).sendValue(_amount);
         } else {
             IERC20(_token).safeTransfer(_owner, _amount);
+        }
+    }
+
+    function _withdraw(
+        address _owner,
+        uint256 _id,
+        address _token,
+        uint256 _amount,
+        uint256 _reward,
+        address _withdrawer
+    )
+        internal
+    {
+        _burn(_owner, _id, _amount);
+        totalSupply[_id] -= _amount;
+
+        if (_token == NATIVE_TOKEN) {
+            payable(_owner).sendValue(_amount - _reward);
+            payable(_withdrawer).sendValue(_reward);
+        } else {
+            IERC20(_token).safeTransfer(_owner, _amount - _reward);
+            IERC20(_token).safeTransfer(_withdrawer, _reward);
         }
     }
 }

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+import { Warehouse } from "../../src/Warehouse.sol";
 import { Math } from "../../src/libraries/Math.sol";
 import { BaseTest } from "../Base.t.sol";
 import { ERC20 } from "../utils/ERC20.sol";
@@ -25,6 +26,8 @@ contract WarehouseTest is BaseTest, Fuzzer {
         defaultTokens.push(address(usdc));
         defaultTokens.push(address(weth));
         defaultTokens.push(native);
+
+        assumeAddresses.push(address(this));
     }
 
     /* -------------------------------------------------------------------------- */
@@ -580,16 +583,216 @@ contract WarehouseTest is BaseTest, Fuzzer {
     }
 
     /* -------------------------------------------------------------------------- */
+    /*               WITHDRAW_FOR_OWNER_WITH_INCENTIVE_SINGLE_TOKENS              */
+    /* -------------------------------------------------------------------------- */
+
+    function testFuzz_withdrawWithIncentiveForOwner_singleToken_whenERC20(
+        address _owner,
+        uint192 _amount,
+        uint256 _incentive,
+        address _withdrawer
+    )
+        public
+    {
+        assumeAddress(_owner);
+        assumeAddress(_withdrawer);
+        vm.assume(_owner != _withdrawer);
+        vm.assume(_withdrawer.balance == 0);
+
+        testFuzz_depositSingleOwner_whenERC20(_owner, _owner, _amount);
+        testFuzz_setWithdrawIncentive(_owner, _incentive);
+
+        warehouse.withdrawWithIncentive(_owner, token, _amount, _withdrawer);
+
+        uint256 reward = _amount * warehouse.withdrawIncentive(_owner) / warehouse.INCENTIVE_SCALE();
+
+        assertEq(warehouse.balanceOf(_owner, tokenToId(token)), 0);
+        assertEq(warehouse.totalSupply(tokenToId(token)), 0);
+        assertEq(ERC20(token).balanceOf(_owner), _amount - reward);
+        assertEq(ERC20(token).balanceOf(_withdrawer), reward);
+    }
+
+    function testFuzz_withdrawWithIncentiveForOwner_singleToken_whenNative(
+        address _owner,
+        uint192 _amount,
+        uint256 _incentive,
+        address _withdrawer
+    )
+        public
+    {
+        assumeAddress(_owner);
+        assumeAddress(_withdrawer);
+        vm.assume(_owner != _withdrawer);
+        vm.assume(_withdrawer.balance == 0);
+
+        testFuzz_depositSingleOwner_whenNativeToken(_owner, _owner, _amount);
+        testFuzz_setWithdrawIncentive(_owner, _incentive);
+
+        warehouse.withdrawWithIncentive(_owner, native, _amount, _withdrawer);
+
+        uint256 reward = _amount * warehouse.withdrawIncentive(_owner) / warehouse.INCENTIVE_SCALE();
+
+        assertEq(warehouse.balanceOf(_owner, tokenToId(native)), 0);
+        assertEq(warehouse.totalSupply(tokenToId(native)), 0);
+        assertEq(address(_owner).balance, _amount - reward);
+        assertEq(_withdrawer.balance, reward);
+    }
+
+    function test_withdrawWithIncentiveForOwner_singleToken_Revert_whenWithdrawGreaterThanBalance() public {
+        address owner = ALICE.addr;
+
+        testFuzz_depositSingleOwner_whenERC20(owner, owner, 100 ether);
+
+        vm.expectRevert();
+        warehouse.withdrawWithIncentive(owner, token, 101 ether, address(this));
+    }
+
+    function test_withdrawWithIncentiveForOwner_singleToken_Revert_whenOwnerReenters() public {
+        address owner = BAD_ACTOR;
+
+        testFuzz_depositSingleOwner_whenNativeToken(owner, owner, 100 ether);
+
+        vm.expectRevert(FailedInnerCall.selector);
+        warehouse.withdrawWithIncentive(owner, native, 100 ether, address(this));
+    }
+
+    function test_withdrawWithIncentiveForOwner_singleToken_Revert_whenNonERC20() public {
+        address owner = ALICE.addr;
+
+        vm.expectRevert();
+        warehouse.withdrawWithIncentive(owner, address(this), 100 ether, address(this));
+    }
+
+    function test_withdrawWithIncentiveForOwner_singleToken_Revert_whenWithdrawalPaused() public {
+        address owner = ALICE.addr;
+
+        testFuzz_depositSingleOwner_whenERC20(owner, owner, 100 ether);
+
+        vm.startPrank(owner);
+        warehouse.pauseWithdrawals(true);
+
+        vm.expectRevert(abi.encodeWithSelector(WithdrawalPaused.selector, owner));
+        warehouse.withdrawWithIncentive(owner, token, 100 ether, address(this));
+        vm.stopPrank();
+    }
+
+    function test_withdrawWithIncentiveForOwner_singleToken_Revert_whenZeroOwner() public {
+        vm.expectRevert(ZeroOwner.selector);
+        warehouse.withdrawWithIncentive(address(0), token, 100 ether, address(this));
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*              WITHDRAW_FOR_OWNER_WITH_INCENTIVE_MULTIPLE_TOKENS             */
+    /* -------------------------------------------------------------------------- */
+
+    function testFuzz_withdrawWithIncentiveForOwner_multipleTokens(
+        address _owner,
+        uint192 _amount,
+        uint256 _incentive,
+        address _withdrawer
+    )
+        public
+    {
+        assumeAddress(_owner);
+        assumeAddress(_withdrawer);
+        vm.assume(_owner != _withdrawer);
+        vm.assume(_withdrawer.balance == 0);
+
+        depositDefaultTokens(_owner, _amount);
+        testFuzz_setWithdrawIncentive(_owner, _incentive);
+
+        warehouse.withdrawWithIncentive(_owner, defaultTokens, getAmounts(_amount), _withdrawer);
+
+        for (uint256 i = 0; i < defaultTokens.length; i++) {
+            assertEq(warehouse.balanceOf(_owner, tokenToId(defaultTokens[i])), 0);
+            assertEq(warehouse.totalSupply(tokenToId(defaultTokens[i])), 0);
+
+            uint256 reward = _amount * warehouse.withdrawIncentive(_owner) / warehouse.INCENTIVE_SCALE();
+
+            if (defaultTokens[i] == native) {
+                assertEq(address(_owner).balance, _amount - reward);
+                assertEq(_withdrawer.balance, reward);
+            } else {
+                assertEq(ERC20(defaultTokens[i]).balanceOf(_owner), _amount - reward);
+                assertEq(ERC20(defaultTokens[i]).balanceOf(_withdrawer), reward);
+            }
+        }
+    }
+
+    function testFuzz_withdrawWithIncentiveForOwner_multipleTokens_Revert_whenLengthMismatch() public {
+        address owner = ALICE.addr;
+
+        vm.expectRevert(LengthMismatch.selector);
+        warehouse.withdrawWithIncentive(owner, defaultTokens, new uint256[](1), address(this));
+    }
+
+    function test_withdrawWithIncentiveForOwner_multipleTokens_Revert_whenWithdrawGreaterThanBalance() public {
+        address owner = ALICE.addr;
+
+        depositDefaultTokens(owner, 100 ether);
+
+        vm.expectRevert();
+        warehouse.withdrawWithIncentive(owner, defaultTokens, getAmounts(101 ether), address(this));
+    }
+
+    function test_withdrawWithIncentiveForOwner_multipleTokens_Revert_whenOwnerReenters() public {
+        address owner = BAD_ACTOR;
+
+        depositDefaultTokens(owner, 100 ether);
+
+        vm.expectRevert(FailedInnerCall.selector);
+        warehouse.withdrawWithIncentive(owner, defaultTokens, getAmounts(100 ether), address(this));
+    }
+
+    function test_withdrawWithIncentiveForOwner_multipleTokens_Revert_whenNonERC20() public {
+        address owner = ALICE.addr;
+
+        vm.expectRevert();
+        warehouse.withdrawWithIncentive(owner, new address[](1), new uint256[](1), address(this));
+    }
+
+    function test_withdrawWithIncentiveForOwner_multipleTokens_Revert_whenWithdrawalPaused() public {
+        address owner = ALICE.addr;
+
+        depositDefaultTokens(owner, 100 ether);
+
+        vm.startPrank(owner);
+        warehouse.pauseWithdrawals(true);
+
+        vm.expectRevert(abi.encodeWithSelector(WithdrawalPaused.selector, owner));
+        warehouse.withdrawWithIncentive(owner, defaultTokens, getAmounts(100 ether), address(this));
+        vm.stopPrank();
+    }
+
+    function test_withdrawWithIncentiveForOwner_multipleTokens_Revert_whenZeroOwner() public {
+        vm.expectRevert(ZeroOwner.selector);
+        warehouse.withdrawWithIncentive(address(0), defaultTokens, getAmounts(100 ether), address(this));
+    }
+
+    /* -------------------------------------------------------------------------- */
     /*                                OWNER_ACTIONS                               */
     /* -------------------------------------------------------------------------- */
 
     function testFuzz_pauseWithdrawals(address _owner, bool pause) public {
-        assumeAddress(_owner);
-
         vm.prank(_owner);
         warehouse.pauseWithdrawals(pause);
 
         assertEq(warehouse.isWithdrawPaused(_owner), pause);
+    }
+
+    function testFuzz_setWithdrawIncentive(address _owner, uint256 _incentive) public {
+        _incentive = bound(_incentive, 0, 1e5);
+
+        vm.prank(_owner);
+        warehouse.setWithdrawIncentive(_incentive);
+
+        assertEq(warehouse.withdrawIncentive(_owner), _incentive);
+    }
+
+    function testFuzz_setWithdrawIncentive_Revert_whenInvalidIncentive() public {
+        uint256 incentive = warehouse.MAX_INCENTIVE() + 1;
+        vm.expectRevert(Warehouse.InvalidIncentive.selector);
+        warehouse.setWithdrawIncentive(incentive);
     }
 
     /* -------------------------------------------------------------------------- */
