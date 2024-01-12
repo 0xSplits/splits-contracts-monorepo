@@ -25,12 +25,21 @@ contract WarehouseHandler is CommonBase, StdCheats, StdUtils {
 
     address private native;
 
-    constructor(address _warehouse, address _depositor, address[2] memory _tokens, address[5] memory _users) {
+    address private badActor;
+
+    constructor(
+        address _warehouse,
+        address _depositor,
+        address[2] memory _tokens,
+        address[5] memory _users,
+        address _badActor
+    ) {
         warehouse = Warehouse(_warehouse);
         native = warehouse.NATIVE_TOKEN();
         depositor = _depositor;
         tokens = _tokens;
         users = _users;
+        badActor = _badActor;
     }
 
     modifier mockDepositor() {
@@ -48,7 +57,7 @@ contract WarehouseHandler is CommonBase, StdCheats, StdUtils {
         vm.stopPrank();
     }
 
-    function deposit(uint256 _user, uint256 _token, uint256 _amount) public mockDepositor {
+    function deposit(uint256 _user, uint256 _token, uint192 _amount) public mockDepositor {
         _user = bound(_user, 0, users.length - 1);
         address user = users[_user];
 
@@ -83,7 +92,7 @@ contract WarehouseHandler is CommonBase, StdCheats, StdUtils {
         }
     }
 
-    function depositAfterTransfer(uint256 _user, uint256 _token, uint256 _amount) public mockDepositor {
+    function depositAfterTransfer(uint256 _user, uint256 _token, uint192 _amount) public mockDepositor {
         _user = bound(_user, 0, users.length - 1);
         address user = users[_user];
 
@@ -125,6 +134,9 @@ contract WarehouseHandler is CommonBase, StdCheats, StdUtils {
         _amount = bound(_amount, 0, warehouse.balanceOf(user, token.toUint256()));
 
         vm.prank(user);
+        if (user == badActor && token == native) {
+            vm.expectRevert();
+        }
         warehouse.withdraw(token, _amount);
     }
 
@@ -136,6 +148,9 @@ contract WarehouseHandler is CommonBase, StdCheats, StdUtils {
         address token = tokens[_token];
 
         _amount = bound(_amount, 0, warehouse.balanceOf(user, token.toUint256()));
+        if (user == badActor && token == native) {
+            vm.expectRevert();
+        }
         warehouse.withdraw(user, token, _amount);
     }
 
@@ -151,6 +166,11 @@ contract WarehouseHandler is CommonBase, StdCheats, StdUtils {
 
         _amount = bound(_amount, 0, warehouse.balanceOf(user, token.toUint256()));
         vm.prank(withdrawer);
+        if (user == badActor && token == native) {
+            vm.expectRevert();
+        } else if (withdrawer == badActor && token == native) {
+            vm.expectRevert();
+        }
         warehouse.withdrawWithIncentive(user, token, _amount, withdrawer);
     }
 
@@ -216,6 +236,7 @@ contract WarehouseHandler is CommonBase, StdCheats, StdUtils {
     }
 
     function setWithdrawIncentive(uint256 _user, uint256 _incentive) public mockUser(_user) {
+        _incentive = bound(_incentive, 0, warehouse.MAX_INCENTIVE());
         warehouse.setWithdrawIncentive(_incentive);
     }
 

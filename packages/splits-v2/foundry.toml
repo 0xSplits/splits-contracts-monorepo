@@ -1,15 +1,24 @@
 [profile.default]
 auto_detect_solc = false
-fuzz = { runs = 1_000 }
 gas_reports = ["*"]
 optimizer = true
-optimizer_runs = 10_000
+optimizer_runs = 1000
 out = "out"
 script = "script"
 solc = "0.8.23"
 src = "src"
 test = "test"
 allow_paths = ['../../node_modules']
+
+[profile.default.fuzz]
+max_test_rejects = 1_000_000
+runs = 50
+
+[profile.default.invariant]
+call_override = false
+depth = 20
+fail_on_revert = true
+runs = 20
 
 [profile.ci]
 fuzz = { runs = 10_000 }
@@ -25,6 +34,33 @@ quote_style = "double"
 tab_width = 4
 wrap_comments = true
 sort_imports = true
+
+[profile.smt]
+out = "out-optimized"
+script = "src"
+test = "src"
+via_ir = true
+
+[profile.smt.model_checker]
+engine = "chc" # constrained Horn clauses
+invariants = ["contract", "reentrancy"]
+show_proved_safe = true
+show_unproved = true
+show_unsupported = true
+timeout = 100_000 # in milliseconds, per solving query
+targets = [
+    "assert",
+    "constantCondition",
+    "divByZero",
+    "outOfBounds",
+    "overflow",
+    "underflow",
+]
+
+[profile.smt.model_checker.contracts]
+"src/Warehouse.sol" = ["Warehouse"]
+"src/splitters/SplitWalletV2.sol" = ["SplitWalletV2"]
+"src/splitters/SplitFactoryV2.sol" = ["SplitFactoryV2"]
 
 [etherscan]
 mainnet = { key = "${API_KEY_ETHERSCAN}" }

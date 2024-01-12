@@ -17,7 +17,7 @@ contract WarehouseInvariantTest is BaseTest {
         address[5] memory users = [ALICE.addr, BOB.addr, CAROL.addr, BAD_ACTOR, DAN.addr];
         address[2] memory tokens = [address(usdc), native];
 
-        handler = new WarehouseHandler(address(warehouse), ALICE.addr, tokens, users);
+        handler = new WarehouseHandler(address(warehouse), ALICE.addr, tokens, users, BAD_ACTOR);
 
         targetContract(address(handler));
     }
