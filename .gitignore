@@ -24,6 +24,7 @@ coverage
 # Build Outputs
 .next/
 out/
+out-optimized/
 build
 dist
 
