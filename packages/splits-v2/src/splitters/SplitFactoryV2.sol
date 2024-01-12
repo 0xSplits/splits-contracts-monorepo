@@ -14,6 +14,12 @@ contract SplitFactoryV2 {
     using LibClone for address;
 
     /* -------------------------------------------------------------------------- */
+    /*                                   ERRORS                                   */
+    /* -------------------------------------------------------------------------- */
+
+    error ZeroAddress();
+
+    /* -------------------------------------------------------------------------- */
     /*                                   EVENTS                                   */
     /* -------------------------------------------------------------------------- */
 
@@ -51,6 +57,7 @@ contract SplitFactoryV2 {
      * @param _splitWarehouse Address of Split Warehouse
      */
     constructor(address _splitWarehouse) {
+        if (_splitWarehouse == address(0)) revert ZeroAddress();
         SPLIT_WALLET_IMPLEMENTATION = address(new SplitWalletV2(_splitWarehouse, address(this)));
     }
 

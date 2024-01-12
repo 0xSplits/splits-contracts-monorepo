@@ -27,6 +27,7 @@ contract SplitWalletV2 is Wallet {
     error UnauthorizedInitializer();
     error DistributionsPaused();
     error InvalidSplit();
+    error ZeroAddress();
 
     /* -------------------------------------------------------------------------- */
     /*                                   EVENTS                                   */
@@ -68,6 +69,7 @@ contract SplitWalletV2 is Wallet {
     /* -------------------------------------------------------------------------- */
 
     constructor(address _splitWarehouse, address _factory) {
+        if (_factory == address(0)) revert ZeroAddress();
         SPLIT_WAREHOUSE = IWarehouse(_splitWarehouse);
         NATIVE = SPLIT_WAREHOUSE.NATIVE_TOKEN();
         FACTORY = _factory;
@@ -121,7 +123,7 @@ contract SplitWalletV2 is Wallet {
             IERC20(_token).safeTransfer(_distributor, distibutorReward);
         }
 
-        emit SplitDistributed(_token, _amount, _distributor);
+        emit SplitDistributed(_token, amountDistributed + distibutorReward, _distributor);
     }
 
     function distributeNative(
@@ -150,7 +152,7 @@ contract SplitWalletV2 is Wallet {
             payable(_distributor).sendValue(distibutorReward);
         }
 
-        emit SplitDistributed(NATIVE, _amount, _distributor);
+        emit SplitDistributed(NATIVE, amountDistributed + distibutorReward, _distributor);
     }
 
     /* -------------------------------------------------------------------------- */
