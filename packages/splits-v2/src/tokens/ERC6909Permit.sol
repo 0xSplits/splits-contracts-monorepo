@@ -44,54 +44,54 @@ contract ERC6909Permit is ERC6909, EIP712, Nonces {
 
     /**
      * @notice Permit based approval to a spender or operator.
-     * @param owner The owner of the token.
-     * @param spender The spender of the token.
-     * @param isOperator Whether the spender is an operator or not.
-     * @param id The id of the token.
-     * @param value The amount of the token.
-     * @param deadline The deadline timestamp, type(uint256).max for max deadline.
-     * @param v The recovery byte of the signature.
-     * @param r Half of the ECDSA signature pair.
-     * @param s Half of the ECDSA signature pair.
+     * @param _owner The owner of the token.
+     * @param _spender The spender of the token.
+     * @param _isOperator Whether the spender is an operator or not.
+     * @param _id The id of the token.
+     * @param _value The amount of the token.
+     * @param _deadline The deadline timestamp, type(uint256).max for max deadline.
+     * @param _v The recovery byte of the signature.
+     * @param _r Half of the ECDSA signature pair.
+     * @param _s Half of the ECDSA signature pair.
      * @dev if isOperator is true, id and value should be set to zero.
      */
     function permit(
-        address owner,
-        address spender,
-        bool isOperator,
-        uint256 id,
-        uint256 value,
-        uint256 deadline,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
+        address _owner,
+        address _spender,
+        bool _isOperator,
+        uint256 _id,
+        uint256 _value,
+        uint256 _deadline,
+        uint8 _v,
+        bytes32 _r,
+        bytes32 _s
     )
         public
         virtual
     {
-        if (block.timestamp > deadline) {
-            revert ERC2612ExpiredSignature(deadline);
+        if (block.timestamp > _deadline) {
+            revert ERC2612ExpiredSignature(_deadline);
         }
 
-        uint256 nonce = _useNonce(owner);
+        uint256 nonce = _useNonce(_owner);
 
         bytes32 structHash =
-            keccak256(abi.encode(PERMIT_TYPEHASH, owner, spender, isOperator, id, value, nonce, deadline));
+            keccak256(abi.encode(PERMIT_TYPEHASH, _owner, _spender, _isOperator, _id, _value, nonce, _deadline));
 
         bytes32 hash = _hashTypedDataV4(structHash);
 
-        address signer = ECDSA.recover(hash, v, r, s);
-        if (signer != owner) {
-            revert ERC2612InvalidSigner(signer, owner);
+        address signer = ECDSA.recover(hash, _v, _r, _s);
+        if (signer != _owner) {
+            revert ERC2612InvalidSigner(signer, _owner);
         }
 
-        if (isOperator) {
-            if (id != 0 || value != 0) {
+        if (_isOperator) {
+            if (_id != 0 || _value != 0) {
                 revert InvalidPermitParams();
             }
-            _setOperator(owner, spender, isOperator);
+            _setOperator(_owner, _spender, _isOperator);
         } else {
-            _approve(owner, spender, id, value);
+            _approve(_owner, _spender, _id, _value);
         }
     }
 
