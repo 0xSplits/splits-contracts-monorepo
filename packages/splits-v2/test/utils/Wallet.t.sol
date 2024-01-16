@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.18;
 
 import { Ownable } from "../../src/utils/Ownable.sol";
 import { Wallet } from "../../src/utils/Wallet.sol";
@@ -12,6 +12,8 @@ contract WalleHandler is Wallet {
 }
 
 contract WalletTest is BaseTest {
+    event ExecCalls(Wallet.Call[] calls);
+
     WalleHandler private wallet;
 
     function setUp() public override {
@@ -26,7 +28,7 @@ contract WalletTest is BaseTest {
 
     function test_execCalls_empty() public {
         vm.expectEmit();
-        emit Wallet.ExecCalls(new Wallet.Call[](0));
+        emit ExecCalls(new Wallet.Call[](0));
         vm.prank(wallet.owner());
         wallet.execCalls(new Wallet.Call[](0));
     }

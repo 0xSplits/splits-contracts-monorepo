@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.18;
 
 import { SplitV2Lib } from "../../src/libraries/SplitV2.sol";
 import { SplitWalletV2 } from "../../src/splitters/SplitWalletV2.sol";
@@ -8,6 +8,11 @@ import { BaseTest } from "../Base.t.sol";
 
 contract SplitWalletV2Test is BaseTest {
     using SplitV2Lib for SplitV2Lib.Split;
+
+    event SplitUpdated(address indexed _controller, SplitV2Lib.Split _split);
+    event SplitDistributionsPaused(bool _paused);
+    event SplitDistributeByPush(bool _distributeByPush);
+    event SplitDistributed(address indexed _token, uint256 _amount, address _distributor);
 
     SplitWalletV2 private wallet;
 
@@ -32,7 +37,7 @@ contract SplitWalletV2Test is BaseTest {
         SplitV2Lib.Split memory split = createSplit(_receivers, _pullIncentive, _pushIncentive);
 
         vm.expectEmit();
-        emit SplitWalletV2.SplitUpdated(_owner, split);
+        emit SplitUpdated(_owner, split);
         wallet.initialize(split, _owner);
 
         assertEq(wallet.owner(), _owner);
@@ -131,7 +136,7 @@ contract SplitWalletV2Test is BaseTest {
         SplitV2Lib.Split memory split = createSplit(_receivers, _pullIncentive, _pushIncentive);
 
         vm.expectEmit();
-        emit SplitWalletV2.SplitUpdated(_owner, split);
+        emit SplitUpdated(_owner, split);
         vm.prank(_owner);
         wallet.updateSplit(split);
     }
@@ -225,7 +230,7 @@ contract SplitWalletV2Test is BaseTest {
 
     function testFuzz_pauseDistributions(bool _pause) public {
         vm.expectEmit();
-        emit SplitWalletV2.SplitDistributionsPaused(_pause);
+        emit SplitDistributionsPaused(_pause);
         vm.prank(wallet.owner());
         wallet.pauseDistributions(_pause);
     }
@@ -237,7 +242,7 @@ contract SplitWalletV2Test is BaseTest {
 
     function testFuzz_updateDistributeByPush(bool _distributeByPush) public {
         vm.expectEmit();
-        emit SplitWalletV2.SplitDistributeByPush(_distributeByPush);
+        emit SplitDistributeByPush(_distributeByPush);
         vm.prank(wallet.owner());
         wallet.updateDistributeByPush(_distributeByPush);
     }

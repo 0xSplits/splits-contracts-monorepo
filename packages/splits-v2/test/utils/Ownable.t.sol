@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.18;
 
 import { Ownable } from "../../src/utils/Ownable.sol";
 import { BaseTest } from "../Base.t.sol";

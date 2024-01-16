@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.18;
 
 import { SplitV2Lib } from "../libraries/SplitV2.sol";
 import { SplitWalletV2 } from "./SplitWalletV2.sol";

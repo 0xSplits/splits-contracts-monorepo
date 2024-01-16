@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.18;
 
 library Math {
     function sum(uint256[] calldata values) internal pure returns (uint256 total) {

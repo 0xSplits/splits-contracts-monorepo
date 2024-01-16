@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.18;
 
 import { SplitFactoryV2 } from "../../src/splitters/SplitFactoryV2.sol";
 import { SplitWalletV2 } from "../../src/splitters/SplitWalletV2.sol";
@@ -7,6 +7,8 @@ import { SplitWalletV2 } from "../../src/splitters/SplitWalletV2.sol";
 import { BaseTest } from "../Base.t.sol";
 
 contract SplitFactoryV2Test is BaseTest {
+    event SplitCreated(address indexed split, SplitFactoryV2.CreateSplitParams _split);
+
     function setUp() public override {
         super.setUp();
     }
@@ -26,7 +28,7 @@ contract SplitFactoryV2Test is BaseTest {
         address predictedAddress = splitFactory.predictDeterministicAddress(params, _salt);
 
         vm.expectEmit();
-        emit SplitFactoryV2.SplitCreated(predictedAddress, params);
+        emit SplitCreated(predictedAddress, params);
         SplitWalletV2 split = SplitWalletV2(splitFactory.createSplit(params, _salt));
 
         assertEq(predictedAddress, address(split));

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.18;
 
 import { Warehouse } from "../../src/Warehouse.sol";
 import { Math } from "../../src/libraries/Math.sol";
@@ -28,6 +28,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
         defaultTokens.push(native);
 
         assumeAddresses.push(address(this));
+        assumeAddresses.push(address(BAD_ACTOR));
     }
 
     /* -------------------------------------------------------------------------- */
@@ -372,10 +373,10 @@ contract WarehouseTest is BaseTest, Fuzzer {
     function test_withdrawOwner_Revert_whenOwnerReenters() public {
         address owner = BAD_ACTOR;
 
-        testFuzz_depositSingleOwner_whenNativeToken(owner, owner, 100 ether);
+        deposit(owner, native, 100 ether);
 
         vm.prank(owner);
-        vm.expectRevert(FailedInnerCall.selector);
+        vm.expectRevert("Address: unable to send value, recipient may have reverted");
         warehouse.withdraw(native, 100 ether);
 
         assertEq(warehouse.balanceOf(owner, tokenToId(native)), 100 ether);
@@ -434,7 +435,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
         depositDefaultTokens(owner, 100 ether);
 
         vm.prank(owner);
-        vm.expectRevert(FailedInnerCall.selector);
+        vm.expectRevert("Address: unable to send value, recipient may have reverted");
         warehouse.withdraw(defaultTokens, getAmounts(100 ether));
     }
 
@@ -478,10 +479,10 @@ contract WarehouseTest is BaseTest, Fuzzer {
     function test_withdrawForOwner_singleToken_Revert_whenOwnerReenters() public {
         address owner = BAD_ACTOR;
 
-        testFuzz_depositSingleOwner_whenNativeToken(owner, owner, 100 ether);
+        deposit(BAD_ACTOR, native, 1 ether);
 
-        vm.expectRevert(FailedInnerCall.selector);
-        warehouse.withdraw(owner, native, 100 ether);
+        vm.expectRevert("Address: unable to send value, recipient may have reverted");
+        warehouse.withdraw(owner, native, 1 ether);
     }
 
     function test_withdrawForOwner_singleToken_Revert_whenNonERC20() public {
@@ -553,7 +554,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
 
         depositDefaultTokens(owner, 100 ether);
 
-        vm.expectRevert(FailedInnerCall.selector);
+        vm.expectRevert("Address: unable to send value, recipient may have reverted");
         warehouse.withdraw(owner, defaultTokens, getAmounts(100 ether));
     }
 
@@ -650,9 +651,9 @@ contract WarehouseTest is BaseTest, Fuzzer {
     function test_withdrawWithIncentiveForOwner_singleToken_Revert_whenOwnerReenters() public {
         address owner = BAD_ACTOR;
 
-        testFuzz_depositSingleOwner_whenNativeToken(owner, owner, 100 ether);
+        deposit(owner, native, 100 ether);
 
-        vm.expectRevert(FailedInnerCall.selector);
+        vm.expectRevert("Address: unable to send value, recipient may have reverted");
         warehouse.withdrawWithIncentive(owner, native, 100 ether, address(this));
     }
 
@@ -740,7 +741,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
 
         depositDefaultTokens(owner, 100 ether);
 
-        vm.expectRevert(FailedInnerCall.selector);
+        vm.expectRevert("Address: unable to send value, recipient may have reverted");
         warehouse.withdrawWithIncentive(owner, defaultTokens, getAmounts(100 ether), address(this));
     }
 
