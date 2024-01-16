@@ -110,8 +110,11 @@ contract SplitWalletV2 is Wallet {
 
         if (distributeByPush) {
             (amounts, amountDistributed, distibutorReward) = _split.getDistributionsForPush(_amount);
-            for (uint256 i = 0; i < _split.recipients.length; i++) {
+            for (uint256 i = 0; i < _split.recipients.length;) {
                 IERC20(_token).safeTransfer(_split.recipients[i], amounts[i]);
+                unchecked {
+                    ++i;
+                }
             }
         } else {
             (amounts, amountDistributed, distibutorReward) = _split.getDistributionsForPull(_amount);
@@ -140,8 +143,11 @@ contract SplitWalletV2 is Wallet {
 
         if (distributeByPush) {
             (amounts, amountDistributed, distibutorReward) = _split.getDistributionsForPush(_amount);
-            for (uint256 i = 0; i < _split.recipients.length; i++) {
+            for (uint256 i = 0; i < _split.recipients.length;) {
                 payable(_split.recipients[i]).sendValue(amounts[i]);
+                unchecked {
+                    ++i;
+                }
             }
         } else {
             (amounts, amountDistributed, distibutorReward) = _split.getDistributionsForPull(_amount);

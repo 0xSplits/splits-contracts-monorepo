@@ -244,8 +244,12 @@ contract Warehouse is ERC6909Permit {
     function withdraw(address[] memory _tokens, uint256[] memory _amounts) external {
         if (_tokens.length != _amounts.length) revert LengthMismatch();
 
-        for (uint256 i; i < _tokens.length; i++) {
+        for (uint256 i; i < _tokens.length;) {
             _withdraw(msg.sender, _tokens[i].toUint256(), _tokens[i], _amounts[i]);
+
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -275,8 +279,12 @@ contract Warehouse is ERC6909Permit {
         if (isWithdrawPaused[_owner]) revert WithdrawalPaused(_owner);
         if (_owner == address(0)) revert ZeroOwner();
 
-        for (uint256 i; i < _tokens.length; i++) {
+        for (uint256 i; i < _tokens.length;) {
             _withdraw(_owner, _tokens[i].toUint256(), _tokens[i], _amounts[i]);
+
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -319,9 +327,13 @@ contract Warehouse is ERC6909Permit {
         uint256 incentive = withdrawIncentive[_owner];
         uint256 reward;
 
-        for (uint256 i; i < _tokens.length; i++) {
+        for (uint256 i; i < _tokens.length;) {
             reward = _amounts[i] * incentive / INCENTIVE_SCALE;
             _withdraw(_owner, _tokens[i].toUint256(), _tokens[i], _amounts[i], reward, _withdrawer);
+
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -368,9 +380,13 @@ contract Warehouse is ERC6909Permit {
         internal
     {
         totalSupply[_id] += _totalAmount;
-        for (uint256 i; i < _owners.length; i++) {
+        for (uint256 i; i < _owners.length;) {
             if (_owners[i] == address(0)) revert ZeroOwner();
             _mint(_owners[i], _id, _amounts[i]);
+
+            unchecked {
+                ++i;
+            }
         }
     }
 

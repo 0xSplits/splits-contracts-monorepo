@@ -56,8 +56,11 @@ library SplitV2Lib {
         }
         uint256 totalAllocation = _split.totalAllocation;
 
-        for (uint256 i = 0; i < _split.recipients.length; i++) {
+        for (uint256 i = 0; i < _split.recipients.length;) {
             totalAllocation -= _split.allocations[i];
+            unchecked {
+                ++i;
+            }
         }
 
         if (totalAllocation != 0) revert InvalidSplit_TotalAllocationMismatch();
@@ -85,9 +88,12 @@ library SplitV2Lib {
 
         _amount -= distributorReward;
 
-        for (uint256 i = 0; i < _split.recipients.length; i++) {
+        for (uint256 i = 0; i < _split.recipients.length;) {
             amounts[i] = _amount * _split.allocations[i] / _split.totalAllocation;
             amountDistributed += amounts[i];
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -105,9 +111,12 @@ library SplitV2Lib {
 
         _amount -= distributorReward;
 
-        for (uint256 i = 0; i < _split.recipients.length; i++) {
+        for (uint256 i = 0; i < _split.recipients.length;) {
             amounts[i] = _amount * _split.allocations[i] / _split.totalAllocation;
             amountDistributed += amounts[i];
+            unchecked {
+                ++i;
+            }
         }
     }
 }
