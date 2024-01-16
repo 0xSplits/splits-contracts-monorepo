@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.18;
 
-import { IWarehouse } from "../interfaces/IWarehouse.sol";
+import { ISplitsWarehouse } from "../interfaces/ISplitsWarehouse.sol";
 import { SplitV2Lib } from "../libraries/SplitV2.sol";
 import { Wallet } from "../utils/Wallet.sol";
 
@@ -42,8 +42,8 @@ contract SplitWalletV2 is Wallet {
     /*                            CONSTANTS/IMMUTABLES                            */
     /* -------------------------------------------------------------------------- */
 
-    /// @notice address of Split Warehouse
-    IWarehouse public immutable SPLIT_WAREHOUSE;
+    /// @notice address of Splits Warehouse
+    ISplitsWarehouse public immutable SPLITS_WAREHOUSE;
 
     /// @notice address of Split Wallet V2 factory
     address public immutable FACTORY;
@@ -70,8 +70,8 @@ contract SplitWalletV2 is Wallet {
 
     constructor(address _splitWarehouse, address _factory) {
         if (_factory == address(0)) revert ZeroAddress();
-        SPLIT_WAREHOUSE = IWarehouse(_splitWarehouse);
-        NATIVE = SPLIT_WAREHOUSE.NATIVE_TOKEN();
+        SPLITS_WAREHOUSE = ISplitsWarehouse(_splitWarehouse);
+        NATIVE = SPLITS_WAREHOUSE.NATIVE_TOKEN();
         FACTORY = _factory;
     }
 
@@ -118,8 +118,8 @@ contract SplitWalletV2 is Wallet {
             }
         } else {
             (amounts, amountDistributed, distibutorReward) = _split.getDistributionsForPull(_amount);
-            IERC20(_token).safeTransfer(address(SPLIT_WAREHOUSE), amountDistributed);
-            SPLIT_WAREHOUSE.depositAfterTransfer(_split.recipients, _token, amounts);
+            IERC20(_token).safeTransfer(address(SPLITS_WAREHOUSE), amountDistributed);
+            SPLITS_WAREHOUSE.depositAfterTransfer(_split.recipients, _token, amounts);
         }
 
         if (distibutorReward > 0) {
@@ -151,7 +151,7 @@ contract SplitWalletV2 is Wallet {
             }
         } else {
             (amounts, amountDistributed, distibutorReward) = _split.getDistributionsForPull(_amount);
-            SPLIT_WAREHOUSE.deposit{ value: amountDistributed }(_split.recipients, NATIVE, amounts);
+            SPLITS_WAREHOUSE.deposit{ value: amountDistributed }(_split.recipients, NATIVE, amounts);
         }
 
         if (distibutorReward > 0) {

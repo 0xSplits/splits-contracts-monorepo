@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import { Warehouse } from "../src/Warehouse.sol";
+import { SplitsWarehouse } from "../src/SplitsWarehouse.sol";
 import { Cast } from "../src/libraries/Cast.sol";
 
 import { SplitV2Lib } from "../src/libraries/SplitV2.sol";
@@ -26,7 +26,7 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
     /*                                  WAREHOUSE                                 */
     /* -------------------------------------------------------------------------- */
 
-    Warehouse warehouse;
+    SplitsWarehouse warehouse;
 
     string constant WAREHOUSE_NAME = "Splits Warehouse";
     string constant GAS_TOKEN_NAME = "Splits Wrapped Ether";
@@ -80,7 +80,7 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
         BAD_ACTOR = address(new WarehouseReentrantReceiver());
 
         // Setup warehouse
-        warehouse = new Warehouse(WAREHOUSE_NAME, GAS_TOKEN_NAME, GAS_TOKEN_SYMBOL);
+        warehouse = new SplitsWarehouse(WAREHOUSE_NAME, GAS_TOKEN_NAME, GAS_TOKEN_SYMBOL);
 
         // Setup native token
         native = warehouse.NATIVE_TOKEN();

@@ -2,7 +2,10 @@
 pragma solidity ^0.8.18;
 
 library Cast {
+    error CastOverflow(uint256 value);
+
     function toAddress(uint256 value) internal pure returns (address) {
+        if (value > type(uint160).max) revert CastOverflow(value);
         return address(uint160(value));
     }
 

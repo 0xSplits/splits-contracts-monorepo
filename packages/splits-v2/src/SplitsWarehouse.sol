@@ -10,12 +10,12 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
 /**
- * @title Splits token Warehouse
+ * @title Splits Token Warehouse
  * @author Splits
  * @notice ERC6909 compliant token warehouse for splits ecosystem of splitters
  * @dev Token id here is address(uint160(uint256 id)).
  */
-contract Warehouse is ERC6909Permit {
+contract SplitsWarehouse is ERC6909Permit {
     using Cast for uint256;
     using Cast for address;
     using Math for uint256[];
@@ -65,7 +65,7 @@ contract Warehouse is ERC6909Permit {
     uint256 public constant MAX_INCENTIVE = 1e5;
 
     /// @notice Scale for the incentive for withdrawing a token.
-    uint256 public constant INCENTIVE_SCALE = 1e6;
+    uint256 public constant PERCENTAGE_SCALE = 1e6;
 
     /* -------------------------------------------------------------------------- */
     /*                                   STORAGE                                  */
@@ -300,7 +300,7 @@ contract Warehouse is ERC6909Permit {
         if (isWithdrawPaused[_owner]) revert WithdrawalPaused(_owner);
         if (_owner == address(0)) revert ZeroOwner();
 
-        uint256 reward = _amount * withdrawIncentive[_owner] / INCENTIVE_SCALE;
+        uint256 reward = _amount * withdrawIncentive[_owner] / PERCENTAGE_SCALE;
         _withdraw(_owner, _token.toUint256(), _token, _amount, reward, _withdrawer);
     }
 
@@ -328,7 +328,7 @@ contract Warehouse is ERC6909Permit {
         uint256 reward;
 
         for (uint256 i; i < _tokens.length;) {
-            reward = _amounts[i] * incentive / INCENTIVE_SCALE;
+            reward = _amounts[i] * incentive / PERCENTAGE_SCALE;
             _withdraw(_owner, _tokens[i].toUint256(), _tokens[i], _amounts[i], reward, _withdrawer);
 
             unchecked {

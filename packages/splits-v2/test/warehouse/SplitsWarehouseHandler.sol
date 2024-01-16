@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import { Warehouse } from "../../src/Warehouse.sol";
+import { SplitsWarehouse } from "../../src/SplitsWarehouse.sol";
 
 import { Cast } from "../../src/libraries/Cast.sol";
 import { Math } from "../../src/libraries/Math.sol";
@@ -12,12 +12,12 @@ import { CommonBase } from "forge-std/Base.sol";
 import { StdCheats } from "forge-std/StdCheats.sol";
 import { StdUtils } from "forge-std/StdUtils.sol";
 
-contract WarehouseHandler is CommonBase, StdCheats, StdUtils {
+contract SplitsWarehouseHandler is CommonBase, StdCheats, StdUtils {
     using Math for uint256[];
     using Address for address;
     using Cast for address;
 
-    Warehouse private warehouse;
+    SplitsWarehouse private warehouse;
     address public depositor;
     address[2] public tokens;
 
@@ -34,7 +34,7 @@ contract WarehouseHandler is CommonBase, StdCheats, StdUtils {
         address[5] memory _users,
         address _badActor
     ) {
-        warehouse = Warehouse(_warehouse);
+        warehouse = SplitsWarehouse(_warehouse);
         native = warehouse.NATIVE_TOKEN();
         depositor = _depositor;
         tokens = _tokens;

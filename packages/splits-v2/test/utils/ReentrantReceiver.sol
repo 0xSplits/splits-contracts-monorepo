@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import { Warehouse } from "../../src/Warehouse.sol";
+import { SplitsWarehouse } from "../../src/SplitsWarehouse.sol";
 
 /* solhint-disable */
 contract WarehouseReentrantReceiver {
     fallback() external payable {
-        address token = Warehouse(msg.sender).NATIVE_TOKEN();
-        Warehouse(msg.sender).withdraw(token, msg.value);
+        address token = SplitsWarehouse(msg.sender).NATIVE_TOKEN();
+        SplitsWarehouse(msg.sender).withdraw(token, msg.value);
     }
 }

@@ -54,11 +54,11 @@ contract SplitFactoryV2 {
 
     /**
      * @notice Construct a new SplitFactoryV2
-     * @param _splitWarehouse Address of Split Warehouse
+     * @param _splitsWarehouse Address of Split Warehouse
      */
-    constructor(address _splitWarehouse) {
-        if (_splitWarehouse == address(0)) revert ZeroAddress();
-        SPLIT_WALLET_IMPLEMENTATION = address(new SplitWalletV2(_splitWarehouse, address(this)));
+    constructor(address _splitsWarehouse) {
+        if (_splitsWarehouse == address(0)) revert ZeroAddress();
+        SPLIT_WALLET_IMPLEMENTATION = address(new SplitWalletV2(_splitsWarehouse, address(this)));
     }
 
     /* -------------------------------------------------------------------------- */

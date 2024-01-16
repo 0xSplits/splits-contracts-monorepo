@@ -41,7 +41,7 @@ contract SplitWalletV2Test is BaseTest {
         wallet.initialize(split, _owner);
 
         assertEq(wallet.owner(), _owner);
-        assertEq(address(wallet.SPLIT_WAREHOUSE()), address(warehouse));
+        assertEq(address(wallet.SPLITS_WAREHOUSE()), address(warehouse));
         assertEq(wallet.distributeByPush(), false);
         assertEq(wallet.distributionsPaused(), false);
         assertEq(wallet.splitHash(), split.getHashMem());

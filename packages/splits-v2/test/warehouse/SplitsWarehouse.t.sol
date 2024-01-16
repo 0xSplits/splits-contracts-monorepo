@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import { Warehouse } from "../../src/Warehouse.sol";
+import { SplitsWarehouse } from "../../src/SplitsWarehouse.sol";
 import { Math } from "../../src/libraries/Math.sol";
 import { BaseTest } from "../Base.t.sol";
 import { ERC20 } from "../utils/ERC20.sol";
 import { Fuzzer } from "../utils/Fuzzer.sol";
 
-contract WarehouseTest is BaseTest, Fuzzer {
+contract SplitsWarehouseTest is BaseTest, Fuzzer {
     using Math for uint256[];
 
     error InvalidAmount();
@@ -15,6 +15,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
     error WithdrawalPaused(address owner);
     error ReentrancyGuardReentrantCall();
     error FailedInnerCall();
+    error CastOverflow(uint256 value);
 
     address public token;
     address[] public defaultTokens;
@@ -43,6 +44,12 @@ contract WarehouseTest is BaseTest, Fuzzer {
         assertEq(warehouse.name(warehouse.NATIVE_TOKEN_ID()), GAS_TOKEN_NAME);
     }
 
+    function test_name_Revert_whenTokenIDGreaterThanUint160() public {
+        uint256 tokenId = uint256(type(uint160).max) + 1;
+        vm.expectRevert(abi.encodeWithSelector(CastOverflow.selector, tokenId));
+        warehouse.name(tokenId);
+    }
+
     /* -------------------------------------------------------------------------- */
     /*                                 TEST_SYMBOL                                */
     /* -------------------------------------------------------------------------- */
@@ -55,6 +62,12 @@ contract WarehouseTest is BaseTest, Fuzzer {
         assertEq(warehouse.symbol(warehouse.NATIVE_TOKEN_ID()), GAS_TOKEN_SYMBOL);
     }
 
+    function test_symbol_Revert_whenTokenIDGreaterThanUint160() public {
+        uint256 tokenId = uint256(type(uint160).max) + 1;
+        vm.expectRevert(abi.encodeWithSelector(CastOverflow.selector, tokenId));
+        warehouse.symbol(tokenId);
+    }
+
     /* -------------------------------------------------------------------------- */
     /*                                TEST_DECIMALS                               */
     /* -------------------------------------------------------------------------- */
@@ -65,6 +78,12 @@ contract WarehouseTest is BaseTest, Fuzzer {
 
     function test_decimals_whenNativeToken_returns18() public {
         assertEq(warehouse.decimals(warehouse.NATIVE_TOKEN_ID()), 18);
+    }
+
+    function test_decimals_Revert_whenTokenIDGreaterThanUint160() public {
+        uint256 tokenId = uint256(type(uint160).max) + 1;
+        vm.expectRevert(abi.encodeWithSelector(CastOverflow.selector, tokenId));
+        warehouse.decimals(tokenId);
     }
 
     /* -------------------------------------------------------------------------- */
@@ -605,7 +624,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
 
         warehouse.withdrawWithIncentive(_owner, token, _amount, _withdrawer);
 
-        uint256 reward = _amount * warehouse.withdrawIncentive(_owner) / warehouse.INCENTIVE_SCALE();
+        uint256 reward = _amount * warehouse.withdrawIncentive(_owner) / warehouse.PERCENTAGE_SCALE();
 
         assertEq(warehouse.balanceOf(_owner, tokenToId(token)), 0);
         assertEq(warehouse.totalSupply(tokenToId(token)), 0);
@@ -631,7 +650,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
 
         warehouse.withdrawWithIncentive(_owner, native, _amount, _withdrawer);
 
-        uint256 reward = _amount * warehouse.withdrawIncentive(_owner) / warehouse.INCENTIVE_SCALE();
+        uint256 reward = _amount * warehouse.withdrawIncentive(_owner) / warehouse.PERCENTAGE_SCALE();
 
         assertEq(warehouse.balanceOf(_owner, tokenToId(native)), 0);
         assertEq(warehouse.totalSupply(tokenToId(native)), 0);
@@ -708,7 +727,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
             assertEq(warehouse.balanceOf(_owner, tokenToId(defaultTokens[i])), 0);
             assertEq(warehouse.totalSupply(tokenToId(defaultTokens[i])), 0);
 
-            uint256 reward = _amount * warehouse.withdrawIncentive(_owner) / warehouse.INCENTIVE_SCALE();
+            uint256 reward = _amount * warehouse.withdrawIncentive(_owner) / warehouse.PERCENTAGE_SCALE();
 
             if (defaultTokens[i] == native) {
                 assertEq(address(_owner).balance, _amount - reward);
@@ -792,7 +811,7 @@ contract WarehouseTest is BaseTest, Fuzzer {
 
     function testFuzz_setWithdrawIncentive_Revert_whenInvalidIncentive() public {
         uint256 incentive = warehouse.MAX_INCENTIVE() + 1;
-        vm.expectRevert(Warehouse.InvalidIncentive.selector);
+        vm.expectRevert(SplitsWarehouse.InvalidIncentive.selector);
         warehouse.setWithdrawIncentive(incentive);
     }
 

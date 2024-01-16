@@ -58,7 +58,7 @@ targets = [
 ]
 
 [profile.smt.model_checker.contracts]
-"src/Warehouse.sol" = ["Warehouse"]
+"src/SplitsWarehouse.sol" = ["SplitsWarehouse"]
 "src/splitters/SplitWalletV2.sol" = ["SplitWalletV2"]
 "src/splitters/SplitFactoryV2.sol" = ["SplitFactoryV2"]
 
