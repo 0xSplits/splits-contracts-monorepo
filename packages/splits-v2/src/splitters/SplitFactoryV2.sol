@@ -57,29 +57,26 @@ contract SplitFactoryV2 {
      * @param _splitsWarehouse Address of Split Warehouse
      */
     constructor(address _splitsWarehouse) {
-        if (_splitsWarehouse == address(0)) revert ZeroAddress();
         SPLIT_WALLET_IMPLEMENTATION = address(new SplitWalletV2(_splitsWarehouse, address(this)));
     }
 
     /* -------------------------------------------------------------------------- */
-    /*                                  FUNCTIONS                                 */
+    /*                             EXTERNAL FUNCTIONS                             */
     /* -------------------------------------------------------------------------- */
-
-    /* -------------------------------- EXTERNAL -------------------------------- */
 
     /**
      * @notice Create a new split using create2
      * @param _createSplitParams CreateSplitParams struct
      * @param _salt Salt for create2
      */
-    function createSplit(
+    function createSplitDeterministic(
         CreateSplitParams calldata _createSplitParams,
         bytes32 _salt
     )
         external
         returns (address split)
     {
-        split = SPLIT_WALLET_IMPLEMENTATION.cloneDeterministic(_getSalt(_getBytes(_createSplitParams), _salt));
+        split = SPLIT_WALLET_IMPLEMENTATION.cloneDeterministic(_getSalt(_createSplitParams, _salt));
 
         SplitWalletV2(split).initialize(_createSplitParams.split, _createSplitParams.owner);
 
@@ -111,7 +108,7 @@ contract SplitFactoryV2 {
         view
         returns (address)
     {
-        return _predictDeterministicAddress(_getBytes(_createSplitParams), _salt);
+        return _predictDeterministicAddress(_createSplitParams, _salt);
     }
 
     /**
@@ -127,21 +124,27 @@ contract SplitFactoryV2 {
         view
         returns (address split, bool)
     {
-        split = _predictDeterministicAddress(_getBytes(_createSplitParams), _salt);
+        split = _predictDeterministicAddress(_createSplitParams, _salt);
         return (split, split.code.length > 0);
     }
 
-    /* ---------------------------- PRIVATE/INTERNAL ---------------------------- */
+    /* -------------------------------------------------------------------------- */
+    /*                         PRIVATE/INTERNAL FUNCTIONS                         */
+    /* -------------------------------------------------------------------------- */
 
-    function _getSalt(bytes memory data_, bytes32 salt_) internal pure returns (bytes32) {
-        return keccak256(bytes.concat(data_, salt_));
+    function _getSalt(CreateSplitParams calldata _createSplitParams, bytes32 _salt) internal pure returns (bytes32) {
+        return keccak256(bytes.concat(abi.encode(_createSplitParams), _salt));
     }
 
-    function _predictDeterministicAddress(bytes memory data_, bytes32 salt_) internal view returns (address) {
-        return SPLIT_WALLET_IMPLEMENTATION.predictDeterministicAddress(_getSalt(data_, salt_), address(this));
-    }
-
-    function _getBytes(CreateSplitParams calldata _createSplitParams) internal pure returns (bytes memory) {
-        return abi.encode(_createSplitParams.split, _createSplitParams.owner, _createSplitParams.creator);
+    function _predictDeterministicAddress(
+        CreateSplitParams calldata _createSplitParams,
+        bytes32 _salt
+    )
+        internal
+        view
+        returns (address)
+    {
+        return
+            SPLIT_WALLET_IMPLEMENTATION.predictDeterministicAddress(_getSalt(_createSplitParams, _salt), address(this));
     }
 }

@@ -29,7 +29,7 @@ contract SplitFactoryV2Test is BaseTest {
 
         vm.expectEmit();
         emit SplitCreated(predictedAddress, params);
-        SplitWalletV2 split = SplitWalletV2(splitFactory.createSplit(params, _salt));
+        SplitWalletV2 split = SplitWalletV2(splitFactory.createSplitDeterministic(params, _salt));
 
         assertEq(predictedAddress, address(split));
         assertEq(split.owner(), _owner);
@@ -50,7 +50,7 @@ contract SplitFactoryV2Test is BaseTest {
             getCreatSplitParams(_receivers, _pullIncentive, _pushIncentive, _owner, address(this));
 
         vm.expectRevert();
-        splitFactory.createSplit(params, _salt);
+        splitFactory.createSplitDeterministic(params, _salt);
     }
 
     function testFuzz_createSplit(
