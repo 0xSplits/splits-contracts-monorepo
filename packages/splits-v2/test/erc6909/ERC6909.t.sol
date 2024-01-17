@@ -3,22 +3,22 @@ pragma solidity ^0.8.18;
 
 import { BaseTest } from "../Base.t.sol";
 
-import { PermitUtils } from "../utils/PermitUtils.sol";
+import { ERC6909XUtils } from "../utils/ERC6909XUtils.sol";
 import { ERC6909Test as ERC6909 } from "./ERC6909Test.sol";
 
 contract ERC6909Test is BaseTest {
-    error ERC2612ExpiredSignature(uint256 deadline);
-    error ERC2612InvalidSigner(address signer, address owner);
+    error ExpiredSignature(uint256 deadline);
+    error InvalidSigner();
     error InvalidPermitParams();
 
     ERC6909 public erc6909;
-    PermitUtils public permitUtils;
+    ERC6909XUtils public permitUtils;
 
     function setUp() public override {
         super.setUp();
 
         erc6909 = new ERC6909("ERC6909", "V1");
-        permitUtils = new PermitUtils(erc6909.DOMAIN_SEPARATOR());
+        permitUtils = new ERC6909XUtils(erc6909.DOMAIN_SEPARATOR());
     }
 
     /* -------------------------------------------------------------------------- */
@@ -178,7 +178,7 @@ contract ERC6909Test is BaseTest {
     /*                                 PERMIT_TEST                                */
     /* -------------------------------------------------------------------------- */
 
-    function testFuzz_permit(address _spender, uint256 _id, bool _isOperator, uint256 _value) public {
+    function testFuzz_approveBySig(address _spender, uint256 _id, bool _isOperator, uint256 _value) public {
         Account memory _owner = ALICE;
         if (_isOperator) {
             _id = 0;
@@ -189,10 +189,11 @@ contract ERC6909Test is BaseTest {
 
         uint256 deadline = type(uint256).max;
 
-        (uint8 v, bytes32 r, bytes32 s) =
-            getPermitSignature(_owner.addr, _owner.key, _spender, _isOperator, _id, _value, nonce++, deadline);
+        bytes memory signature = getPermitSignature(
+            false, _owner.addr, _owner.key, _spender, _isOperator, _id, _value, address(0), "", nonce++, deadline
+        );
 
-        erc6909.permit(_owner.addr, _spender, _isOperator, _id, _value, deadline, v, r, s);
+        erc6909.approveBySig(_owner.addr, _spender, _isOperator, _id, _value, deadline, signature);
 
         if (_isOperator) {
             assertEq(erc6909.isOperator(_owner.addr, _spender), true);
@@ -201,7 +202,7 @@ contract ERC6909Test is BaseTest {
         }
     }
 
-    function testFuzz_permit_Revert_whenExpired(
+    function testFuzz_approveBySig_Revert_whenExpired(
         address _spender,
         uint256 _id,
         bool _isOperator,
@@ -219,14 +220,15 @@ contract ERC6909Test is BaseTest {
 
         uint256 deadline = block.timestamp - 1;
 
-        (uint8 v, bytes32 r, bytes32 s) =
-            getPermitSignature(_owner.addr, _owner.key, _spender, _isOperator, _id, _value, nonce++, deadline);
+        bytes memory signature = getPermitSignature(
+            false, _owner.addr, _owner.key, _spender, _isOperator, _id, _value, address(0), "", nonce++, deadline
+        );
 
-        vm.expectRevert(abi.encodeWithSelector(ERC2612ExpiredSignature.selector, deadline));
-        erc6909.permit(_owner.addr, _spender, _isOperator, _id, _value, deadline, v, r, s);
+        vm.expectRevert(abi.encodeWithSelector(ExpiredSignature.selector, deadline));
+        erc6909.approveBySig(_owner.addr, _spender, _isOperator, _id, _value, deadline, signature);
     }
 
-    function testFuzz_permit_Revert_whenDoubleSpend(address _spender, uint256 _id, uint256 _value) public {
+    function testFuzz_approveBySig_Revert_whenDoubleSpend(address _spender, uint256 _id, uint256 _value) public {
         bool isOperator = false;
 
         Account memory _owner = ALICE;
@@ -235,16 +237,23 @@ contract ERC6909Test is BaseTest {
 
         uint256 deadline = type(uint256).max;
 
-        (uint8 v, bytes32 r, bytes32 s) =
-            getPermitSignature(_owner.addr, _owner.key, _spender, isOperator, _id, _value, nonce++, deadline);
+        bytes memory signature = getPermitSignature(
+            false, _owner.addr, _owner.key, _spender, isOperator, _id, _value, address(0), "", nonce++, deadline
+        );
 
-        erc6909.permit(_owner.addr, _spender, isOperator, _id, _value, deadline, v, r, s);
+        erc6909.approveBySig(_owner.addr, _spender, isOperator, _id, _value, deadline, signature);
 
-        vm.expectRevert();
-        erc6909.permit(_owner.addr, _spender, isOperator, _id, _value, deadline, v, r, s);
+        vm.expectRevert(InvalidSigner.selector);
+        erc6909.approveBySig(_owner.addr, _spender, isOperator, _id, _value, deadline, signature);
     }
 
-    function testFuzz_permit_Revert_wehnInvalidPermitParams(address _spender, uint256 _id, uint256 _value) public {
+    function testFuzz_approveBySig_Revert_wehnInvalidPermitParams(
+        address _spender,
+        uint256 _id,
+        uint256 _value
+    )
+        public
+    {
         vm.assume(_id != 0 || _value != 0);
 
         bool isOperator = true;
@@ -255,39 +264,66 @@ contract ERC6909Test is BaseTest {
 
         uint256 deadline = type(uint256).max;
 
-        (uint8 v, bytes32 r, bytes32 s) =
-            getPermitSignature(_owner.addr, _owner.key, _spender, isOperator, _id, _value, nonce++, deadline);
+        bytes memory signature = getPermitSignature(
+            false, _owner.addr, _owner.key, _spender, isOperator, _id, _value, address(0), "", nonce++, deadline
+        );
 
         vm.expectRevert(InvalidPermitParams.selector);
-        erc6909.permit(_owner.addr, _spender, isOperator, _id, _value, deadline, v, r, s);
+        erc6909.approveBySig(_owner.addr, _spender, isOperator, _id, _value, deadline, signature);
     }
 
     function getPermitSignature(
+        bool _temporary,
         address _owner,
         uint256 _key,
         address _spender,
         bool _isOperator,
         uint256 _id,
         uint256 _value,
+        address _target,
+        bytes memory _data,
         uint256 _nonce,
         uint256 _deadline
     )
         public
         view
-        returns (uint8 v, bytes32 r, bytes32 s)
+        returns (bytes memory signature)
     {
-        PermitUtils.Permit memory permit = PermitUtils.Permit({
+        bytes32 digest =
+            getDigest(_temporary, _owner, _spender, _isOperator, _id, _value, _target, _data, _nonce, _deadline);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(_key, digest);
+        signature = abi.encodePacked(r, s, v);
+    }
+
+    function getDigest(
+        bool _temporary,
+        address _owner,
+        address _spender,
+        bool _isOperator,
+        uint256 _id,
+        uint256 _value,
+        address _target,
+        bytes memory _data,
+        uint256 _nonce,
+        uint256 _deadline
+    )
+        public
+        view
+        returns (bytes32 digest)
+    {
+        ERC6909XUtils.ERC6909XApproveAndCall memory permit = ERC6909XUtils.ERC6909XApproveAndCall({
+            temporary: _temporary,
             owner: _owner,
             spender: _spender,
             isOperator: _isOperator,
             id: _id,
-            value: _value,
+            amount: _value,
+            target: _target,
+            data: _data,
             nonce: _nonce,
             deadline: _deadline
         });
 
-        bytes32 digest = permitUtils.getTypedDataHash(permit);
-
-        (v, r, s) = vm.sign(_key, digest);
+        digest = permitUtils.getTypedDataHash(permit);
     }
 }

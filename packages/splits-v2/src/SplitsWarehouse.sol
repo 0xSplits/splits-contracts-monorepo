@@ -4,7 +4,7 @@ pragma solidity ^0.8.18;
 import { Cast } from "./libraries/Cast.sol";
 import { Math } from "./libraries/Math.sol";
 
-import { ERC6909Permit } from "./tokens/ERC6909Permit.sol";
+import { ERC6909X } from "./tokens/ERC6909X.sol";
 import { IERC20Metadata as IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
@@ -16,7 +16,7 @@ import { ShortString, ShortStrings } from "@openzeppelin/contracts/utils/ShortSt
  * @notice ERC6909 compliant token warehouse for splits ecosystem of splitters
  * @dev Token id here is address(uint160(uint256 id)).
  */
-contract SplitsWarehouse is ERC6909Permit {
+contract SplitsWarehouse is ERC6909X {
     using Cast for uint256;
     using Cast for address;
     using Math for uint256[];
@@ -97,7 +97,7 @@ contract SplitsWarehouse is ERC6909Permit {
         string memory _native_token_name,
         string memory _native_token_symbol
     )
-        ERC6909Permit("SplitsWarehouse", "v1")
+        ERC6909X("SplitsWarehouse", "v1")
     {
         nativeTokenName = _native_token_name.toShortString();
         nativeTokenSymbol = _native_token_symbol.toShortString();

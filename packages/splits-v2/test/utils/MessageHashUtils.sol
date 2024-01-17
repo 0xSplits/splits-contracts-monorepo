@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.18;
 
+/* solhint-disable */
 /**
  * @dev Signature message hash utilities for producing digests to be consumed by {ECDSA} recovery or signing. Forked
  * from OpenZeppelin.
@@ -32,3 +33,4 @@ library MessageHashUtils {
         }
     }
 }
+/* solhint-enable */
