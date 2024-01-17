@@ -27,6 +27,8 @@ contract SplitsWarehouseHandler is CommonBase, StdCheats, StdUtils {
 
     address private badActor;
 
+    mapping(address => uint256) public warehouseBalance;
+
     constructor(
         address _warehouse,
         address _depositor,
@@ -72,6 +74,8 @@ contract SplitsWarehouseHandler is CommonBase, StdCheats, StdUtils {
             IERC20(token).approve(address(warehouse), _amount);
             warehouse.deposit(user, token, _amount);
         }
+
+        warehouseBalance[token] += _amount;
     }
 
     function deposit(uint256 _token, uint96[5] memory _amounts) public mockDepositor {
@@ -90,6 +94,8 @@ contract SplitsWarehouseHandler is CommonBase, StdCheats, StdUtils {
             IERC20(token).approve(address(warehouse), totalAmount);
             warehouse.deposit(owners, token, amounts);
         }
+
+        warehouseBalance[token] += totalAmount;
     }
 
     function withdraw(uint256 _user, uint256 _token, uint256 _amount) public {
@@ -102,9 +108,11 @@ contract SplitsWarehouseHandler is CommonBase, StdCheats, StdUtils {
 
         vm.prank(user);
         if (user == badActor && token == native) {
-            vm.expectRevert();
+            return;
         }
         warehouse.withdraw(token, _amount);
+
+        warehouseBalance[token] -= _amount;
     }
 
     function withdrawForUser(uint256 _user, uint256 _token, uint192 _amount, uint256 _withdrawer) public {
@@ -121,15 +129,17 @@ contract SplitsWarehouseHandler is CommonBase, StdCheats, StdUtils {
 
         uint256 reward = amount * uint256(warehouse.getWithdrawConfig(user).incentive) / warehouse.PERCENTAGE_SCALE();
 
-        vm.prank(withdrawer);
         if (user == badActor && token == native) {
-            vm.expectRevert();
+            return;
         } else if (withdrawer == badActor && token == native && reward > 0) {
-            vm.expectRevert();
+            return;
         } else if (warehouse.getWithdrawConfig(user).paused) {
-            vm.expectRevert();
+            return;
         }
+        vm.prank(withdrawer);
         warehouse.withdraw(user, token, amount, withdrawer);
+
+        warehouseBalance[token] -= amount;
     }
 
     function transfer(uint256 _sender, uint256 _receiver, uint256 _token, uint256 _amount) public mockUser(_sender) {

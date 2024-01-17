@@ -338,7 +338,6 @@ contract SplitWalletV2Test is BaseTest {
             for (uint256 i = 0; i < split.recipients.length; i++) {
                 assertGt(warehouse.balanceOf(split.recipients[i], tokenToId(address(usdc))), 0);
             }
-            assertEq(warehouse.totalSupply(tokenToId(address(usdc))), usdc.balanceOf(address(warehouse)));
         }
     }
 
@@ -370,7 +369,6 @@ contract SplitWalletV2Test is BaseTest {
             for (uint256 i = 0; i < split.recipients.length; i++) {
                 assertGt(warehouse.balanceOf(split.recipients[i], tokenToId(address(usdc))), 0);
             }
-            assertEq(warehouse.totalSupply(tokenToId(address(usdc))), usdc.balanceOf(address(warehouse)));
         }
     }
 
@@ -398,7 +396,6 @@ contract SplitWalletV2Test is BaseTest {
             for (uint256 i = 0; i < split.recipients.length; i++) {
                 assertGt(warehouse.balanceOf(split.recipients[i], tokenToId(native)), 0);
             }
-            assertEq(warehouse.totalSupply(tokenToId(address(native))), address(warehouse).balance);
         }
     }
 
@@ -429,7 +426,6 @@ contract SplitWalletV2Test is BaseTest {
             for (uint256 i = 0; i < split.recipients.length; i++) {
                 assertGt(warehouse.balanceOf(split.recipients[i], tokenToId(native)), 0);
             }
-            assertEq(warehouse.totalSupply(tokenToId(address(native))), address(warehouse).balance);
         }
     }
 

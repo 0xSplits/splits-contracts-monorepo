@@ -102,8 +102,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         vm.stopPrank();
 
         assertEq(warehouse.balanceOf(_owner, tokenToId(token)), _amount);
-        assertEq(warehouse.totalSupply(tokenToId(token)), _amount);
-        assertEq(warehouse.totalSupply(tokenToId(token)), ERC20(token).balanceOf(address(warehouse)));
+        assertEq(ERC20(token).balanceOf(address(warehouse)), _amount);
     }
 
     function testFuzz_depositSingleOwner_whenNativeToken(address _depositor, address _owner, uint256 _amount) public {
@@ -117,17 +116,12 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         vm.stopPrank();
 
         assertEq(warehouse.balanceOf(_owner, tokenToId(native)), _amount);
-        assertEq(warehouse.totalSupply(tokenToId(native)), _amount);
-        assertEq(warehouse.totalSupply(tokenToId(native)), address(warehouse).balance);
+        assertEq(address(warehouse).balance, _amount);
     }
 
     function test_depositSingleOwner_whenNativeToken_Revert_whenAmountIsNotEqualToValue() public {
         vm.expectRevert(InvalidAmount.selector);
         warehouse.deposit{ value: 100 ether }(msg.sender, native, 99 ether);
-
-        assertEq(warehouse.balanceOf(msg.sender, tokenToId(native)), 0);
-        assertEq(warehouse.totalSupply(tokenToId(native)), 0);
-        assertEq(warehouse.totalSupply(tokenToId(native)), address(warehouse).balance);
     }
 
     function test_depositSingleOwner_whenNativeToken_Revert_whenOwnerIsZero() public {
@@ -135,10 +129,6 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
         vm.expectRevert(ZeroOwner.selector);
         warehouse.deposit{ value: 100 ether }(address(0), native, 100 ether);
-
-        assertEq(warehouse.balanceOf(address(0), tokenToId(native)), 0);
-        assertEq(warehouse.totalSupply(tokenToId(native)), 0);
-        assertEq(warehouse.totalSupply(tokenToId(native)), address(warehouse).balance);
     }
 
     function test_depositSingleOwner_Revert_whenNonERC20() public {
@@ -171,8 +161,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         for (uint256 i = 0; i < owners.length; i++) {
             assertGte(warehouse.balanceOf(owners[i], tokenToId(token)), amounts[i]);
         }
-        assertEq(warehouse.totalSupply(tokenToId(token)), totalAmounts);
-        assertEq(warehouse.totalSupply(tokenToId(token)), ERC20(token).balanceOf(address(warehouse)));
+        assertEq(ERC20(token).balanceOf(address(warehouse)), totalAmounts);
     }
 
     function testFuzz_depositMultipleOwners_whenNativeToken(
@@ -195,8 +184,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         for (uint256 i = 0; i < owners.length; i++) {
             assertGte(warehouse.balanceOf(owners[i], tokenToId(native)), amounts[i]);
         }
-        assertEq(warehouse.totalSupply(tokenToId(native)), totalAmounts);
-        assertEq(warehouse.totalSupply(tokenToId(native)), address(warehouse).balance);
+        assertEq(address(warehouse).balance, totalAmounts);
     }
 
     function test_depositMultipleOwners_Revert_whenOwnerAmountsMismatch() public {
@@ -239,7 +227,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         warehouse.withdraw(token, _amount);
 
         assertEq(warehouse.balanceOf(_owner, tokenToId(token)), 0);
-        assertEq(warehouse.totalSupply(tokenToId(token)), 0);
+        assertEq(ERC20(token).balanceOf(address(warehouse)), 0);
     }
 
     function testFuzz_withdrawOwner_whenNative(address _owner, uint256 _amount) public {
@@ -251,7 +239,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         warehouse.withdraw(native, _amount);
 
         assertEq(warehouse.balanceOf(_owner, tokenToId(native)), 0);
-        assertEq(warehouse.totalSupply(tokenToId(native)), 0);
+        assertEq(address(warehouse).balance, 0);
     }
 
     function test_withdrawOwner_Revert_whenWithdrawGreaterThanBalance() public {
@@ -262,9 +250,6 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         vm.prank(owner);
         vm.expectRevert();
         warehouse.withdraw(token, 101 ether);
-
-        assertEq(warehouse.balanceOf(owner, tokenToId(token)), 100 ether);
-        assertEq(warehouse.totalSupply(tokenToId(token)), 100 ether);
     }
 
     function test_withdrawOwner_Revert_whenOwnerReenters() public {
@@ -275,9 +260,6 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         vm.prank(owner);
         vm.expectRevert("Address: unable to send value, recipient may have reverted");
         warehouse.withdraw(native, 100 ether);
-
-        assertEq(warehouse.balanceOf(owner, tokenToId(native)), 100 ether);
-        assertEq(warehouse.totalSupply(tokenToId(native)), 100 ether);
     }
 
     function test_withdrawOwner_Revert_whenNonERC20() public {
@@ -302,7 +284,11 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
         for (uint256 i = 0; i < defaultTokens.length; i++) {
             assertEq(warehouse.balanceOf(owner, tokenToId(defaultTokens[i])), 0);
-            assertEq(warehouse.totalSupply(tokenToId(defaultTokens[i])), 0);
+            if (defaultTokens[i] == native) {
+                assertEq(address(warehouse).balance, 0);
+            } else {
+                assertEq(ERC20(defaultTokens[i]).balanceOf(address(warehouse)), 0);
+            }
         }
     }
 
@@ -348,8 +334,8 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         warehouse.withdraw(_owner, token, _amount, address(this));
 
         assertEq(warehouse.balanceOf(_owner, tokenToId(token)), 0);
-        assertEq(warehouse.totalSupply(tokenToId(token)), 0);
         assertEq(ERC20(token).balanceOf(_owner), _amount);
+        assertEq(ERC20(token).balanceOf(address(warehouse)), 0);
     }
 
     function testFuzz_withdrawForOwner_singleToken_whenNative(address _owner, uint256 _amount) public {
@@ -360,8 +346,8 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         warehouse.withdraw(_owner, native, _amount, address(this));
 
         assertEq(warehouse.balanceOf(_owner, tokenToId(native)), 0);
-        assertEq(warehouse.totalSupply(tokenToId(native)), 0);
         assertEq(address(_owner).balance, _amount);
+        assertEq(address(warehouse).balance, 0);
     }
 
     function test_withdrawForOwner_singleToken_Revert_whenWithdrawGreaterThanBalance() public {
@@ -430,9 +416,9 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         warehouse.withdraw(_owner, token, _amount, _withdrawer);
 
         assertEq(warehouse.balanceOf(_owner, tokenToId(token)), 0);
-        assertEq(warehouse.totalSupply(tokenToId(token)), 0);
         assertEq(ERC20(token).balanceOf(_owner), _amount - reward);
         assertEq(ERC20(token).balanceOf(_withdrawer), reward);
+        assertEq(ERC20(token).balanceOf(address(warehouse)), 0);
     }
 
     function testFuzz_withdrawForOwner_singleToken_whenNativeWithIncentive(
@@ -456,9 +442,9 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         warehouse.withdraw(_owner, native, _amount, _withdrawer);
 
         assertEq(warehouse.balanceOf(_owner, tokenToId(native)), 0);
-        assertEq(warehouse.totalSupply(tokenToId(native)), 0);
         assertEq(address(_owner).balance, _amount - reward);
         assertEq(_withdrawer.balance, reward);
+        assertEq(address(warehouse).balance, 0);
     }
 
     /* -------------------------------------------------------------------------- */
@@ -474,12 +460,13 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
         for (uint256 i = 0; i < defaultTokens.length; i++) {
             assertEq(warehouse.balanceOf(_owner, tokenToId(defaultTokens[i])), 0);
-            assertEq(warehouse.totalSupply(tokenToId(defaultTokens[i])), 0);
 
             if (defaultTokens[i] == native) {
                 assertEq(address(_owner).balance, _amount);
+                assertEq(address(warehouse).balance, 0);
             } else {
                 assertEq(ERC20(defaultTokens[i]).balanceOf(_owner), _amount);
+                assertEq(ERC20(defaultTokens[i]).balanceOf(address(warehouse)), 0);
             }
         }
     }
@@ -556,16 +543,17 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
         for (uint256 i = 0; i < defaultTokens.length; i++) {
             assertEq(warehouse.balanceOf(_owner, tokenToId(defaultTokens[i])), 0);
-            assertEq(warehouse.totalSupply(tokenToId(defaultTokens[i])), 0);
 
             uint256 reward = uint256(_amount) * _incentive / warehouse.PERCENTAGE_SCALE();
 
             if (defaultTokens[i] == native) {
                 assertEq(address(_owner).balance, _amount - reward);
                 assertEq(_withdrawer.balance, reward);
+                assertEq(address(warehouse).balance, 0);
             } else {
                 assertEq(ERC20(defaultTokens[i]).balanceOf(_owner), _amount - reward);
                 assertEq(ERC20(defaultTokens[i]).balanceOf(_withdrawer), reward);
+                assertEq(ERC20(defaultTokens[i]).balanceOf(address(warehouse)), 0);
             }
         }
     }

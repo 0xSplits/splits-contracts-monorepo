@@ -22,11 +22,11 @@ contract SplitsWarehouseInvariantTest is BaseTest {
         targetContract(address(handler));
     }
 
-    function invariant_totalSupply() public {
-        uint256 usdcTotalSupply = warehouse.totalSupply(address(usdc).toUint256());
-        uint256 nativeTotalSupply = warehouse.totalSupply(native.toUint256());
+    function invariant_totalBalance() public {
+        uint256 usdcTotalBalance = handler.warehouseBalance(address(usdc));
+        uint256 nativeTotalBalance = handler.warehouseBalance(address(native));
 
-        assertEq(usdcTotalSupply, usdc.balanceOf(address(warehouse)));
-        assertEq(nativeTotalSupply, address(warehouse).balance);
+        assertEq(usdcTotalBalance, usdc.balanceOf(address(warehouse)));
+        assertEq(nativeTotalBalance, address(warehouse).balance);
     }
 }

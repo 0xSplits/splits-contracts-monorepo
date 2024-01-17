@@ -83,9 +83,6 @@ contract SplitsWarehouse is ERC6909X {
     /*                                   STORAGE                                  */
     /* -------------------------------------------------------------------------- */
 
-    /// @notice Total supply of a token.
-    mapping(uint256 id => uint256 amount) public totalSupply;
-
     /// @notice Withdraw config of a user.
     mapping(address owner => WithdrawConfig config) public withdrawConfig;
 
@@ -190,7 +187,7 @@ contract SplitsWarehouse is ERC6909X {
 
         uint256 id = _token.toUint256();
 
-        _deposit(_owners, id, _amounts, totalAmount);
+        _deposit(_owners, id, _amounts);
     }
 
     /* -------------------------------------------------------------------------- */
@@ -319,19 +316,10 @@ contract SplitsWarehouse is ERC6909X {
     function _deposit(address _owner, uint256 _id, uint256 _amount) internal {
         if (_owner == address(0)) revert ZeroOwner();
 
-        totalSupply[_id] += _amount;
         _mint(_owner, _id, _amount);
     }
 
-    function _deposit(
-        address[] calldata _owners,
-        uint256 _id,
-        uint256[] calldata _amounts,
-        uint256 _totalAmount
-    )
-        internal
-    {
-        totalSupply[_id] += _totalAmount;
+    function _deposit(address[] calldata _owners, uint256 _id, uint256[] calldata _amounts) internal {
         for (uint256 i; i < _owners.length;) {
             if (_owners[i] == address(0)) revert ZeroOwner();
             _mint(_owners[i], _id, _amounts[i]);
@@ -344,7 +332,6 @@ contract SplitsWarehouse is ERC6909X {
 
     function _withdraw(address _owner, uint256 _id, address _token, uint256 _amount) internal {
         _burn(_owner, _id, _amount);
-        totalSupply[_id] -= _amount;
 
         if (_token == NATIVE_TOKEN) {
             payable(_owner).sendValue(_amount);
@@ -364,7 +351,6 @@ contract SplitsWarehouse is ERC6909X {
         internal
     {
         _burn(_owner, _id, _amount);
-        totalSupply[_id] -= _amount;
 
         if (_token == NATIVE_TOKEN) {
             payable(_owner).sendValue(_amount - _reward);
