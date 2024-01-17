@@ -467,7 +467,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
         testFuzz_depositSingleOwner_whenERC20(_owner, _owner, _amount);
 
-        warehouse.withdraw(_owner, token, _amount);
+        warehouse.withdraw(_owner, token, _amount, address(this));
 
         assertEq(warehouse.balanceOf(_owner, tokenToId(token)), 0);
         assertEq(warehouse.totalSupply(tokenToId(token)), 0);
@@ -479,7 +479,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
         testFuzz_depositSingleOwner_whenNativeToken(_owner, _owner, _amount);
 
-        warehouse.withdraw(_owner, native, _amount);
+        warehouse.withdraw(_owner, native, _amount, address(this));
 
         assertEq(warehouse.balanceOf(_owner, tokenToId(native)), 0);
         assertEq(warehouse.totalSupply(tokenToId(native)), 0);
@@ -492,7 +492,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         testFuzz_depositSingleOwner_whenERC20(owner, owner, 100 ether);
 
         vm.expectRevert();
-        warehouse.withdraw(owner, token, 101 ether);
+        warehouse.withdraw(owner, token, 101 ether, address(this));
     }
 
     function test_withdrawForOwner_singleToken_Revert_whenOwnerReenters() public {
@@ -501,14 +501,14 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         deposit(BAD_ACTOR, native, 1 ether);
 
         vm.expectRevert("Address: unable to send value, recipient may have reverted");
-        warehouse.withdraw(owner, native, 1 ether);
+        warehouse.withdraw(owner, native, 1 ether, address(this));
     }
 
     function test_withdrawForOwner_singleToken_Revert_whenNonERC20() public {
         address owner = ALICE.addr;
 
         vm.expectRevert();
-        warehouse.withdraw(owner, address(this), 100 ether);
+        warehouse.withdraw(owner, address(this), 100 ether, address(this));
     }
 
     function test_withdrawForOwner_singleToken_Revert_whenWithdrawalPaused() public {
@@ -516,17 +516,71 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
         testFuzz_depositSingleOwner_whenERC20(owner, owner, 100 ether);
 
+        SplitsWarehouse.WithdrawConfig memory config = SplitsWarehouse.WithdrawConfig({ incentive: 0, paused: true });
+
         vm.startPrank(owner);
-        warehouse.pauseWithdrawals(true);
+        warehouse.setWithdrawConfig(config);
 
         vm.expectRevert(abi.encodeWithSelector(WithdrawalPaused.selector, owner));
-        warehouse.withdraw(owner, token, 100 ether);
+        warehouse.withdraw(owner, token, 100 ether, address(this));
         vm.stopPrank();
     }
 
     function test_withdrawForOwner_singleToken_Revert_whenZeroOwner() public {
         vm.expectRevert(ZeroOwner.selector);
-        warehouse.withdraw(address(0), token, 100 ether);
+        warehouse.withdraw(address(0), token, 100 ether, address(this));
+    }
+
+    function testFuzz_withdrawForOwner_singleToken_whenERC20WithIncentive(
+        address _owner,
+        uint192 _amount,
+        uint16 _incentive,
+        address _withdrawer
+    )
+        public
+    {
+        assumeAddress(_owner);
+        assumeAddress(_withdrawer);
+        vm.assume(_owner != _withdrawer);
+        vm.assume(_withdrawer.balance == 0);
+
+        testFuzz_depositSingleOwner_whenERC20(_owner, _owner, _amount);
+        testFuzz_setWithdrawalConfig(_owner, SplitsWarehouse.WithdrawConfig({ incentive: _incentive, paused: false }));
+
+        uint256 reward = uint256(_amount) * uint256(_incentive) / warehouse.PERCENTAGE_SCALE();
+
+        warehouse.withdraw(_owner, token, _amount, _withdrawer);
+
+        assertEq(warehouse.balanceOf(_owner, tokenToId(token)), 0);
+        assertEq(warehouse.totalSupply(tokenToId(token)), 0);
+        assertEq(ERC20(token).balanceOf(_owner), _amount - reward);
+        assertEq(ERC20(token).balanceOf(_withdrawer), reward);
+    }
+
+    function testFuzz_withdrawForOwner_singleToken_whenNativeWithIncentive(
+        address _owner,
+        uint192 _amount,
+        uint16 _incentive,
+        address _withdrawer
+    )
+        public
+    {
+        assumeAddress(_owner);
+        assumeAddress(_withdrawer);
+        vm.assume(_owner != _withdrawer);
+        vm.assume(_withdrawer.balance == 0);
+
+        testFuzz_depositSingleOwner_whenNativeToken(_owner, _owner, _amount);
+        testFuzz_setWithdrawalConfig(_owner, SplitsWarehouse.WithdrawConfig({ incentive: _incentive, paused: false }));
+
+        uint256 reward = uint256(_amount) * uint256(_incentive) / warehouse.PERCENTAGE_SCALE();
+
+        warehouse.withdraw(_owner, native, _amount, _withdrawer);
+
+        assertEq(warehouse.balanceOf(_owner, tokenToId(native)), 0);
+        assertEq(warehouse.totalSupply(tokenToId(native)), 0);
+        assertEq(address(_owner).balance, _amount - reward);
+        assertEq(_withdrawer.balance, reward);
     }
 
     /* -------------------------------------------------------------------------- */
@@ -538,7 +592,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
         depositDefaultTokens(_owner, _amount);
 
-        warehouse.withdraw(_owner, defaultTokens, getAmounts(_amount));
+        warehouse.withdraw(_owner, defaultTokens, getAmounts(_amount), address(this));
 
         for (uint256 i = 0; i < defaultTokens.length; i++) {
             assertEq(warehouse.balanceOf(_owner, tokenToId(defaultTokens[i])), 0);
@@ -556,7 +610,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         address owner = ALICE.addr;
 
         vm.expectRevert(LengthMismatch.selector);
-        warehouse.withdraw(owner, defaultTokens, new uint256[](1));
+        warehouse.withdraw(owner, defaultTokens, new uint256[](1), address(this));
     }
 
     function test_withdrawForOwner_multipleTokens_Revert_whenWithdrawGreaterThanBalance() public {
@@ -565,7 +619,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         depositDefaultTokens(owner, 100 ether);
 
         vm.expectRevert();
-        warehouse.withdraw(owner, defaultTokens, getAmounts(101 ether));
+        warehouse.withdraw(owner, defaultTokens, getAmounts(101 ether), address(this));
     }
 
     function test_withdrawForOwner_multipleTokens_Revert_whenOwnerReenters() public {
@@ -574,14 +628,14 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         depositDefaultTokens(owner, 100 ether);
 
         vm.expectRevert("Address: unable to send value, recipient may have reverted");
-        warehouse.withdraw(owner, defaultTokens, getAmounts(100 ether));
+        warehouse.withdraw(owner, defaultTokens, getAmounts(100 ether), address(this));
     }
 
     function test_withdrawForOwner_multipleTokens_Revert_whenNonERC20() public {
         address owner = ALICE.addr;
 
         vm.expectRevert();
-        warehouse.withdraw(owner, new address[](1), new uint256[](1));
+        warehouse.withdraw(owner, new address[](1), new uint256[](1), address(this));
     }
 
     function test_withdrawForOwner_multipleTokens_Revert_whenWithdrawalPaused() public {
@@ -589,126 +643,25 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
         depositDefaultTokens(owner, 100 ether);
 
+        SplitsWarehouse.WithdrawConfig memory config = SplitsWarehouse.WithdrawConfig({ incentive: 0, paused: true });
+
         vm.startPrank(owner);
-        warehouse.pauseWithdrawals(true);
+        warehouse.setWithdrawConfig(config);
 
         vm.expectRevert(abi.encodeWithSelector(WithdrawalPaused.selector, owner));
-        warehouse.withdraw(owner, defaultTokens, getAmounts(100 ether));
+        warehouse.withdraw(owner, defaultTokens, getAmounts(100 ether), address(this));
         vm.stopPrank();
     }
 
     function test_withdrawForOwner_multipleTokens_Revert_whenZeroOwner() public {
         vm.expectRevert(ZeroOwner.selector);
-        warehouse.withdraw(address(0), defaultTokens, getAmounts(100 ether));
+        warehouse.withdraw(address(0), defaultTokens, getAmounts(100 ether), address(this));
     }
-
-    /* -------------------------------------------------------------------------- */
-    /*               WITHDRAW_FOR_OWNER_WITH_INCENTIVE_SINGLE_TOKENS              */
-    /* -------------------------------------------------------------------------- */
-
-    function testFuzz_withdrawWithIncentiveForOwner_singleToken_whenERC20(
-        address _owner,
-        uint192 _amount,
-        uint256 _incentive,
-        address _withdrawer
-    )
-        public
-    {
-        assumeAddress(_owner);
-        assumeAddress(_withdrawer);
-        vm.assume(_owner != _withdrawer);
-        vm.assume(_withdrawer.balance == 0);
-
-        testFuzz_depositSingleOwner_whenERC20(_owner, _owner, _amount);
-        testFuzz_setWithdrawIncentive(_owner, _incentive);
-
-        warehouse.withdrawWithIncentive(_owner, token, _amount, _withdrawer);
-
-        uint256 reward = _amount * warehouse.withdrawIncentive(_owner) / warehouse.PERCENTAGE_SCALE();
-
-        assertEq(warehouse.balanceOf(_owner, tokenToId(token)), 0);
-        assertEq(warehouse.totalSupply(tokenToId(token)), 0);
-        assertEq(ERC20(token).balanceOf(_owner), _amount - reward);
-        assertEq(ERC20(token).balanceOf(_withdrawer), reward);
-    }
-
-    function testFuzz_withdrawWithIncentiveForOwner_singleToken_whenNative(
-        address _owner,
-        uint192 _amount,
-        uint256 _incentive,
-        address _withdrawer
-    )
-        public
-    {
-        assumeAddress(_owner);
-        assumeAddress(_withdrawer);
-        vm.assume(_owner != _withdrawer);
-        vm.assume(_withdrawer.balance == 0);
-
-        testFuzz_depositSingleOwner_whenNativeToken(_owner, _owner, _amount);
-        testFuzz_setWithdrawIncentive(_owner, _incentive);
-
-        warehouse.withdrawWithIncentive(_owner, native, _amount, _withdrawer);
-
-        uint256 reward = _amount * warehouse.withdrawIncentive(_owner) / warehouse.PERCENTAGE_SCALE();
-
-        assertEq(warehouse.balanceOf(_owner, tokenToId(native)), 0);
-        assertEq(warehouse.totalSupply(tokenToId(native)), 0);
-        assertEq(address(_owner).balance, _amount - reward);
-        assertEq(_withdrawer.balance, reward);
-    }
-
-    function test_withdrawWithIncentiveForOwner_singleToken_Revert_whenWithdrawGreaterThanBalance() public {
-        address owner = ALICE.addr;
-
-        testFuzz_depositSingleOwner_whenERC20(owner, owner, 100 ether);
-
-        vm.expectRevert();
-        warehouse.withdrawWithIncentive(owner, token, 101 ether, address(this));
-    }
-
-    function test_withdrawWithIncentiveForOwner_singleToken_Revert_whenOwnerReenters() public {
-        address owner = BAD_ACTOR;
-
-        deposit(owner, native, 100 ether);
-
-        vm.expectRevert("Address: unable to send value, recipient may have reverted");
-        warehouse.withdrawWithIncentive(owner, native, 100 ether, address(this));
-    }
-
-    function test_withdrawWithIncentiveForOwner_singleToken_Revert_whenNonERC20() public {
-        address owner = ALICE.addr;
-
-        vm.expectRevert();
-        warehouse.withdrawWithIncentive(owner, address(this), 100 ether, address(this));
-    }
-
-    function test_withdrawWithIncentiveForOwner_singleToken_Revert_whenWithdrawalPaused() public {
-        address owner = ALICE.addr;
-
-        testFuzz_depositSingleOwner_whenERC20(owner, owner, 100 ether);
-
-        vm.startPrank(owner);
-        warehouse.pauseWithdrawals(true);
-
-        vm.expectRevert(abi.encodeWithSelector(WithdrawalPaused.selector, owner));
-        warehouse.withdrawWithIncentive(owner, token, 100 ether, address(this));
-        vm.stopPrank();
-    }
-
-    function test_withdrawWithIncentiveForOwner_singleToken_Revert_whenZeroOwner() public {
-        vm.expectRevert(ZeroOwner.selector);
-        warehouse.withdrawWithIncentive(address(0), token, 100 ether, address(this));
-    }
-
-    /* -------------------------------------------------------------------------- */
-    /*              WITHDRAW_FOR_OWNER_WITH_INCENTIVE_MULTIPLE_TOKENS             */
-    /* -------------------------------------------------------------------------- */
 
     function testFuzz_withdrawWithIncentiveForOwner_multipleTokens(
         address _owner,
         uint192 _amount,
-        uint256 _incentive,
+        uint16 _incentive,
         address _withdrawer
     )
         public
@@ -719,15 +672,15 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         vm.assume(_withdrawer.balance == 0);
 
         depositDefaultTokens(_owner, _amount);
-        testFuzz_setWithdrawIncentive(_owner, _incentive);
+        testFuzz_setWithdrawalConfig(_owner, SplitsWarehouse.WithdrawConfig({ incentive: _incentive, paused: false }));
 
-        warehouse.withdrawWithIncentive(_owner, defaultTokens, getAmounts(_amount), _withdrawer);
+        warehouse.withdraw(_owner, defaultTokens, getAmounts(_amount), _withdrawer);
 
         for (uint256 i = 0; i < defaultTokens.length; i++) {
             assertEq(warehouse.balanceOf(_owner, tokenToId(defaultTokens[i])), 0);
             assertEq(warehouse.totalSupply(tokenToId(defaultTokens[i])), 0);
 
-            uint256 reward = _amount * warehouse.withdrawIncentive(_owner) / warehouse.PERCENTAGE_SCALE();
+            uint256 reward = uint256(_amount) * _incentive / warehouse.PERCENTAGE_SCALE();
 
             if (defaultTokens[i] == native) {
                 assertEq(address(_owner).balance, _amount - reward);
@@ -739,80 +692,18 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         }
     }
 
-    function testFuzz_withdrawWithIncentiveForOwner_multipleTokens_Revert_whenLengthMismatch() public {
-        address owner = ALICE.addr;
-
-        vm.expectRevert(LengthMismatch.selector);
-        warehouse.withdrawWithIncentive(owner, defaultTokens, new uint256[](1), address(this));
-    }
-
-    function test_withdrawWithIncentiveForOwner_multipleTokens_Revert_whenWithdrawGreaterThanBalance() public {
-        address owner = ALICE.addr;
-
-        depositDefaultTokens(owner, 100 ether);
-
-        vm.expectRevert();
-        warehouse.withdrawWithIncentive(owner, defaultTokens, getAmounts(101 ether), address(this));
-    }
-
-    function test_withdrawWithIncentiveForOwner_multipleTokens_Revert_whenOwnerReenters() public {
-        address owner = BAD_ACTOR;
-
-        depositDefaultTokens(owner, 100 ether);
-
-        vm.expectRevert("Address: unable to send value, recipient may have reverted");
-        warehouse.withdrawWithIncentive(owner, defaultTokens, getAmounts(100 ether), address(this));
-    }
-
-    function test_withdrawWithIncentiveForOwner_multipleTokens_Revert_whenNonERC20() public {
-        address owner = ALICE.addr;
-
-        vm.expectRevert();
-        warehouse.withdrawWithIncentive(owner, new address[](1), new uint256[](1), address(this));
-    }
-
-    function test_withdrawWithIncentiveForOwner_multipleTokens_Revert_whenWithdrawalPaused() public {
-        address owner = ALICE.addr;
-
-        depositDefaultTokens(owner, 100 ether);
-
-        vm.startPrank(owner);
-        warehouse.pauseWithdrawals(true);
-
-        vm.expectRevert(abi.encodeWithSelector(WithdrawalPaused.selector, owner));
-        warehouse.withdrawWithIncentive(owner, defaultTokens, getAmounts(100 ether), address(this));
-        vm.stopPrank();
-    }
-
-    function test_withdrawWithIncentiveForOwner_multipleTokens_Revert_whenZeroOwner() public {
-        vm.expectRevert(ZeroOwner.selector);
-        warehouse.withdrawWithIncentive(address(0), defaultTokens, getAmounts(100 ether), address(this));
-    }
-
     /* -------------------------------------------------------------------------- */
     /*                                OWNER_ACTIONS                               */
     /* -------------------------------------------------------------------------- */
 
-    function testFuzz_pauseWithdrawals(address _owner, bool pause) public {
+    function testFuzz_setWithdrawalConfig(address _owner, SplitsWarehouse.WithdrawConfig memory _config) public {
         vm.prank(_owner);
-        warehouse.pauseWithdrawals(pause);
+        warehouse.setWithdrawConfig(_config);
 
-        assertEq(warehouse.isWithdrawPaused(_owner), pause);
-    }
+        SplitsWarehouse.WithdrawConfig memory config = warehouse.getWithdrawConfig(_owner);
 
-    function testFuzz_setWithdrawIncentive(address _owner, uint256 _incentive) public {
-        _incentive = bound(_incentive, 0, 1e5);
-
-        vm.prank(_owner);
-        warehouse.setWithdrawIncentive(_incentive);
-
-        assertEq(warehouse.withdrawIncentive(_owner), _incentive);
-    }
-
-    function testFuzz_setWithdrawIncentive_Revert_whenInvalidIncentive() public {
-        uint256 incentive = warehouse.MAX_INCENTIVE() + 1;
-        vm.expectRevert(SplitsWarehouse.InvalidIncentive.selector);
-        warehouse.setWithdrawIncentive(incentive);
+        assertEq(config.paused, _config.paused);
+        assertEq(config.incentive, _config.incentive);
     }
 
     /* -------------------------------------------------------------------------- */

@@ -37,7 +37,16 @@ contract SplitsWarehouse is ERC6909Permit {
     /* -------------------------------------------------------------------------- */
 
     event WithdrawalsPaused(address indexed owner, bool paused);
-    event WithdrawIncentiveSet(address indexed owner, uint256 incentive);
+    event WithdrawConfigUpdated(address indexed owner, WithdrawConfig config);
+
+    /* -------------------------------------------------------------------------- */
+    /*                                   STRUCTS                                  */
+    /* -------------------------------------------------------------------------- */
+
+    struct WithdrawConfig {
+        uint16 incentive;
+        bool paused;
+    }
 
     /* -------------------------------------------------------------------------- */
     /*                            CONSTANTS/IMMUTABLES                            */
@@ -74,11 +83,8 @@ contract SplitsWarehouse is ERC6909Permit {
     /// @notice Total supply of a token.
     mapping(uint256 id => uint256 amount) public totalSupply;
 
-    /// @notice Whether a token withdrawal is paused for a given address.
-    mapping(address owner => bool isPaused) public isWithdrawPaused;
-
-    /// @notice Incentive for withdrawing a token.
-    mapping(address owner => uint256 incentive) public withdrawIncentive;
+    /// @notice Withdraw config of a user.
+    mapping(address owner => WithdrawConfig config) public withdrawConfig;
 
     /* -------------------------------------------------------------------------- */
     /*                                 CONSTRUCTOR                                */
@@ -259,12 +265,17 @@ contract SplitsWarehouse is ERC6909Permit {
      * @param _owner The address whose tokens are withdrawn.
      * @param _token The address of the token to be withdrawn.
      * @param _amount The amount of the token to be withdrawn.
+     * @param _withdrawer The address that will receive the withdrawer incentive.
      */
-    function withdraw(address _owner, address _token, uint256 _amount) external {
-        if (isWithdrawPaused[_owner]) revert WithdrawalPaused(_owner);
+    function withdraw(address _owner, address _token, uint256 _amount, address _withdrawer) external {
+        WithdrawConfig memory config = withdrawConfig[_owner];
+        if (config.paused) revert WithdrawalPaused(_owner);
         if (_owner == address(0)) revert ZeroOwner();
 
-        _withdraw(_owner, _token.toUint256(), _token, _amount);
+        uint256 reward = _amount * config.incentive / PERCENTAGE_SCALE;
+
+        if (reward > 0) _withdraw(_owner, _token.toUint256(), _token, _amount, reward, _withdrawer);
+        else _withdraw(_owner, _token.toUint256(), _token, _amount);
     }
 
     /**
@@ -273,46 +284,9 @@ contract SplitsWarehouse is ERC6909Permit {
      * @param _owner The address whose tokens are withdrawn.
      * @param _tokens The addresses of the tokens to be withdrawn.
      * @param _amounts The amounts of the tokens to be withdrawn.
-     */
-    function withdraw(address _owner, address[] calldata _tokens, uint256[] calldata _amounts) external {
-        if (_tokens.length != _amounts.length) revert LengthMismatch();
-        if (isWithdrawPaused[_owner]) revert WithdrawalPaused(_owner);
-        if (_owner == address(0)) revert ZeroOwner();
-
-        for (uint256 i; i < _tokens.length;) {
-            _withdraw(_owner, _tokens[i].toUint256(), _tokens[i], _amounts[i]);
-
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    /**
-     * @notice Withdraws token from the warehouse for a specified address with incentives for the withdrawer.
-     * @dev It is recommended to withdraw balance - 1 to save gas.
-     * @param _owner The address whose tokens are withdrawn.
-     * @param _token The address of the token to be withdrawn.
-     * @param _amount The amount of the token to be withdrawn.
      * @param _withdrawer The address that will receive the withdrawer incentive.
      */
-    function withdrawWithIncentive(address _owner, address _token, uint256 _amount, address _withdrawer) external {
-        if (isWithdrawPaused[_owner]) revert WithdrawalPaused(_owner);
-        if (_owner == address(0)) revert ZeroOwner();
-
-        uint256 reward = _amount * withdrawIncentive[_owner] / PERCENTAGE_SCALE;
-        _withdraw(_owner, _token.toUint256(), _token, _amount, reward, _withdrawer);
-    }
-
-    /**
-     * @notice Withdraws tokens from the warehouse for a specified address with incentives for the withdrawer.
-     * @dev It is recommended to withdraw balance - 1 to save gas.
-     * @param _owner The address whose tokens are withdrawn.
-     * @param _tokens The addresses of the tokens to be withdrawn.
-     * @param _amounts The amounts of the tokens to be withdrawn.
-     * @param _withdrawer The address that will receive the withdrawer incentive.
-     */
-    function withdrawWithIncentive(
+    function withdraw(
         address _owner,
         address[] calldata _tokens,
         uint256[] calldata _amounts,
@@ -320,19 +294,28 @@ contract SplitsWarehouse is ERC6909Permit {
     )
         external
     {
+        WithdrawConfig memory config = withdrawConfig[_owner];
         if (_tokens.length != _amounts.length) revert LengthMismatch();
-        if (isWithdrawPaused[_owner]) revert WithdrawalPaused(_owner);
+        if (config.paused) revert WithdrawalPaused(_owner);
         if (_owner == address(0)) revert ZeroOwner();
 
-        uint256 incentive = withdrawIncentive[_owner];
-        uint256 reward;
+        if (config.incentive > 0) {
+            uint256 reward;
+            for (uint256 i; i < _tokens.length;) {
+                reward = _amounts[i] * config.incentive / PERCENTAGE_SCALE;
+                _withdraw(_owner, _tokens[i].toUint256(), _tokens[i], _amounts[i], reward, _withdrawer);
 
-        for (uint256 i; i < _tokens.length;) {
-            reward = _amounts[i] * incentive / PERCENTAGE_SCALE;
-            _withdraw(_owner, _tokens[i].toUint256(), _tokens[i], _amounts[i], reward, _withdrawer);
+                unchecked {
+                    ++i;
+                }
+            }
+        } else {
+            for (uint256 i; i < _tokens.length;) {
+                _withdraw(_owner, _tokens[i].toUint256(), _tokens[i], _amounts[i]);
 
-            unchecked {
-                ++i;
+                unchecked {
+                    ++i;
+                }
             }
         }
     }
@@ -342,22 +325,25 @@ contract SplitsWarehouse is ERC6909Permit {
     /* -------------------------------------------------------------------------- */
 
     /**
-     * @notice Pauses withdrawals for msg.sender.
-     * @param pause Whether to pause or unpause.
+     * @notice Sets the withdraw config for the msg.sender.
+     * @param _config Includes the incentives for withdrawal and their paused state.
      */
-    function pauseWithdrawals(bool pause) external {
-        isWithdrawPaused[msg.sender] = pause;
-        emit WithdrawalsPaused(msg.sender, pause);
+    function setWithdrawConfig(WithdrawConfig calldata _config) external {
+        withdrawConfig[msg.sender] = _config;
+        emit WithdrawConfigUpdated(msg.sender, _config);
     }
 
+    /* -------------------------------------------------------------------------- */
+    /*                                    VIEW                                    */
+    /* -------------------------------------------------------------------------- */
+
     /**
-     * @notice Sets the incentive for withdrawing tokens for msg.sender.
-     * @param _incentive The incentive for withdrawing tokens.
+     * @notice Returns the withdraw config for a specified address.
+     * @param _owner The address whose withdraw config is returned.
+     * @return config The withdraw config for the specified address.
      */
-    function setWithdrawIncentive(uint256 _incentive) external {
-        if (_incentive > MAX_INCENTIVE) revert InvalidIncentive();
-        withdrawIncentive[msg.sender] = _incentive;
-        emit WithdrawIncentiveSet(msg.sender, _incentive);
+    function getWithdrawConfig(address _owner) external view returns (WithdrawConfig memory) {
+        return withdrawConfig[_owner];
     }
 
     /* -------------------------------------------------------------------------- */
