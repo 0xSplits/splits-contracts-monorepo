@@ -17,7 +17,7 @@ contract ERC6909Test is BaseTest {
     function setUp() public override {
         super.setUp();
 
-        erc6909 = new ERC6909("ERC6909");
+        erc6909 = new ERC6909("ERC6909", "V1");
         permitUtils = new PermitUtils(erc6909.DOMAIN_SEPARATOR());
     }
 

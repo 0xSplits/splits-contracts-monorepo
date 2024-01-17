@@ -36,7 +36,7 @@ contract ERC6909Permit is ERC6909, EIP712, Nonces {
      * @dev Initializes the {EIP712} domain separator using the `name` parameter, and setting `version` to `"1"`.
      *
      */
-    constructor(string memory name) EIP712(name, "1") { }
+    constructor(string memory _name, string memory _version) EIP712(_name, _version) { }
 
     /* -------------------------------------------------------------------------- */
     /*                              PUBLIC FUNCTIONS                              */

@@ -80,7 +80,7 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
         BAD_ACTOR = address(new WarehouseReentrantReceiver());
 
         // Setup warehouse
-        warehouse = new SplitsWarehouse(WAREHOUSE_NAME, GAS_TOKEN_NAME, GAS_TOKEN_SYMBOL);
+        warehouse = new SplitsWarehouse(GAS_TOKEN_NAME, GAS_TOKEN_SYMBOL);
 
         // Setup native token
         native = warehouse.NATIVE_TOKEN();

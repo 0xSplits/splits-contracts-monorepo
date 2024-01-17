@@ -8,6 +8,7 @@ import { ERC6909Permit } from "./tokens/ERC6909Permit.sol";
 import { IERC20Metadata as IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
+import { ShortString, ShortStrings } from "@openzeppelin/contracts/utils/ShortStrings.sol";
 
 /**
  * @title Splits Token Warehouse
@@ -21,6 +22,8 @@ contract SplitsWarehouse is ERC6909Permit {
     using Math for uint256[];
     using SafeERC20 for IERC20;
     using Address for address payable;
+    using ShortStrings for string;
+    using ShortStrings for ShortString;
 
     /* -------------------------------------------------------------------------- */
     /*                                   ERRORS                                   */
@@ -65,10 +68,10 @@ contract SplitsWarehouse is ERC6909Permit {
     uint256 public constant NATIVE_TOKEN_ID = 1_364_068_194_842_176_056_990_105_843_868_530_818_345_537_040_110;
 
     /// @notice metadata name of the native token.
-    string private nativeTokenName;
+    ShortString private immutable nativeTokenName;
 
     /// @notice metadata symbol of the native token.
-    string private nativeTokenSymbol;
+    ShortString private immutable nativeTokenSymbol;
 
     /// @notice Maximum incentive for withdrawing a token.
     uint256 public constant MAX_INCENTIVE = 1e5;
@@ -91,14 +94,13 @@ contract SplitsWarehouse is ERC6909Permit {
     /* -------------------------------------------------------------------------- */
 
     constructor(
-        string memory _name,
         string memory _native_token_name,
         string memory _native_token_symbol
     )
-        ERC6909Permit(_name)
+        ERC6909Permit("SplitsWarehouse", "v1")
     {
-        nativeTokenName = _native_token_name;
-        nativeTokenSymbol = _native_token_symbol;
+        nativeTokenName = _native_token_name.toShortString();
+        nativeTokenSymbol = _native_token_symbol.toShortString();
     }
 
     /* -------------------------------------------------------------------------- */
@@ -112,7 +114,7 @@ contract SplitsWarehouse is ERC6909Permit {
      */
     function name(uint256 id) external view returns (string memory) {
         if (id == NATIVE_TOKEN_ID) {
-            return nativeTokenName;
+            return nativeTokenName.toString();
         }
         return string.concat(METADATA_PREFIX_NAME, IERC20(id.toAddress()).name());
     }
@@ -124,7 +126,7 @@ contract SplitsWarehouse is ERC6909Permit {
      */
     function symbol(uint256 id) external view returns (string memory) {
         if (id == NATIVE_TOKEN_ID) {
-            return nativeTokenSymbol;
+            return nativeTokenSymbol.toString();
         }
         return string.concat(METADATA_PREFIX_SYMBOL, IERC20(id.toAddress()).name());
     }
@@ -146,7 +148,7 @@ contract SplitsWarehouse is ERC6909Permit {
     /* -------------------------------------------------------------------------- */
 
     /* -------------------------------------------------------------------------- */
-    /*                                  DESPOSIT                                  */
+    /*                                  DEPOSIT                                   */
     /* -------------------------------------------------------------------------- */
 
     /**
@@ -188,7 +190,7 @@ contract SplitsWarehouse is ERC6909Permit {
 
         uint256 id = _token.toUint256();
 
-        _depsoit(_owners, id, _amounts, totalAmount);
+        _deposit(_owners, id, _amounts, totalAmount);
     }
 
     /**
@@ -224,7 +226,7 @@ contract SplitsWarehouse is ERC6909Permit {
 
         if (totalAmount > IERC20(_token).balanceOf(address(this)) - totalSupply[id]) revert InvalidAmount();
 
-        _depsoit(_owners, id, _amounts, totalAmount);
+        _deposit(_owners, id, _amounts, totalAmount);
     }
 
     /* -------------------------------------------------------------------------- */
@@ -357,7 +359,7 @@ contract SplitsWarehouse is ERC6909Permit {
         _mint(_owner, _id, _amount);
     }
 
-    function _depsoit(
+    function _deposit(
         address[] calldata _owners,
         uint256 _id,
         uint256[] calldata _amounts,
