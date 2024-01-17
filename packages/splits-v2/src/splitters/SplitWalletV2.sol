@@ -11,7 +11,7 @@ import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
 /**
  * @title SplitWalletV2
- * @author splits
+ * @author Splits
  * @notice The implementation logic for v2 splitters.
  * @dev `SplitProxy` handles `receive()` itself to avoid the gas cost with `DELEGATECALL`.
  */
@@ -25,7 +25,6 @@ contract SplitWalletV2 is Wallet {
     /* -------------------------------------------------------------------------- */
 
     error UnauthorizedInitializer();
-    error DistributionsPaused();
     error InvalidSplit();
     error ZeroAddress();
 
@@ -34,7 +33,6 @@ contract SplitWalletV2 is Wallet {
     /* -------------------------------------------------------------------------- */
 
     event SplitUpdated(address indexed _controller, SplitV2Lib.Split _split);
-    event SplitDistributionsPaused(bool _paused);
     event SplitDistributeByPush(bool _distributeByPush);
     event SplitDistributed(address indexed _token, uint256 _amount, address _distributor);
 
@@ -55,14 +53,11 @@ contract SplitWalletV2 is Wallet {
     /*                                   STORAGE                                  */
     /* -------------------------------------------------------------------------- */
 
-    /// @notice the split hash - Keccak256 hash of the split struct
-    bytes32 public splitHash;
-
-    /// @notice Controls the distribution of the split
-    bool public distributionsPaused;
-
     /// @notice Controls the distribution direction of the split
     bool public distributeByPush;
+
+    /// @notice the split hash - Keccak256 hash of the split struct
+    bytes32 public splitHash;
 
     /* -------------------------------------------------------------------------- */
     /*                          CONSTRUCTOR & INITIALIZER                         */
@@ -111,9 +106,9 @@ contract SplitWalletV2 is Wallet {
         address _distributor
     )
         external
+        pausable
         returns (uint256[] memory amounts, uint256 amountDistributed, uint256 distibutorReward)
     {
-        if (distributionsPaused) revert DistributionsPaused();
         if (splitHash != _split.getHash()) revert InvalidSplit();
 
         if (distributeByPush) {
@@ -151,9 +146,9 @@ contract SplitWalletV2 is Wallet {
     )
         external
         payable
+        pausable
         returns (uint256[] memory amounts, uint256 amountDistributed, uint256 distibutorReward)
     {
-        if (distributionsPaused) revert DistributionsPaused();
         if (splitHash != _split.getHash()) revert InvalidSplit();
 
         if (distributeByPush) {
@@ -199,16 +194,6 @@ contract SplitWalletV2 is Wallet {
         _split.validate();
         splitHash = _split.getHash();
         emit SplitUpdated(owner, _split);
-    }
-
-    /**
-     * @notice Sets the split distributions to be paused or unpaused
-     * @dev Only the controller can call this function.
-     * @param _pause whether to pause or unpause the split distributions
-     */
-    function pauseDistributions(bool _pause) external onlyOwner {
-        distributionsPaused = _pause;
-        emit SplitDistributionsPaused(_pause);
     }
 
     /**

@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.18;
 
-import { Ownable } from "./Ownable.sol";
+import { Pausable } from "./Pausable.sol";
 
 /**
  * @title Wallet Implementation
  * @author 0xSplits
  * @notice Minimal smart wallet clone-implementation
  */
-abstract contract Wallet is Ownable {
+abstract contract Wallet is Pausable {
     /* -------------------------------------------------------------------------- */
     /*                                   STRUCTS                                  */
     /* -------------------------------------------------------------------------- */
@@ -33,8 +33,8 @@ abstract contract Wallet is Ownable {
     /*                          CONSTRUCTOR & INITIALIZER                         */
     /* -------------------------------------------------------------------------- */
 
-    function __initWallet(address owner_) internal {
-        Ownable.__initOwnable(owner_);
+    function __initWallet(address _owner) internal {
+        __initPausable(_owner, false);
     }
 
     /* -------------------------------------------------------------------------- */

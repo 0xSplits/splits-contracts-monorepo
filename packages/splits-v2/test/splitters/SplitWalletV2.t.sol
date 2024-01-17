@@ -5,6 +5,8 @@ import { SplitV2Lib } from "../../src/libraries/SplitV2.sol";
 import { SplitFactoryV2 } from "../../src/splitters/SplitFactoryV2.sol";
 import { SplitWalletV2 } from "../../src/splitters/SplitWalletV2.sol";
 import { Ownable } from "../../src/utils/Ownable.sol";
+
+import { Pausable } from "../../src/utils/Pausable.sol";
 import { BaseTest } from "../Base.t.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
@@ -59,7 +61,6 @@ contract SplitWalletV2Test is BaseTest {
         assertEq(wallet.owner(), _owner);
         assertEq(address(wallet.SPLITS_WAREHOUSE()), address(warehouse));
         assertEq(wallet.distributeByPush(), false);
-        assertEq(wallet.distributionsPaused(), false);
         assertEq(wallet.splitHash(), split.getHashMem());
     }
 
@@ -176,18 +177,6 @@ contract SplitWalletV2Test is BaseTest {
         wallet.updateSplit(split);
     }
 
-    function testFuzz_pauseDistributions(bool _pause) public {
-        vm.expectEmit();
-        emit SplitDistributionsPaused(_pause);
-        vm.prank(wallet.owner());
-        wallet.pauseDistributions(_pause);
-    }
-
-    function testFuzz_pauseDistributions_Revert_Unauthorized(bool _pause) public {
-        vm.expectRevert(Ownable.Unauthorized.selector);
-        wallet.pauseDistributions(_pause);
-    }
-
     function testFuzz_updateDistributeByPush(bool _distributeByPush) public {
         vm.expectEmit();
         emit SplitDistributeByPush(_distributeByPush);
@@ -204,27 +193,27 @@ contract SplitWalletV2Test is BaseTest {
     /*                            DISTRIBUTE FUNCTIONS                            */
     /* -------------------------------------------------------------------------- */
 
-    function testFuzz_distributeERC20_Revert_whenDistributionsPaused(uint256 _amount) public {
+    function testFuzz_distributeERC20_Revert_whenPaused(uint256 _amount) public {
         SplitV2Lib.Split memory split = getDefaultSplitWithNoIncentive();
 
         wallet.initialize(split, ALICE.addr);
 
         vm.prank(ALICE.addr);
-        wallet.pauseDistributions(true);
+        wallet.setPaused(true);
 
-        vm.expectRevert(SplitWalletV2.DistributionsPaused.selector);
+        vm.expectRevert(Pausable.Paused.selector);
         wallet.distributeERC20(split, address(usdc), _amount, ALICE.addr);
     }
 
-    function testFuzz_distributeNative_Revert_whenDistributionsPaused(uint256 _amount) public {
+    function testFuzz_distributeNative_Revert_whenPaused(uint256 _amount) public {
         SplitV2Lib.Split memory split = getDefaultSplitWithNoIncentive();
 
         wallet.initialize(split, ALICE.addr);
 
         vm.prank(ALICE.addr);
-        wallet.pauseDistributions(true);
+        wallet.setPaused(true);
 
-        vm.expectRevert(SplitWalletV2.DistributionsPaused.selector);
+        vm.expectRevert(Pausable.Paused.selector);
         wallet.distributeNative(split, _amount, ALICE.addr);
     }
 
