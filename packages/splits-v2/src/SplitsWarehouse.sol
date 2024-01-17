@@ -193,42 +193,6 @@ contract SplitsWarehouse is ERC6909X {
         _deposit(_owners, id, _amounts, totalAmount);
     }
 
-    /**
-     * @notice Deposits token to the warehouse for a specified address after a transfer.
-     * @dev Does not support native token. This should be used as part of a transferAndCall flow.
-     *     If the function is not called after transfer someone can front run the deposit.
-     * @param _owner The address that will receive the wrapped tokens.
-     * @param _token The address of the token to be deposited.
-     * @param _amount The amount of the token to be deposited.
-     */
-    function depositAfterTransfer(address _owner, address _token, uint256 _amount) external {
-        uint256 id = _token.toUint256();
-
-        if (_amount > IERC20(_token).balanceOf(address(this)) - totalSupply[id]) revert InvalidAmount();
-
-        _deposit(_owner, id, _amount);
-    }
-
-    /**
-     * @notice Deposits token to the warehouse for a specified list of addresses after a transfer.
-     * @dev Does not support native token. This should be used as part of a transferAndCall flow.
-     *     If the function is not called after transfer someone can front run the deposit.
-     * @param _owners The addresses that will receive the wrapped tokens.
-     * @param _token The address of the token to be deposited.
-     * @param _amounts The amounts of the token to be deposited.
-     */
-    function depositAfterTransfer(address[] calldata _owners, address _token, uint256[] calldata _amounts) external {
-        if (_owners.length != _amounts.length) revert LengthMismatch();
-
-        uint256 id = _token.toUint256();
-
-        uint256 totalAmount = _amounts.sum();
-
-        if (totalAmount > IERC20(_token).balanceOf(address(this)) - totalSupply[id]) revert InvalidAmount();
-
-        _deposit(_owners, id, _amounts, totalAmount);
-    }
-
     /* -------------------------------------------------------------------------- */
     /*                                  WITHDRAW                                  */
     /* -------------------------------------------------------------------------- */

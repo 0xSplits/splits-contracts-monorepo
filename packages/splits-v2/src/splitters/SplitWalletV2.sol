@@ -96,6 +96,14 @@ contract SplitWalletV2 is Wallet {
     /*                          PUBLIC/EXTERNAL FUNCTIONS                         */
     /* -------------------------------------------------------------------------- */
 
+    /**
+     * @notice Distributes the split to the recipients
+     * @dev Throws an error if the split hash is invalid or if distributions are paused.
+     * @param _split the split struct containing the split data that gets distributed
+     * @param _token the token to distribute
+     * @param _amount the amount of tokens to distribute
+     * @param _distributor the address of the distributor
+     */
     function distributeERC20(
         SplitV2Lib.Split calldata _split,
         address _token,
@@ -118,8 +126,7 @@ contract SplitWalletV2 is Wallet {
             }
         } else {
             (amounts, amountDistributed, distibutorReward) = _split.getDistributionsForPull(_amount);
-            IERC20(_token).safeTransfer(address(SPLITS_WAREHOUSE), amountDistributed);
-            SPLITS_WAREHOUSE.depositAfterTransfer(_split.recipients, _token, amounts);
+            SPLITS_WAREHOUSE.deposit(_split.recipients, _token, amounts);
         }
 
         if (distibutorReward > 0) {
@@ -129,6 +136,13 @@ contract SplitWalletV2 is Wallet {
         emit SplitDistributed(_token, amountDistributed + distibutorReward, _distributor);
     }
 
+    /**
+     * @notice Distributes the split to the recipients
+     * @dev Throws an error if the split hash is invalid or if distributions are paused.
+     * @param _split the split struct containing the split data that gets distributed
+     * @param _amount the amount of native tokens to distribute
+     * @param _distributor the address of the distributor
+     */
     function distributeNative(
         SplitV2Lib.Split calldata _split,
         uint256 _amount,
@@ -159,6 +173,14 @@ contract SplitWalletV2 is Wallet {
         }
 
         emit SplitDistributed(NATIVE, amountDistributed + distibutorReward, _distributor);
+    }
+
+    /**
+     * @notice Approves the Splits Warehouse to spend the token
+     * @param _token the token to approve
+     */
+    function approveSplitsWarehouse(address _token) external {
+        IERC20(_token).approve(address(SPLITS_WAREHOUSE), type(uint256).max);
     }
 
     /* -------------------------------------------------------------------------- */

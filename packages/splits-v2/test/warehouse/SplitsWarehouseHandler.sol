@@ -92,39 +92,6 @@ contract SplitsWarehouseHandler is CommonBase, StdCheats, StdUtils {
         }
     }
 
-    function depositAfterTransfer(uint256 _user, uint256 _token, uint192 _amount) public mockDepositor {
-        _user = bound(_user, 0, users.length - 1);
-        address user = users[_user];
-
-        _token = bound(_token, 0, tokens.length - 1);
-        address token = tokens[_token];
-
-        if (token == native) {
-            return;
-        } else {
-            deal(token, depositor, _amount);
-            IERC20(token).transfer(address(warehouse), _amount);
-            warehouse.depositAfterTransfer(user, token, _amount);
-        }
-    }
-
-    function depositAfterTransfer(uint256 _token, uint96[5] memory _amounts) public mockDepositor {
-        _token = bound(_token, 0, tokens.length - 1);
-        address token = tokens[_token];
-
-        (address[] memory owners, uint256[] memory amounts) = filter(users, _amounts);
-
-        uint256 totalAmount = amounts.sumMem();
-
-        if (token == native) {
-            return;
-        } else {
-            deal(token, depositor, totalAmount);
-            IERC20(token).transfer(address(warehouse), totalAmount);
-            warehouse.depositAfterTransfer(owners, token, amounts);
-        }
-    }
-
     function withdraw(uint256 _user, uint256 _token, uint256 _amount) public {
         _token = bound(_token, 0, tokens.length - 1);
         address token = tokens[_token];

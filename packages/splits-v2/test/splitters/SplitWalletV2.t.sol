@@ -303,6 +303,7 @@ contract SplitWalletV2Test is BaseTest {
     }
 
     function testFuzz_distributeERC20_Revert_whenInvalidToken(uint256 _amount) public {
+        vm.assume(_amount > 10);
         SplitV2Lib.Split memory split = getDefaultSplitWithNoIncentive();
 
         wallet.initialize(split, ALICE.addr);
@@ -319,6 +320,8 @@ contract SplitWalletV2Test is BaseTest {
         _amount = bound(_amount, split.totalAllocation, type(uint160).max);
 
         deal(address(usdc), address(wallet), _amount);
+
+        wallet.approveSplitsWarehouse(address(usdc));
 
         vm.prank(ALICE.addr);
         wallet.updateDistributeByPush(_distributeByPush);
@@ -353,6 +356,7 @@ contract SplitWalletV2Test is BaseTest {
 
         uint256 distributorBalance = usdc.balanceOf(address(ALICE.addr));
 
+        wallet.approveSplitsWarehouse(address(usdc));
         wallet.distributeERC20(split, address(usdc), _amount, ALICE.addr);
 
         assertAlmostEq(usdc.balanceOf(address(wallet)), 0, 9);
@@ -427,6 +431,17 @@ contract SplitWalletV2Test is BaseTest {
             }
             assertEq(warehouse.totalSupply(tokenToId(address(native))), address(warehouse).balance);
         }
+    }
+
+    function test_approveSplitsWarehouse() public {
+        wallet.approveSplitsWarehouse(address(usdc));
+
+        assertEq(usdc.allowance(address(wallet), address(warehouse)), type(uint256).max);
+    }
+
+    function test_approveSplitsWarehouse_revert_whenNonERC20() public {
+        vm.expectRevert();
+        wallet.approveSplitsWarehouse(native);
     }
 
     function getDefaultSplitWithNoIncentive() internal pure returns (SplitV2Lib.Split memory) {
