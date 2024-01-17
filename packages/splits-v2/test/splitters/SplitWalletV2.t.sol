@@ -2,22 +2,38 @@
 pragma solidity ^0.8.18;
 
 import { SplitV2Lib } from "../../src/libraries/SplitV2.sol";
+import { SplitFactoryV2 } from "../../src/splitters/SplitFactoryV2.sol";
 import { SplitWalletV2 } from "../../src/splitters/SplitWalletV2.sol";
 import { Ownable } from "../../src/utils/Ownable.sol";
 import { BaseTest } from "../Base.t.sol";
+import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
 contract SplitWalletV2Test is BaseTest {
     using SplitV2Lib for SplitV2Lib.Split;
+    using Address for address;
 
     event SplitUpdated(address indexed _controller, SplitV2Lib.Split _split);
     event SplitDistributionsPaused(bool _paused);
     event SplitDistributeByPush(bool _distributeByPush);
     event SplitDistributed(address indexed _token, uint256 _amount, address _distributor);
+    event ReceiveETH(uint256);
+
+    SplitWalletV2 private walletWithIncentive;
+    SplitWalletV2 private walletWithNoIncentive;
 
     SplitWalletV2 private wallet;
 
     function setUp() public override {
         super.setUp();
+
+        SplitV2Lib.Split memory splitWithIncentive = getDefaultSplitWithIncentive();
+        SplitFactoryV2.CreateSplitParams memory _createSplitParams =
+            SplitFactoryV2.CreateSplitParams(splitWithIncentive, ALICE.addr, address(0));
+        walletWithIncentive = SplitWalletV2(splitFactory.createSplit(_createSplitParams));
+
+        SplitV2Lib.Split memory splitWithNoIncentive = getDefaultSplitWithNoIncentive();
+        _createSplitParams = SplitFactoryV2.CreateSplitParams(splitWithNoIncentive, ALICE.addr, address(0));
+        walletWithNoIncentive = SplitWalletV2(splitFactory.createSplit(_createSplitParams));
 
         wallet = new SplitWalletV2(address(warehouse), address(this));
     }
@@ -438,6 +454,13 @@ contract SplitWalletV2Test is BaseTest {
     function test_approveSplitsWarehouse_revert_whenNonERC20() public {
         vm.expectRevert();
         wallet.approveSplitsWarehouse(native);
+    }
+
+    function testFuzz_wallet_receiveEthEvent(uint256 _amount) public {
+        deal(address(this), _amount);
+        vm.expectEmit();
+        emit ReceiveETH(_amount);
+        Address.sendValue(payable(address(walletWithIncentive)), _amount);
     }
 
     function getDefaultSplitWithNoIncentive() internal pure returns (SplitV2Lib.Split memory) {

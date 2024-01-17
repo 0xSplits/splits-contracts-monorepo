@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.18;
 
+import { Clone } from "../libraries/Clone.sol";
 import { SplitV2Lib } from "../libraries/SplitV2.sol";
 import { SplitWalletV2 } from "./SplitWalletV2.sol";
-import { LibClone } from "solady/utils/LibClone.sol";
 
 /**
  * @title SplitFactoryV2
@@ -11,7 +11,7 @@ import { LibClone } from "solady/utils/LibClone.sol";
  * @notice Minimal smart wallet clone-factory for v2 splitters
  */
 contract SplitFactoryV2 {
-    using LibClone for address;
+    using Clone for address;
 
     /* -------------------------------------------------------------------------- */
     /*                                   ERRORS                                   */
