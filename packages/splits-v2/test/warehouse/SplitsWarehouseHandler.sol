@@ -78,26 +78,6 @@ contract SplitsWarehouseHandler is CommonBase, StdCheats, StdUtils {
         warehouseBalance[token] += _amount;
     }
 
-    function deposit(uint256 _token, uint96[5] memory _amounts) public mockDepositor {
-        (address[] memory owners, uint256[] memory amounts) = filter(users, _amounts);
-
-        uint256 totalAmount = amounts.sumMem();
-
-        _token = bound(_token, 0, tokens.length - 1);
-        address token = tokens[_token];
-
-        if (token == native) {
-            deal(depositor, totalAmount);
-            warehouse.deposit{ value: totalAmount }(owners, token, amounts);
-        } else {
-            deal(token, depositor, totalAmount);
-            IERC20(token).approve(address(warehouse), totalAmount);
-            warehouse.deposit(owners, token, amounts);
-        }
-
-        warehouseBalance[token] += totalAmount;
-    }
-
     function withdraw(uint256 _user, uint256 _token, uint256 _amount) public {
         _token = bound(_token, 0, tokens.length - 1);
         address token = tokens[_token];
@@ -205,6 +185,33 @@ contract SplitsWarehouseHandler is CommonBase, StdCheats, StdUtils {
 
     function setWithdrawConfig(uint256 _user, SplitsWarehouse.WithdrawConfig memory _config) public mockUser(_user) {
         warehouse.setWithdrawConfig(_config);
+    }
+
+    function batchTransfer(
+        uint256 _sender,
+        uint256[5] memory _receivers,
+        uint256[5] memory _amounts,
+        uint256 _token
+    )
+        public
+        mockUser(_sender)
+    {
+        address[] memory receiverAddresses = new address[](5);
+        uint256[] memory amounts = new uint256[](5);
+        _sender = bound(_sender, 0, users.length - 1);
+
+        uint256 balance = warehouse.balanceOf(users[_sender], _token);
+        for (uint256 i = 0; i < 5; i++) {
+            _receivers[i] = bound(_receivers[i], 0, users.length - 1);
+            receiverAddresses[i] = users[_receivers[i]];
+
+            amounts[i] = bound(_amounts[i], 0, balance);
+            balance -= amounts[i];
+        }
+
+        _token = bound(_token, 0, tokens.length - 1);
+        address token = tokens[_token];
+        warehouse.batchTransfer(token, receiverAddresses, amounts);
     }
 
     function filter(

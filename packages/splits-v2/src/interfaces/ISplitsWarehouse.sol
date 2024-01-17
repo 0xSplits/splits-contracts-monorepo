@@ -6,13 +6,5 @@ interface ISplitsWarehouse {
 
     function deposit(address _owner, address _token, uint256 _amount) external payable;
 
-    function deposit(address[] calldata _owners, address _token, uint256[] calldata _amounts) external payable;
-
-    function withdraw(address _token, uint256 _amount) external;
-
-    function withdraw(address[] memory _tokens, uint256[] memory _amounts) external;
-
-    function withdraw(address _owner, address _token, uint256 _amount) external;
-
-    function withdraw(address _owner, address[] calldata _tokens, uint256[] calldata _amounts) external;
+    function batchTransfer(address _token, address[] memory _recipients, uint256[] memory _amounts) external;
 }

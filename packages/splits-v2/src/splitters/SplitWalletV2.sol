@@ -126,7 +126,8 @@ contract SplitWalletV2 is Wallet {
             }
         } else {
             (amounts, amountDistributed, distibutorReward) = _split.getDistributionsForPull(_amount);
-            SPLITS_WAREHOUSE.deposit(_split.recipients, _token, amounts);
+            SPLITS_WAREHOUSE.deposit(address(this), _token, amountDistributed);
+            SPLITS_WAREHOUSE.batchTransfer(_token, _split.recipients, amounts);
         }
 
         if (distibutorReward > 0) {
@@ -165,7 +166,8 @@ contract SplitWalletV2 is Wallet {
             }
         } else {
             (amounts, amountDistributed, distibutorReward) = _split.getDistributionsForPull(_amount);
-            SPLITS_WAREHOUSE.deposit{ value: amountDistributed }(_split.recipients, NATIVE, amounts);
+            SPLITS_WAREHOUSE.deposit{ value: amountDistributed }(address(this), NATIVE, amountDistributed);
+            SPLITS_WAREHOUSE.batchTransfer(NATIVE, _split.recipients, amounts);
         }
 
         if (distibutorReward > 0) {

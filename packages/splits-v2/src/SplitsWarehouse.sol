@@ -156,38 +156,14 @@ contract SplitsWarehouse is ERC6909X {
      * @param _amount The amount of the token to be deposited.
      */
     function deposit(address _owner, address _token, uint256 _amount) external payable {
+        if (_owner == address(0)) revert ZeroOwner();
         if (_token == NATIVE_TOKEN) {
             if (_amount != msg.value) revert InvalidAmount();
         } else {
             IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
         }
 
-        uint256 id = _token.toUint256();
-
-        _deposit(_owner, id, _amount);
-    }
-
-    /**
-     * @notice Deposits token to the warehouse for a specified list of addresses.
-     * @dev If the token is native, the amount should be sent as value.
-     * @param _owners The addresses that will receive the wrapped tokens.
-     * @param _token The address of the token to be deposited.
-     * @param _amounts The amounts of the token to be deposited.
-     */
-    function deposit(address[] calldata _owners, address _token, uint256[] calldata _amounts) external payable {
-        if (_owners.length != _amounts.length) revert LengthMismatch();
-
-        uint256 totalAmount = _amounts.sum();
-
-        if (_token == NATIVE_TOKEN) {
-            if (totalAmount != msg.value) revert InvalidAmount();
-        } else {
-            IERC20(_token).safeTransferFrom(msg.sender, address(this), totalAmount);
-        }
-
-        uint256 id = _token.toUint256();
-
-        _deposit(_owners, id, _amounts);
+        _mint(_owner, _token.toUint256(), _amount);
     }
 
     /* -------------------------------------------------------------------------- */
@@ -284,6 +260,27 @@ contract SplitsWarehouse is ERC6909X {
     }
 
     /* -------------------------------------------------------------------------- */
+    /*                               BATCH_TRANSFER                               */
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @notice batch transfers tokens to the specified addresses from msg.sender.
+     * @param _token The address of the token to be transferred.
+     * @param _receivers The addresses of the receivers.
+     * @param _amounts The amounts of the tokens to be transferred.
+     */
+    function batchTransfer(address _token, address[] calldata _receivers, uint256[] calldata _amounts) external {
+        uint256 tokenId = _token.toUint256();
+        for (uint256 i; i < _receivers.length;) {
+            transfer(_receivers[i], tokenId, _amounts[i]);
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /* -------------------------------------------------------------------------- */
     /*                                OWNER ACTIONS                               */
     /* -------------------------------------------------------------------------- */
 
@@ -312,23 +309,6 @@ contract SplitsWarehouse is ERC6909X {
     /* -------------------------------------------------------------------------- */
     /*                              INTERNAL/PRIVATE                              */
     /* -------------------------------------------------------------------------- */
-
-    function _deposit(address _owner, uint256 _id, uint256 _amount) internal {
-        if (_owner == address(0)) revert ZeroOwner();
-
-        _mint(_owner, _id, _amount);
-    }
-
-    function _deposit(address[] calldata _owners, uint256 _id, uint256[] calldata _amounts) internal {
-        for (uint256 i; i < _owners.length;) {
-            if (_owners[i] == address(0)) revert ZeroOwner();
-            _mint(_owners[i], _id, _amounts[i]);
-
-            unchecked {
-                ++i;
-            }
-        }
-    }
 
     function _withdraw(address _owner, uint256 _id, address _token, uint256 _amount) internal {
         _burn(_owner, _id, _amount);
