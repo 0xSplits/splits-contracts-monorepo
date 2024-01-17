@@ -25,18 +25,17 @@ library SplitV2Lib {
      */
     struct Split {
         address[] recipients;
-        uint32[] allocations;
+        uint256[] allocations;
         uint256 totalAllocation;
-        uint256 pushDistributionIncentive;
-        uint256 pullDistributionIncentive;
+        uint16 pushDistributionIncentive;
+        uint16 pullDistributionIncentive;
     }
 
     /* -------------------------------------------------------------------------- */
     /*                                  CONSTANTS                                 */
     /* -------------------------------------------------------------------------- */
 
-    uint256 internal constant MAX_INCENTIVE = 1e5;
-    uint256 internal constant INCENTIVE_SCALE = 1e6;
+    uint256 internal constant PERCENTAGE_SCALE = 1e6;
 
     /* -------------------------------------------------------------------------- */
     /*                                  FUNCTIONS                                 */
@@ -51,27 +50,20 @@ library SplitV2Lib {
     }
 
     function validate(Split calldata _split) internal pure {
-        if (_split.recipients.length != _split.allocations.length) {
+        uint256 numOfRecipients = _split.allocations.length;
+        if (_split.recipients.length != numOfRecipients) {
             revert InvalidSplit_LengthMismatch();
         }
-        uint256 totalAllocation = _split.totalAllocation;
+        uint256 totalAllocation;
 
-        for (uint256 i = 0; i < _split.recipients.length;) {
-            totalAllocation -= _split.allocations[i];
+        for (uint256 i = 0; i < numOfRecipients;) {
+            totalAllocation += _split.allocations[i];
             unchecked {
                 ++i;
             }
         }
 
-        if (totalAllocation != 0) revert InvalidSplit_TotalAllocationMismatch();
-
-        if (_split.pushDistributionIncentive > MAX_INCENTIVE) {
-            revert InvalidSplit_InvalidIncentive();
-        }
-
-        if (_split.pullDistributionIncentive > MAX_INCENTIVE) {
-            revert InvalidSplit_InvalidIncentive();
-        }
+        if (totalAllocation != _split.totalAllocation) revert InvalidSplit_TotalAllocationMismatch();
     }
 
     function getDistributionsForPush(
@@ -82,13 +74,14 @@ library SplitV2Lib {
         pure
         returns (uint256[] memory amounts, uint256 amountDistributed, uint256 distributorReward)
     {
-        amounts = new uint256[](_split.recipients.length);
+        uint256 numOfRecipients = _split.recipients.length;
+        amounts = new uint256[](numOfRecipients);
 
-        distributorReward = _amount * _split.pushDistributionIncentive / INCENTIVE_SCALE;
+        distributorReward = _amount * _split.pushDistributionIncentive / PERCENTAGE_SCALE;
 
         _amount -= distributorReward;
 
-        for (uint256 i = 0; i < _split.recipients.length;) {
+        for (uint256 i = 0; i < numOfRecipients;) {
             amounts[i] = _amount * _split.allocations[i] / _split.totalAllocation;
             amountDistributed += amounts[i];
             unchecked {
@@ -105,13 +98,14 @@ library SplitV2Lib {
         pure
         returns (uint256[] memory amounts, uint256 amountDistributed, uint256 distributorReward)
     {
-        amounts = new uint256[](_split.recipients.length);
+        uint256 numOfRecipients = _split.recipients.length;
+        amounts = new uint256[](numOfRecipients);
 
-        distributorReward = _amount * _split.pullDistributionIncentive / INCENTIVE_SCALE;
+        distributorReward = _amount * _split.pullDistributionIncentive / PERCENTAGE_SCALE;
 
         _amount -= distributorReward;
 
-        for (uint256 i = 0; i < _split.recipients.length;) {
+        for (uint256 i = 0; i < numOfRecipients;) {
             amounts[i] = _amount * _split.allocations[i] / _split.totalAllocation;
             amountDistributed += amounts[i];
             unchecked {

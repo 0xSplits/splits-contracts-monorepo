@@ -44,8 +44,8 @@ contract SplitWalletV2Test is BaseTest {
 
     function testFuzz_initialize(
         SplitReceiver[] memory _receivers,
-        uint256 _pullIncentive,
-        uint256 _pushIncentive,
+        uint16 _pullIncentive,
+        uint16 _pushIncentive,
         address _owner
     )
         public
@@ -71,8 +71,8 @@ contract SplitWalletV2Test is BaseTest {
 
     function testFuzz_initialize_Revert_InvalidSplit_LengthMismatch(
         SplitReceiver[] memory _receivers,
-        uint256 _pullIncentive,
-        uint256 _pushIncentive,
+        uint16 _pullIncentive,
+        uint16 _pushIncentive,
         address _owner
     )
         public
@@ -89,8 +89,8 @@ contract SplitWalletV2Test is BaseTest {
 
     function testFuzz_initialize_Revert_InvalidSplit_TotalAllocationMismatch(
         SplitReceiver[] memory _receivers,
-        uint256 _pullIncentive,
-        uint256 _pushIncentive,
+        uint16 _pullIncentive,
+        uint16 _pushIncentive,
         address _owner
     )
         public
@@ -103,46 +103,14 @@ contract SplitWalletV2Test is BaseTest {
         wallet.initialize(split, _owner);
     }
 
-    function testFuzz_initialize_Revert_InvalidSplit_InvalidIncentivePush(
-        SplitReceiver[] memory _receivers,
-        uint256 _pullIncentive,
-        uint256 _pushIncentive,
-        address _owner
-    )
-        public
-    {
-        SplitV2Lib.Split memory split = createSplit(_receivers, _pullIncentive, _pushIncentive);
-
-        split.pushDistributionIncentive = SplitV2Lib.MAX_INCENTIVE + 1;
-
-        vm.expectRevert(SplitV2Lib.InvalidSplit_InvalidIncentive.selector);
-        wallet.initialize(split, _owner);
-    }
-
-    function testFuzz_initialize_Revert_InvalidSplit_InvalidIncentivePull(
-        SplitReceiver[] memory _receivers,
-        uint256 _pullIncentive,
-        uint256 _pushIncentive,
-        address _owner
-    )
-        public
-    {
-        SplitV2Lib.Split memory split = createSplit(_receivers, _pullIncentive, _pushIncentive);
-
-        split.pullDistributionIncentive = SplitV2Lib.MAX_INCENTIVE + 1;
-
-        vm.expectRevert(SplitV2Lib.InvalidSplit_InvalidIncentive.selector);
-        wallet.initialize(split, _owner);
-    }
-
     /* -------------------------------------------------------------------------- */
     /*                               OWNER FUNCTIONS                              */
     /* -------------------------------------------------------------------------- */
 
     function testFuzz_updateSplit(
         SplitReceiver[] memory _receivers,
-        uint256 _pullIncentive,
-        uint256 _pushIncentive,
+        uint16 _pullIncentive,
+        uint16 _pushIncentive,
         address _owner
     )
         public
@@ -159,8 +127,8 @@ contract SplitWalletV2Test is BaseTest {
 
     function testFuzz_updateSplit_Revert_Unauthorized(
         SplitReceiver[] memory _receivers,
-        uint256 _pullIncentive,
-        uint256 _pushIncentive
+        uint16 _pullIncentive,
+        uint16 _pushIncentive
     )
         public
     {
@@ -172,8 +140,8 @@ contract SplitWalletV2Test is BaseTest {
 
     function testFuzz_updateSplit_Revert_InvalidSplit_LengthMismatch(
         SplitReceiver[] memory _receivers,
-        uint256 _pullIncentive,
-        uint256 _pushIncentive,
+        uint16 _pullIncentive,
+        uint16 _pushIncentive,
         address _owner
     )
         public
@@ -192,8 +160,8 @@ contract SplitWalletV2Test is BaseTest {
 
     function testFuzz_updateSplit_Revert_InvalidSplit_TotalAllocationMismatch(
         SplitReceiver[] memory _receivers,
-        uint256 _pullIncentive,
-        uint256 _pushIncentive,
+        uint16 _pullIncentive,
+        uint16 _pushIncentive,
         address _owner
     )
         public
@@ -205,42 +173,6 @@ contract SplitWalletV2Test is BaseTest {
 
         vm.prank(_owner);
         vm.expectRevert(SplitV2Lib.InvalidSplit_TotalAllocationMismatch.selector);
-        wallet.updateSplit(split);
-    }
-
-    function testFuzz_updateSplit_Revert_InvalidSplit_InvalidIncentivePush(
-        SplitReceiver[] memory _receivers,
-        uint256 _pullIncentive,
-        uint256 _pushIncentive,
-        address _owner
-    )
-        public
-    {
-        testFuzz_initialize(_receivers, _pullIncentive, _pushIncentive, _owner);
-        SplitV2Lib.Split memory split = createSplit(_receivers, _pullIncentive, _pushIncentive);
-
-        split.pushDistributionIncentive = SplitV2Lib.MAX_INCENTIVE + 1;
-
-        vm.prank(_owner);
-        vm.expectRevert(SplitV2Lib.InvalidSplit_InvalidIncentive.selector);
-        wallet.updateSplit(split);
-    }
-
-    function testFuzz_updateSplit_Revert_InvalidSplit_InvalidIncentivePull(
-        SplitReceiver[] memory _receivers,
-        uint256 _pullIncentive,
-        uint256 _pushIncentive,
-        address _owner
-    )
-        public
-    {
-        testFuzz_initialize(_receivers, _pullIncentive, _pushIncentive, _owner);
-        SplitV2Lib.Split memory split = createSplit(_receivers, _pullIncentive, _pushIncentive);
-
-        split.pullDistributionIncentive = SplitV2Lib.MAX_INCENTIVE + 1;
-
-        vm.prank(_owner);
-        vm.expectRevert(SplitV2Lib.InvalidSplit_InvalidIncentive.selector);
         wallet.updateSplit(split);
     }
 
@@ -478,6 +410,6 @@ contract SplitWalletV2Test is BaseTest {
             receivers[i - 100] = SplitReceiver(address(uint160(i + 1)), uint32(10));
         }
 
-        return createSplit(receivers, 1e5, 1e5);
+        return createSplit(receivers, uint16(1e4), uint16(1e4));
     }
 }

@@ -119,15 +119,15 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
 
     function createSplit(
         SplitReceiver[] memory _recievers,
-        uint256 _pushIncentive,
-        uint256 _pullIncentive
+        uint16 _pushIncentive,
+        uint16 _pullIncentive
     )
         internal
         pure
         returns (SplitV2Lib.Split memory)
     {
         uint256 totalAllocation;
-        uint32[] memory allocations = new uint32[](_recievers.length);
+        uint256[] memory allocations = new uint256[](_recievers.length);
         address[] memory recipients = new address[](_recievers.length);
 
         for (uint256 i = 0; i < _recievers.length; i++) {
@@ -135,9 +135,6 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
             allocations[i] = _recievers[i].allocation;
             recipients[i] = _recievers[i].receiver;
         }
-
-        _pushIncentive = bound(_pushIncentive, 0, SplitV2Lib.MAX_INCENTIVE);
-        _pullIncentive = bound(_pullIncentive, 0, SplitV2Lib.MAX_INCENTIVE);
 
         return SplitV2Lib.Split(recipients, allocations, totalAllocation, _pushIncentive, _pullIncentive);
     }
@@ -199,8 +196,8 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
 
     function getCreatSplitParams(
         SplitReceiver[] memory _receivers,
-        uint256 _pullIncentive,
-        uint256 _pushIncentive,
+        uint16 _pullIncentive,
+        uint16 _pushIncentive,
         address _owner,
         address _creator
     )
@@ -215,8 +212,8 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
 
     function createSplit(
         SplitReceiver[] memory _receivers,
-        uint256 _pullIncentive,
-        uint256 _pushIncentive,
+        uint16 _pullIncentive,
+        uint16 _pushIncentive,
         address _owner,
         address _creator
     )

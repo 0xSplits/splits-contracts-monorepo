@@ -15,8 +15,8 @@ contract SplitFactoryV2Test is BaseTest {
 
     function testFuzz_create2Split(
         SplitReceiver[] memory _receivers,
-        uint256 _pullIncentive,
-        uint256 _pushIncentive,
+        uint16 _pullIncentive,
+        uint16 _pushIncentive,
         address _owner,
         bytes32 _salt
     )
@@ -37,8 +37,8 @@ contract SplitFactoryV2Test is BaseTest {
 
     function testFuzz_create2Split_Revert_SplitAlreadyExists(
         SplitReceiver[] memory _receivers,
-        uint256 _pullIncentive,
-        uint256 _pushIncentive,
+        uint16 _pullIncentive,
+        uint16 _pushIncentive,
         address _owner,
         bytes32 _salt
     )
@@ -55,8 +55,8 @@ contract SplitFactoryV2Test is BaseTest {
 
     function testFuzz_createSplit(
         SplitReceiver[] memory _receivers,
-        uint256 _pullIncentive,
-        uint256 _pushIncentive,
+        uint16 _pullIncentive,
+        uint16 _pushIncentive,
         address _owner
     )
         public
@@ -71,8 +71,8 @@ contract SplitFactoryV2Test is BaseTest {
 
     function testFuzz_createSplit_sameParams(
         SplitReceiver[] memory _receivers,
-        uint256 _pullIncentive,
-        uint256 _pushIncentive,
+        uint16 _pullIncentive,
+        uint16 _pushIncentive,
         address _owner
     )
         public
@@ -89,8 +89,8 @@ contract SplitFactoryV2Test is BaseTest {
 
     function testFuzz_isDeployed(
         SplitReceiver[] memory _receivers,
-        uint256 _pullIncentive,
-        uint256 _pushIncentive,
+        uint16 _pullIncentive,
+        uint16 _pushIncentive,
         address _owner,
         bytes32 _salt
     )
