@@ -81,7 +81,6 @@ contract SplitWalletV2 is Wallet {
         // throws error if invalid
         split.validate();
         splitHash = split.getHash();
-        emit SplitUpdated(_owner, split);
 
         Wallet.__initWallet(_owner);
     }
