@@ -17,6 +17,10 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
     error FailedInnerCall();
     error CastOverflow(uint256 value);
 
+    event Withdraw(
+        address indexed owner, address indexed token, address indexed withdrawer, uint256 amount, uint256 reward
+    );
+
     address public token;
     address[] public defaultTokens;
 
@@ -146,6 +150,8 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         testFuzz_depositSingleOwner_whenERC20(_owner, _owner, _amount);
 
         vm.prank(_owner);
+        vm.expectEmit();
+        emit Withdraw(_owner, token, _owner, _amount, 0);
         warehouse.withdraw(token, _amount);
 
         assertEq(warehouse.balanceOf(_owner, tokenToId(token)), 0);
@@ -158,6 +164,8 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         testFuzz_depositSingleOwner_whenNativeToken(_owner, _owner, _amount);
 
         vm.prank(_owner);
+        vm.expectEmit();
+        emit Withdraw(_owner, native, _owner, _amount, 0);
         warehouse.withdraw(native, _amount);
 
         assertEq(warehouse.balanceOf(_owner, tokenToId(native)), 0);
@@ -202,6 +210,10 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         depositDefaultTokens(owner, _amount);
 
         vm.prank(owner);
+        vm.expectEmit();
+        for (uint256 i = 0; i < defaultTokens.length; i++) {
+            emit Withdraw(owner, defaultTokens[i], owner, _amount, 0);
+        }
         warehouse.withdraw(defaultTokens, getAmounts(_amount));
 
         for (uint256 i = 0; i < defaultTokens.length; i++) {
@@ -253,6 +265,8 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
         testFuzz_depositSingleOwner_whenERC20(_owner, _owner, _amount);
 
+        vm.expectEmit();
+        emit Withdraw(_owner, token, address(this), _amount, 0);
         warehouse.withdraw(_owner, token, _amount, address(this));
 
         assertEq(warehouse.balanceOf(_owner, tokenToId(token)), 0);
@@ -265,6 +279,8 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
         testFuzz_depositSingleOwner_whenNativeToken(_owner, _owner, _amount);
 
+        vm.expectEmit();
+        emit Withdraw(_owner, native, address(this), _amount, 0);
         warehouse.withdraw(_owner, native, _amount, address(this));
 
         assertEq(warehouse.balanceOf(_owner, tokenToId(native)), 0);
@@ -335,6 +351,8 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
         uint256 reward = uint256(_amount) * uint256(_incentive) / warehouse.PERCENTAGE_SCALE();
 
+        vm.expectEmit();
+        emit Withdraw(_owner, token, _withdrawer, _amount - reward, reward);
         warehouse.withdraw(_owner, token, _amount, _withdrawer);
 
         assertEq(warehouse.balanceOf(_owner, tokenToId(token)), 0);
@@ -361,6 +379,8 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
         uint256 reward = uint256(_amount) * uint256(_incentive) / warehouse.PERCENTAGE_SCALE();
 
+        vm.expectEmit();
+        emit Withdraw(_owner, native, _withdrawer, _amount - reward, reward);
         warehouse.withdraw(_owner, native, _amount, _withdrawer);
 
         assertEq(warehouse.balanceOf(_owner, tokenToId(native)), 0);
@@ -378,6 +398,10 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
         depositDefaultTokens(_owner, _amount);
 
+        vm.expectEmit();
+        for (uint256 i = 0; i < defaultTokens.length; i++) {
+            emit Withdraw(_owner, defaultTokens[i], address(this), _amount, 0);
+        }
         warehouse.withdraw(_owner, defaultTokens, getAmounts(_amount), address(this));
 
         for (uint256 i = 0; i < defaultTokens.length; i++) {

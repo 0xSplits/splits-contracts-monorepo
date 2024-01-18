@@ -41,6 +41,9 @@ contract SplitsWarehouse is ERC6909X {
 
     event WithdrawalsPaused(address indexed owner, bool paused);
     event WithdrawConfigUpdated(address indexed owner, WithdrawConfig config);
+    event Withdraw(
+        address indexed owner, address indexed token, address indexed withdrawer, uint256 amount, uint256 reward
+    );
 
     /* -------------------------------------------------------------------------- */
     /*                                   STRUCTS                                  */
@@ -177,7 +180,7 @@ contract SplitsWarehouse is ERC6909X {
      * @param _amount The amount of the token to be withdrawn.
      */
     function withdraw(address _token, uint256 _amount) external {
-        _withdraw(msg.sender, _token.toUint256(), _token, _amount);
+        _withdraw(msg.sender, _token.toUint256(), _token, _amount, msg.sender);
     }
 
     /**
@@ -190,7 +193,7 @@ contract SplitsWarehouse is ERC6909X {
         if (_tokens.length != _amounts.length) revert LengthMismatch();
 
         for (uint256 i; i < _tokens.length;) {
-            _withdraw(msg.sender, _tokens[i].toUint256(), _tokens[i], _amounts[i]);
+            _withdraw(msg.sender, _tokens[i].toUint256(), _tokens[i], _amounts[i], msg.sender);
 
             unchecked {
                 ++i;
@@ -214,7 +217,7 @@ contract SplitsWarehouse is ERC6909X {
         uint256 reward = _amount * config.incentive / PERCENTAGE_SCALE;
 
         if (reward > 0) _withdraw(_owner, _token.toUint256(), _token, _amount, reward, _withdrawer);
-        else _withdraw(_owner, _token.toUint256(), _token, _amount);
+        else _withdraw(_owner, _token.toUint256(), _token, _amount, _withdrawer);
     }
 
     /**
@@ -250,7 +253,7 @@ contract SplitsWarehouse is ERC6909X {
             }
         } else {
             for (uint256 i; i < _tokens.length;) {
-                _withdraw(_owner, _tokens[i].toUint256(), _tokens[i], _amounts[i]);
+                _withdraw(_owner, _tokens[i].toUint256(), _tokens[i], _amounts[i], _withdrawer);
 
                 unchecked {
                     ++i;
@@ -310,7 +313,7 @@ contract SplitsWarehouse is ERC6909X {
     /*                              INTERNAL/PRIVATE                              */
     /* -------------------------------------------------------------------------- */
 
-    function _withdraw(address _owner, uint256 _id, address _token, uint256 _amount) internal {
+    function _withdraw(address _owner, uint256 _id, address _token, uint256 _amount, address _withdrawer) internal {
         _burn(_owner, _id, _amount);
 
         if (_token == NATIVE_TOKEN) {
@@ -318,6 +321,8 @@ contract SplitsWarehouse is ERC6909X {
         } else {
             IERC20(_token).safeTransfer(_owner, _amount);
         }
+
+        emit Withdraw(_owner, _token, _withdrawer, _amount, 0);
     }
 
     function _withdraw(
@@ -332,12 +337,16 @@ contract SplitsWarehouse is ERC6909X {
     {
         _burn(_owner, _id, _amount);
 
+        uint256 amount = _amount - _reward;
+
         if (_token == NATIVE_TOKEN) {
-            payable(_owner).sendValue(_amount - _reward);
+            payable(_owner).sendValue(amount);
             payable(_withdrawer).sendValue(_reward);
         } else {
-            IERC20(_token).safeTransfer(_owner, _amount - _reward);
+            IERC20(_token).safeTransfer(_owner, amount);
             IERC20(_token).safeTransfer(_withdrawer, _reward);
         }
+
+        emit Withdraw(_owner, _token, _withdrawer, amount, _reward);
     }
 }
