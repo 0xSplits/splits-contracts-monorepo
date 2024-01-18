@@ -20,15 +20,13 @@ library SplitV2Lib {
      * @param recipients The recipients of the split
      * @param allocations The allocations of the split
      * @param totalAllocation The total allocation of the split
-     * @param pushDistributionIncentive The incentive for push distribution
-     * @param pullDistributionIncentive The incentive for pull distribution
+     * @param distributionIncentive The incentive for distribution
      */
     struct Split {
         address[] recipients;
         uint256[] allocations;
         uint256 totalAllocation;
-        uint16 pushDistributionIncentive;
-        uint16 pullDistributionIncentive;
+        uint16 distributionIncentive;
     }
 
     /* -------------------------------------------------------------------------- */
@@ -66,7 +64,7 @@ library SplitV2Lib {
         if (totalAllocation != _split.totalAllocation) revert InvalidSplit_TotalAllocationMismatch();
     }
 
-    function getDistributionsForPush(
+    function getDistributions(
         Split calldata _split,
         uint256 _amount
     )
@@ -77,7 +75,7 @@ library SplitV2Lib {
         uint256 numOfRecipients = _split.recipients.length;
         amounts = new uint256[](numOfRecipients);
 
-        distributorReward = _amount * _split.pushDistributionIncentive / PERCENTAGE_SCALE;
+        distributorReward = _amount * _split.distributionIncentive / PERCENTAGE_SCALE;
 
         _amount -= distributorReward;
 
@@ -90,27 +88,14 @@ library SplitV2Lib {
         }
     }
 
-    function getDistributionsForPull(
-        Split calldata _split,
+    function calculateDistributorReward(
+        uint16 _distributionIncentive,
         uint256 _amount
     )
         internal
         pure
-        returns (uint256[] memory amounts, uint256 amountDistributed, uint256 distributorReward)
+        returns (uint256 distributorReward)
     {
-        uint256 numOfRecipients = _split.recipients.length;
-        amounts = new uint256[](numOfRecipients);
-
-        distributorReward = _amount * _split.pullDistributionIncentive / PERCENTAGE_SCALE;
-
-        _amount -= distributorReward;
-
-        for (uint256 i = 0; i < numOfRecipients;) {
-            amounts[i] = _amount * _split.allocations[i] / _split.totalAllocation;
-            amountDistributed += amounts[i];
-            unchecked {
-                ++i;
-            }
-        }
+        distributorReward = _amount * _distributionIncentive / PERCENTAGE_SCALE;
     }
 }

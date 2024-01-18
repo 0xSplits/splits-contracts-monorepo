@@ -57,7 +57,7 @@ contract SplitFactoryV2 {
      * @param _splitsWarehouse Address of Split Warehouse
      */
     constructor(address _splitsWarehouse) {
-        SPLIT_WALLET_IMPLEMENTATION = address(new SplitWalletV2(_splitsWarehouse, address(this)));
+        SPLIT_WALLET_IMPLEMENTATION = address(new SplitWalletV2(_splitsWarehouse));
     }
 
     /* -------------------------------------------------------------------------- */

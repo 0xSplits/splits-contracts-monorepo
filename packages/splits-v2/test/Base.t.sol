@@ -119,8 +119,7 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
 
     function createSplit(
         SplitReceiver[] memory _recievers,
-        uint16 _pushIncentive,
-        uint16 _pullIncentive
+        uint16 _distributionIncentive
     )
         internal
         pure
@@ -136,7 +135,7 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
             recipients[i] = _recievers[i].receiver;
         }
 
-        return SplitV2Lib.Split(recipients, allocations, totalAllocation, _pushIncentive, _pullIncentive);
+        return SplitV2Lib.Split(recipients, allocations, totalAllocation, _distributionIncentive);
     }
 
     /* solhint-disable */
@@ -196,8 +195,7 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
 
     function getCreatSplitParams(
         SplitReceiver[] memory _receivers,
-        uint16 _pullIncentive,
-        uint16 _pushIncentive,
+        uint16 _distributionIncentive,
         address _owner,
         address _creator
     )
@@ -205,15 +203,14 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
         pure
         returns (SplitFactoryV2.CreateSplitParams memory)
     {
-        SplitV2Lib.Split memory splitParams = createSplit(_receivers, _pullIncentive, _pushIncentive);
+        SplitV2Lib.Split memory splitParams = createSplit(_receivers, _distributionIncentive);
 
         return SplitFactoryV2.CreateSplitParams({ split: splitParams, owner: _owner, creator: _creator });
     }
 
     function createSplit(
         SplitReceiver[] memory _receivers,
-        uint16 _pullIncentive,
-        uint16 _pushIncentive,
+        uint16 _distributionIncentive,
         address _owner,
         address _creator
     )
@@ -221,7 +218,7 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
         returns (address split)
     {
         SplitFactoryV2.CreateSplitParams memory params =
-            getCreatSplitParams(_receivers, _pullIncentive, _pushIncentive, _owner, _creator);
+            getCreatSplitParams(_receivers, _distributionIncentive, _owner, _creator);
 
         split = splitFactory.createSplit(params);
     }

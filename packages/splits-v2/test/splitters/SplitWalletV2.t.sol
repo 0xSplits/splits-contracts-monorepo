@@ -14,7 +14,7 @@ contract SplitWalletV2Test is BaseTest {
     using SplitV2Lib for SplitV2Lib.Split;
     using Address for address;
 
-    event SplitUpdated(address indexed _controller, SplitV2Lib.Split _split);
+    event SplitUpdated(address indexed _owner, SplitV2Lib.Split _split);
     event SplitDistributionsPaused(bool _paused);
     event SplitDistributeByPush(bool _distributeByPush);
     event SplitDistributed(address indexed _token, uint256 _amount, address _distributor);
@@ -37,7 +37,7 @@ contract SplitWalletV2Test is BaseTest {
         _createSplitParams = SplitFactoryV2.CreateSplitParams(splitWithNoIncentive, ALICE.addr, address(0));
         walletWithNoIncentive = SplitWalletV2(splitFactory.createSplit(_createSplitParams));
 
-        wallet = new SplitWalletV2(address(warehouse), address(this));
+        wallet = new SplitWalletV2(address(warehouse));
     }
 
     /* -------------------------------------------------------------------------- */
@@ -46,13 +46,12 @@ contract SplitWalletV2Test is BaseTest {
 
     function testFuzz_initialize(
         SplitReceiver[] memory _receivers,
-        uint16 _pullIncentive,
-        uint16 _pushIncentive,
+        uint16 _distributionIncentive,
         address _owner
     )
         public
     {
-        SplitV2Lib.Split memory split = createSplit(_receivers, _pullIncentive, _pushIncentive);
+        SplitV2Lib.Split memory split = createSplit(_receivers, _distributionIncentive);
 
         vm.expectEmit();
         emit SplitUpdated(_owner, split);
@@ -72,14 +71,13 @@ contract SplitWalletV2Test is BaseTest {
 
     function testFuzz_initialize_Revert_InvalidSplit_LengthMismatch(
         SplitReceiver[] memory _receivers,
-        uint16 _pullIncentive,
-        uint16 _pushIncentive,
+        uint16 _distributionIncentive,
         address _owner
     )
         public
     {
         vm.assume(_receivers.length > 1);
-        SplitV2Lib.Split memory split = createSplit(_receivers, _pullIncentive, _pushIncentive);
+        SplitV2Lib.Split memory split = createSplit(_receivers, _distributionIncentive);
 
         address[] memory receivers = new address[](split.recipients.length - 1);
         split.recipients = receivers;
@@ -90,13 +88,12 @@ contract SplitWalletV2Test is BaseTest {
 
     function testFuzz_initialize_Revert_InvalidSplit_TotalAllocationMismatch(
         SplitReceiver[] memory _receivers,
-        uint16 _pullIncentive,
-        uint16 _pushIncentive,
+        uint16 _distributionIncentive,
         address _owner
     )
         public
     {
-        SplitV2Lib.Split memory split = createSplit(_receivers, _pullIncentive, _pushIncentive);
+        SplitV2Lib.Split memory split = createSplit(_receivers, _distributionIncentive);
 
         split.totalAllocation = split.totalAllocation + 1;
 
@@ -110,15 +107,14 @@ contract SplitWalletV2Test is BaseTest {
 
     function testFuzz_updateSplit(
         SplitReceiver[] memory _receivers,
-        uint16 _pullIncentive,
-        uint16 _pushIncentive,
+        uint16 _distributionIncentive,
         address _owner
     )
         public
     {
-        testFuzz_initialize(_receivers, _pullIncentive, _pushIncentive, _owner);
+        testFuzz_initialize(_receivers, _distributionIncentive, _owner);
 
-        SplitV2Lib.Split memory split = createSplit(_receivers, _pullIncentive, _pushIncentive);
+        SplitV2Lib.Split memory split = createSplit(_receivers, _distributionIncentive);
 
         vm.expectEmit();
         emit SplitUpdated(_owner, split);
@@ -128,12 +124,11 @@ contract SplitWalletV2Test is BaseTest {
 
     function testFuzz_updateSplit_Revert_Unauthorized(
         SplitReceiver[] memory _receivers,
-        uint16 _pullIncentive,
-        uint16 _pushIncentive
+        uint16 _distributionIncentive
     )
         public
     {
-        SplitV2Lib.Split memory split = createSplit(_receivers, _pullIncentive, _pushIncentive);
+        SplitV2Lib.Split memory split = createSplit(_receivers, _distributionIncentive);
 
         vm.expectRevert(Ownable.Unauthorized.selector);
         wallet.updateSplit(split);
@@ -141,15 +136,14 @@ contract SplitWalletV2Test is BaseTest {
 
     function testFuzz_updateSplit_Revert_InvalidSplit_LengthMismatch(
         SplitReceiver[] memory _receivers,
-        uint16 _pullIncentive,
-        uint16 _pushIncentive,
+        uint16 _distributionIncentive,
         address _owner
     )
         public
     {
         vm.assume(_receivers.length > 1);
-        testFuzz_initialize(_receivers, _pullIncentive, _pushIncentive, _owner);
-        SplitV2Lib.Split memory split = createSplit(_receivers, _pullIncentive, _pushIncentive);
+        testFuzz_initialize(_receivers, _distributionIncentive, _owner);
+        SplitV2Lib.Split memory split = createSplit(_receivers, _distributionIncentive);
 
         address[] memory receivers = new address[](split.recipients.length - 1);
         split.recipients = receivers;
@@ -161,14 +155,13 @@ contract SplitWalletV2Test is BaseTest {
 
     function testFuzz_updateSplit_Revert_InvalidSplit_TotalAllocationMismatch(
         SplitReceiver[] memory _receivers,
-        uint16 _pullIncentive,
-        uint16 _pushIncentive,
+        uint16 _distributionIncentive,
         address _owner
     )
         public
     {
-        testFuzz_initialize(_receivers, _pullIncentive, _pushIncentive, _owner);
-        SplitV2Lib.Split memory split = createSplit(_receivers, _pullIncentive, _pushIncentive);
+        testFuzz_initialize(_receivers, _distributionIncentive, _owner);
+        SplitV2Lib.Split memory split = createSplit(_receivers, _distributionIncentive);
 
         split.totalAllocation = split.totalAllocation + 1;
 
@@ -193,7 +186,7 @@ contract SplitWalletV2Test is BaseTest {
     /*                            DISTRIBUTE FUNCTIONS                            */
     /* -------------------------------------------------------------------------- */
 
-    function testFuzz_distributeERC20_Revert_whenPaused(uint256 _amount) public {
+    function testFuzz_distribute_Revert_whenPaused(uint256 _amount) public {
         SplitV2Lib.Split memory split = getDefaultSplitWithNoIncentive();
 
         wallet.initialize(split, ALICE.addr);
@@ -202,41 +195,18 @@ contract SplitWalletV2Test is BaseTest {
         wallet.setPaused(true);
 
         vm.expectRevert(Pausable.Paused.selector);
-        wallet.distributeERC20(split, address(usdc), _amount, ALICE.addr);
+        wallet.distribute(split, address(usdc), _amount, ALICE.addr);
     }
 
-    function testFuzz_distributeNative_Revert_whenPaused(uint256 _amount) public {
+    function testFuzz_distribute_Revert_whenInvalidSplit(uint256 _amount) public {
         SplitV2Lib.Split memory split = getDefaultSplitWithNoIncentive();
 
         wallet.initialize(split, ALICE.addr);
 
-        vm.prank(ALICE.addr);
-        wallet.setPaused(true);
-
-        vm.expectRevert(Pausable.Paused.selector);
-        wallet.distributeNative(split, _amount, ALICE.addr);
-    }
-
-    function testFuzz_distributeERC20_Revert_whenInvalidSplit(uint256 _amount) public {
-        SplitV2Lib.Split memory split = getDefaultSplitWithNoIncentive();
-
-        wallet.initialize(split, ALICE.addr);
-
-        split.pullDistributionIncentive += 1;
+        split.distributionIncentive += 1;
 
         vm.expectRevert(SplitWalletV2.InvalidSplit.selector);
-        wallet.distributeERC20(split, address(usdc), _amount, ALICE.addr);
-    }
-
-    function testFuzz_distributeNative_Revert_whenInvalidSplit(uint256 _amount) public {
-        SplitV2Lib.Split memory split = getDefaultSplitWithNoIncentive();
-
-        wallet.initialize(split, ALICE.addr);
-
-        split.pullDistributionIncentive += 1;
-
-        vm.expectRevert(SplitWalletV2.InvalidSplit.selector);
-        wallet.distributeNative(split, _amount, ALICE.addr);
+        wallet.distribute(split, address(usdc), _amount, ALICE.addr);
     }
 
     function testFuzz_distributeERC20_Revert_whenInvalidToken(uint256 _amount) public {
@@ -246,7 +216,7 @@ contract SplitWalletV2Test is BaseTest {
         wallet.initialize(split, ALICE.addr);
 
         vm.expectRevert();
-        wallet.distributeERC20(split, native, _amount, ALICE.addr);
+        wallet.distribute(split, native, _amount, ALICE.addr);
     }
 
     function testFuzz_distributeERC20_NoIncentive(uint256 _amount, bool _distributeByPush) public {
@@ -263,7 +233,7 @@ contract SplitWalletV2Test is BaseTest {
         vm.prank(ALICE.addr);
         wallet.updateDistributeByPush(_distributeByPush);
 
-        wallet.distributeERC20(split, address(usdc), _amount, ALICE.addr);
+        wallet.distribute(split, address(usdc), _amount, ALICE.addr);
 
         assertAlmostEq(usdc.balanceOf(address(wallet)), 0, 9);
 
@@ -293,7 +263,7 @@ contract SplitWalletV2Test is BaseTest {
         uint256 distributorBalance = usdc.balanceOf(address(ALICE.addr));
 
         wallet.approveSplitsWarehouse(address(usdc));
-        wallet.distributeERC20(split, address(usdc), _amount, ALICE.addr);
+        wallet.distribute(split, address(usdc), _amount, ALICE.addr);
 
         assertAlmostEq(usdc.balanceOf(address(wallet)), 0, 9);
         assertGt(usdc.balanceOf(address(ALICE.addr)), distributorBalance);
@@ -321,7 +291,7 @@ contract SplitWalletV2Test is BaseTest {
         vm.prank(ALICE.addr);
         wallet.updateDistributeByPush(_distributeByPush);
 
-        wallet.distributeNative(split, _amount, ALICE.addr);
+        wallet.distribute(split, native, _amount, ALICE.addr);
 
         assertAlmostEq(address(wallet).balance, 0, 9);
 
@@ -336,7 +306,7 @@ contract SplitWalletV2Test is BaseTest {
         }
     }
 
-    function testFuzz_distributeNative_Incentive(uint256 _amount, bool _distributeByPush) public {
+    function testFuzz_distribute_Incentive(uint256 _amount, bool _distributeByPush) public {
         SplitV2Lib.Split memory split = getDefaultSplitWithIncentive();
 
         wallet.initialize(split, ALICE.addr);
@@ -350,7 +320,7 @@ contract SplitWalletV2Test is BaseTest {
 
         uint256 distributorBalance = ALICE.addr.balance;
 
-        wallet.distributeNative(split, _amount, ALICE.addr);
+        wallet.distribute(split, native, _amount, ALICE.addr);
 
         assertAlmostEq(address(wallet).balance, 0, 9);
         assertGt(ALICE.addr.balance, distributorBalance);
@@ -390,7 +360,7 @@ contract SplitWalletV2Test is BaseTest {
             receivers[i - 100] = SplitReceiver(address(uint160(i + 1)), uint32(10));
         }
 
-        return createSplit(receivers, 0, 0);
+        return createSplit(receivers, 0);
     }
 
     function getDefaultSplitWithIncentive() internal pure returns (SplitV2Lib.Split memory) {
@@ -399,6 +369,6 @@ contract SplitWalletV2Test is BaseTest {
             receivers[i - 100] = SplitReceiver(address(uint160(i + 1)), uint32(10));
         }
 
-        return createSplit(receivers, uint16(1e4), uint16(1e4));
+        return createSplit(receivers, uint16(1e4));
     }
 }

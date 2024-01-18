@@ -15,15 +15,14 @@ contract SplitFactoryV2Test is BaseTest {
 
     function testFuzz_create2Split(
         SplitReceiver[] memory _receivers,
-        uint16 _pullIncentive,
-        uint16 _pushIncentive,
+        uint16 _distributionIncentive,
         address _owner,
         bytes32 _salt
     )
         public
     {
         SplitFactoryV2.CreateSplitParams memory params =
-            getCreatSplitParams(_receivers, _pullIncentive, _pushIncentive, _owner, address(this));
+            getCreatSplitParams(_receivers, _distributionIncentive, _owner, address(this));
 
         address predictedAddress = splitFactory.predictDeterministicAddress(params, _salt);
 
@@ -37,17 +36,16 @@ contract SplitFactoryV2Test is BaseTest {
 
     function testFuzz_create2Split_Revert_SplitAlreadyExists(
         SplitReceiver[] memory _receivers,
-        uint16 _pullIncentive,
-        uint16 _pushIncentive,
+        uint16 _distributionIncentive,
         address _owner,
         bytes32 _salt
     )
         public
     {
-        testFuzz_create2Split(_receivers, _pullIncentive, _pushIncentive, _owner, _salt);
+        testFuzz_create2Split(_receivers, _distributionIncentive, _owner, _salt);
 
         SplitFactoryV2.CreateSplitParams memory params =
-            getCreatSplitParams(_receivers, _pullIncentive, _pushIncentive, _owner, address(this));
+            getCreatSplitParams(_receivers, _distributionIncentive, _owner, address(this));
 
         vm.expectRevert();
         splitFactory.createSplitDeterministic(params, _salt);
@@ -55,14 +53,13 @@ contract SplitFactoryV2Test is BaseTest {
 
     function testFuzz_createSplit(
         SplitReceiver[] memory _receivers,
-        uint16 _pullIncentive,
-        uint16 _pushIncentive,
+        uint16 _distributionIncentive,
         address _owner
     )
         public
     {
         SplitFactoryV2.CreateSplitParams memory params =
-            getCreatSplitParams(_receivers, _pullIncentive, _pushIncentive, _owner, address(this));
+            getCreatSplitParams(_receivers, _distributionIncentive, _owner, address(this));
 
         SplitWalletV2 split = SplitWalletV2(splitFactory.createSplit(params));
 
@@ -71,16 +68,15 @@ contract SplitFactoryV2Test is BaseTest {
 
     function testFuzz_createSplit_sameParams(
         SplitReceiver[] memory _receivers,
-        uint16 _pullIncentive,
-        uint16 _pushIncentive,
+        uint16 _distributionIncentive,
         address _owner
     )
         public
     {
-        testFuzz_createSplit(_receivers, _pullIncentive, _pushIncentive, _owner);
+        testFuzz_createSplit(_receivers, _distributionIncentive, _owner);
 
         SplitFactoryV2.CreateSplitParams memory params =
-            getCreatSplitParams(_receivers, _pullIncentive, _pushIncentive, _owner, address(this));
+            getCreatSplitParams(_receivers, _distributionIncentive, _owner, address(this));
 
         SplitWalletV2 split = SplitWalletV2(splitFactory.createSplit(params));
 
@@ -89,21 +85,20 @@ contract SplitFactoryV2Test is BaseTest {
 
     function testFuzz_isDeployed(
         SplitReceiver[] memory _receivers,
-        uint16 _pullIncentive,
-        uint16 _pushIncentive,
+        uint16 _distributionIncentive,
         address _owner,
         bytes32 _salt
     )
         public
     {
         SplitFactoryV2.CreateSplitParams memory params =
-            getCreatSplitParams(_receivers, _pullIncentive, _pushIncentive, _owner, address(this));
+            getCreatSplitParams(_receivers, _distributionIncentive, _owner, address(this));
 
         (address predictedAddress, bool isDeployed) = splitFactory.isDeployed(params, _salt);
 
         assertEq(isDeployed, false);
 
-        testFuzz_create2Split(_receivers, _pullIncentive, _pushIncentive, _owner, _salt);
+        testFuzz_create2Split(_receivers, _distributionIncentive, _owner, _salt);
 
         (predictedAddress, isDeployed) = splitFactory.isDeployed(params, _salt);
 
