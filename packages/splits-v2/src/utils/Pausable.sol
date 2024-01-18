@@ -31,8 +31,6 @@ abstract contract Pausable is Ownable {
     /*                          CONSTRUCTOR & INITIALIZER                         */
     /* -------------------------------------------------------------------------- */
 
-    constructor() { }
-
     function __initPausable(address _owner, bool _paused) internal virtual {
         __initOwnable(_owner);
         paused = _paused;

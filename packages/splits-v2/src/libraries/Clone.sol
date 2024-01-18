@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.18;
 
-/// @title Modified minimal proxy
-/// @author Splits
-/// @author Solady (https://github.com/vectorized/solady/blob/main/src/utils/LibClone.sol)
-/// @dev Modified minimal proxy includes a `receive()` method that emits the
-/// `ReceiveETH(uint256)` event to skip `DELEGATECALL` when there is no calldata.
-/// Enables us to accept hard gas-capped `sends` & `transfers` for maximum backwards
-/// composability.
+/**
+ * @title Modified minimal proxy
+ * @author Splits
+ * @author Solady (https://github.com/vectorized/solady/blob/main/src/utils/LibClone.sol)
+ * @dev Modified minimal proxy includes a `receive()` method that emits the
+ * `ReceiveETH(uint256)` event to skip `DELEGATECALL` when there is no calldata.
+ * Enables us to accept hard gas-capped `sends` & `transfers` for maximum backwards
+ * composability.
+ */
+// solhint-disable no-inline-assembly
 library Clone {
     error DeploymentFailed();
 
