@@ -33,7 +33,7 @@ contract SplitWalletV2 is Wallet {
     /* -------------------------------------------------------------------------- */
 
     event SplitUpdated(address indexed _owner, SplitV2Lib.Split _split);
-    event SplitDistributeByPush(bool _distributeByPush);
+    event DistributeDirectionUpdated(bool _distributeByPush);
     event SplitDistributed(address indexed _token, uint256 _amount, address _distributor, bool _distributeByPush);
 
     /* -------------------------------------------------------------------------- */
@@ -90,6 +90,30 @@ contract SplitWalletV2 is Wallet {
     /* -------------------------------------------------------------------------- */
 
     /**
+     * @notice Approves the Splits Warehouse to spend the token and distributes the token to the recipients according to
+     * the split. It makes an approval to the Splits Warehouse if the token is not native and if the allowance is less
+     * than the amount being distributed.
+     * @dev Owner can bypass the paused state.
+     * @param _split the split struct containing the split data that gets distributed
+     * @param _token the token to distribute
+     * @param _amount the amount of token to distribute
+     */
+    function approveAndDistribute(
+        SplitV2Lib.Split calldata _split,
+        address _token,
+        uint256 _amount,
+        address _distributor
+    )
+        external
+        pausable
+    {
+        if (_token != NATIVE && IERC20(_token).allowance(address(this), address(SPLITS_WAREHOUSE)) < _amount) {
+            approveSplitsWarehouse(_token);
+        }
+        distribute(_split, _token, _amount, _distributor);
+    }
+
+    /**
      * @notice Distributes the token to the recipients according to the split
      * @dev The token must be approved to the Splits Warehouse before calling this function. Owner can bypass the paused
      * state.
@@ -104,8 +128,7 @@ contract SplitWalletV2 is Wallet {
         uint256 _amount,
         address _distributor
     )
-        external
-        payable
+        public
         pausable
     {
         if (splitHash != _split.getHash()) revert InvalidSplit();
@@ -120,7 +143,7 @@ contract SplitWalletV2 is Wallet {
      * @notice Approves the Splits Warehouse to spend the token
      * @param _token the token to approve
      */
-    function approveSplitsWarehouse(address _token) external {
+    function approveSplitsWarehouse(address _token) public {
         IERC20(_token).approve(address(SPLITS_WAREHOUSE), type(uint256).max);
     }
 
@@ -145,9 +168,9 @@ contract SplitWalletV2 is Wallet {
      * @dev Only the owner can call this function.
      * @param _distributeByPush whether to distribute by push or pull
      */
-    function updateDistributeByPush(bool _distributeByPush) external onlyOwner {
+    function updateDistributeDirection(bool _distributeByPush) external onlyOwner {
         distributeByPush = _distributeByPush;
-        emit SplitDistributeByPush(_distributeByPush);
+        emit DistributeDirectionUpdated(_distributeByPush);
     }
 
     /* -------------------------------------------------------------------------- */
