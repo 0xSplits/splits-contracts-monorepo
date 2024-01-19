@@ -91,7 +91,8 @@ contract SplitWalletV2 is Wallet {
 
     /**
      * @notice Distributes the token to the recipients according to the split
-     * @dev The token must be approved to the Splits Warehouse before calling this function.
+     * @dev The token must be approved to the Splits Warehouse before calling this function. Owner can bypass the paused
+     * state.
      * @param _split the split struct containing the split data that gets distributed
      * @param _token the token to distribute
      * @param _amount the amount of token to distribute

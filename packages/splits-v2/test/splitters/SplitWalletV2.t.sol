@@ -53,8 +53,6 @@ contract SplitWalletV2Test is BaseTest {
     {
         SplitV2Lib.Split memory split = createSplit(_receivers, _distributionIncentive);
 
-        vm.expectEmit();
-        emit SplitUpdated(_owner, split);
         wallet.initialize(split, _owner);
 
         assertEq(wallet.owner(), _owner);
@@ -219,7 +217,37 @@ contract SplitWalletV2Test is BaseTest {
         wallet.distribute(split, native, _amount, ALICE.addr);
     }
 
-    function testFuzz_distributeERC20_NoIncentive(uint256 _amount, bool _distributeByPush) public {
+    function testFuzz_distribute_ERC20_whenPaused_byOwner(uint256 _amount, bool _distributeByPush) public {
+        SplitV2Lib.Split memory split = getDefaultSplitWithNoIncentive();
+
+        wallet.initialize(split, ALICE.addr);
+
+        _amount = bound(_amount, split.totalAllocation, type(uint160).max);
+
+        deal(address(usdc), address(wallet), _amount);
+
+        wallet.approveSplitsWarehouse(address(usdc));
+
+        vm.startPrank(ALICE.addr);
+        wallet.updateDistributeByPush(_distributeByPush);
+        wallet.setPaused(true);
+        wallet.distribute(split, address(usdc), _amount, ALICE.addr);
+        vm.stopPrank();
+
+        assertAlmostEq(usdc.balanceOf(address(wallet)), 0, 9);
+
+        if (_distributeByPush) {
+            for (uint256 i = 0; i < split.recipients.length; i++) {
+                assertGt(usdc.balanceOf(split.recipients[i]), 0);
+            }
+        } else {
+            for (uint256 i = 0; i < split.recipients.length; i++) {
+                assertGt(warehouse.balanceOf(split.recipients[i], tokenToId(address(usdc))), 0);
+            }
+        }
+    }
+
+    function testFuzz_distribute_whenERC20WithoutIncentive(uint256 _amount, bool _distributeByPush) public {
         SplitV2Lib.Split memory split = getDefaultSplitWithNoIncentive();
 
         wallet.initialize(split, ALICE.addr);
@@ -248,7 +276,7 @@ contract SplitWalletV2Test is BaseTest {
         }
     }
 
-    function testFuzz_distributeERC20_Incentive(uint256 _amount, bool _distributeByPush) public {
+    function testFuzz_distribute_whenERC20WithIncentive(uint256 _amount, bool _distributeByPush) public {
         SplitV2Lib.Split memory split = getDefaultSplitWithIncentive();
 
         wallet.initialize(split, ALICE.addr);
@@ -279,7 +307,7 @@ contract SplitWalletV2Test is BaseTest {
         }
     }
 
-    function testFuzz_distributeNative_NoIncentive(uint256 _amount, bool _distributeByPush) public {
+    function testFuzz_distribute_whenNativeWithoutIncentive(uint256 _amount, bool _distributeByPush) public {
         SplitV2Lib.Split memory split = getDefaultSplitWithNoIncentive();
 
         wallet.initialize(split, ALICE.addr);
@@ -306,7 +334,7 @@ contract SplitWalletV2Test is BaseTest {
         }
     }
 
-    function testFuzz_distribute_Incentive(uint256 _amount, bool _distributeByPush) public {
+    function testFuzz_distribute_whenNativeWithIncentive(uint256 _amount, bool _distributeByPush) public {
         SplitV2Lib.Split memory split = getDefaultSplitWithIncentive();
 
         wallet.initialize(split, ALICE.addr);

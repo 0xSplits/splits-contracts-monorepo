@@ -41,7 +41,7 @@ abstract contract Pausable is Ownable {
     /* -------------------------------------------------------------------------- */
 
     modifier pausable() virtual {
-        if (paused) revert Paused();
+        if (paused && msg.sender != owner) revert Paused();
         _;
     }
 
