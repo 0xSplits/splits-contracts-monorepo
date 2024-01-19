@@ -16,6 +16,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
     error ReentrancyGuardReentrantCall();
     error FailedInnerCall();
     error CastOverflow(uint256 value);
+    error Overflow();
 
     event Withdraw(
         address indexed owner, address indexed token, address indexed withdrawer, uint256 amount, uint256 reward
@@ -50,7 +51,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
     function test_name_Revert_whenTokenIDGreaterThanUint160() public {
         uint256 tokenId = uint256(type(uint160).max) + 1;
-        vm.expectRevert(abi.encodeWithSelector(CastOverflow.selector, tokenId));
+        vm.expectRevert(Overflow.selector);
         warehouse.name(tokenId);
     }
 
@@ -68,7 +69,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
     function test_symbol_Revert_whenTokenIDGreaterThanUint160() public {
         uint256 tokenId = uint256(type(uint160).max) + 1;
-        vm.expectRevert(abi.encodeWithSelector(CastOverflow.selector, tokenId));
+        vm.expectRevert(Overflow.selector);
         warehouse.symbol(tokenId);
     }
 
@@ -86,7 +87,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
     function test_decimals_Revert_whenTokenIDGreaterThanUint160() public {
         uint256 tokenId = uint256(type(uint160).max) + 1;
-        vm.expectRevert(abi.encodeWithSelector(CastOverflow.selector, tokenId));
+        vm.expectRevert(Overflow.selector);
         warehouse.decimals(tokenId);
     }
 
