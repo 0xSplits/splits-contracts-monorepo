@@ -463,6 +463,33 @@ contract SplitWalletV2Test is BaseTest {
         }
     }
 
+    function testFuzz_distribute_pushNative_whenRecipientReverts(uint256 _amount) public {
+        SplitV2Lib.Split memory split = getDefaultSplitWithIncentive();
+        split.recipients[0] = BAD_ACTOR;
+
+        wallet.initialize(split, ALICE.addr);
+
+        _amount = bound(_amount, split.totalAllocation, type(uint160).max);
+
+        deal(address(wallet), _amount);
+
+        vm.prank(ALICE.addr);
+        wallet.updateDistributeDirection(true);
+
+        uint256 distributorBalance = ALICE.addr.balance;
+
+        wallet.approveAndDistribute(split, native, _amount, ALICE.addr);
+
+        assertAlmostEq(address(wallet).balance, 0, 9);
+        assertGt(ALICE.addr.balance, distributorBalance);
+
+        for (uint256 i = 0; i < split.recipients.length; i++) {
+            if (split.recipients[i] == BAD_ACTOR) assertEq(split.recipients[i].balance, 0);
+            else assertGt(split.recipients[i].balance, 0);
+        }
+        assertGt(warehouse.balanceOf(BAD_ACTOR, tokenToId(native)), 0);
+    }
+
     function test_approveSplitsWarehouse() public {
         wallet.approveSplitsWarehouse(address(usdc));
 

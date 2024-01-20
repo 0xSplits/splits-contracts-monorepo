@@ -6,8 +6,7 @@ import { SplitV2Lib } from "../libraries/SplitV2.sol";
 import { Wallet } from "../utils/Wallet.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { Address } from "@openzeppelin/contracts/utils/Address.sol";
+import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 
 /**
  * @title SplitWalletV2
@@ -17,8 +16,7 @@ import { Address } from "@openzeppelin/contracts/utils/Address.sol";
  */
 contract SplitWalletV2 is Wallet {
     using SplitV2Lib for SplitV2Lib.Split;
-    using SafeERC20 for IERC20;
-    using Address for address payable;
+    using SafeTransferLib for address;
 
     /* -------------------------------------------------------------------------- */
     /*                                   ERRORS                                   */
@@ -196,25 +194,27 @@ contract SplitWalletV2 is Wallet {
                 allocatedAmount = _amount * _split.allocations[i] / _split.totalAllocation;
                 amountDistributed += allocatedAmount;
 
-                payable(_split.recipients[i]).sendValue(allocatedAmount);
+                if (!_split.recipients[i].trySafeTransferETH(allocatedAmount, SafeTransferLib.GAS_STIPEND_NO_GRIEF)) {
+                    SPLITS_WAREHOUSE.deposit{ value: allocatedAmount }(_split.recipients[i], _token, allocatedAmount);
+                }
                 unchecked {
                     ++i;
                 }
             }
 
-            payable(_distributor).sendValue(distributorReward);
+            _distributor.safeTransferETH(distributorReward);
         } else {
             for (uint256 i = 0; i < numOfRecipients;) {
                 allocatedAmount = _amount * _split.allocations[i] / _split.totalAllocation;
                 amountDistributed += allocatedAmount;
 
-                IERC20(_token).safeTransfer(_split.recipients[i], allocatedAmount);
+                _token.safeTransfer(_split.recipients[i], allocatedAmount);
                 unchecked {
                     ++i;
                 }
             }
 
-            IERC20(_token).safeTransfer(_distributor, distributorReward);
+            _token.safeTransfer(_distributor, distributorReward);
         }
 
         emit SplitDistributed(_token, amountDistributed + distributorReward, _distributor, true);
@@ -232,10 +232,10 @@ contract SplitWalletV2 is Wallet {
             _split.getDistributions(_amount);
         if (_token == NATIVE) {
             SPLITS_WAREHOUSE.deposit{ value: amountDistributed }(address(this), _token, amountDistributed);
-            payable(_distributor).sendValue(distibutorReward);
+            _distributor.safeTransferETH(distibutorReward);
         } else {
             SPLITS_WAREHOUSE.deposit(address(this), _token, amountDistributed);
-            IERC20(_token).safeTransfer(_distributor, distibutorReward);
+            _token.safeTransfer(_distributor, distibutorReward);
         }
         SPLITS_WAREHOUSE.batchTransfer(_token, _split.recipients, amounts);
         emit SplitDistributed(_token, amountDistributed + distibutorReward, _distributor, false);
