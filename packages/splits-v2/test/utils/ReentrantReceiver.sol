@@ -7,6 +7,6 @@ import { SplitsWarehouse } from "../../src/SplitsWarehouse.sol";
 contract WarehouseReentrantReceiver {
     fallback() external payable {
         address token = SplitsWarehouse(msg.sender).NATIVE_TOKEN();
-        SplitsWarehouse(msg.sender).withdraw(token, msg.value);
+        SplitsWarehouse(msg.sender).withdraw(msg.sender, token, msg.value);
     }
 }

@@ -90,7 +90,7 @@ contract SplitsWarehouseHandler is CommonBase, StdCheats, StdUtils {
         if (user == badActor && token == native) {
             return;
         }
-        warehouse.withdraw(token, _amount);
+        warehouse.withdraw(user, token, _amount);
 
         warehouseBalance[token] -= _amount;
     }

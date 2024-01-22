@@ -2,6 +2,8 @@
 pragma solidity ^0.8.18;
 
 import { ISplitsWarehouse } from "../interfaces/ISplitsWarehouse.sol";
+
+import { Cast } from "../libraries/Cast.sol";
 import { SplitV2Lib } from "../libraries/SplitV2.sol";
 import { Wallet } from "../utils/Wallet.sol";
 
@@ -17,6 +19,7 @@ import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 contract SplitWalletV2 is Wallet {
     using SplitV2Lib for SplitV2Lib.Split;
     using SafeTransferLib for address;
+    using Cast for address;
 
     /* -------------------------------------------------------------------------- */
     /*                                   ERRORS                                   */
@@ -32,7 +35,13 @@ contract SplitWalletV2 is Wallet {
 
     event SplitUpdated(address indexed _owner, SplitV2Lib.Split _split);
     event DistributeDirectionUpdated(bool _distributeByPush);
-    event SplitDistributed(address indexed _token, uint256 _amount, address _distributor, bool _distributeByPush);
+    event SplitDistributed(
+        address indexed _token,
+        address indexed _distributor,
+        uint256 _amountDistributed,
+        uint256 _distributorReward,
+        bool _distributeByPush
+    );
 
     /* -------------------------------------------------------------------------- */
     /*                            CONSTANTS/IMMUTABLES                            */
@@ -87,16 +96,30 @@ contract SplitWalletV2 is Wallet {
     /*                          PUBLIC/EXTERNAL FUNCTIONS                         */
     /* -------------------------------------------------------------------------- */
 
-    /**
-     * @notice Approves the Splits Warehouse to spend the token and distributes the token to the recipients according to
-     * the split. It makes an approval to the Splits Warehouse if the token is not native and if the allowance is less
-     * than the amount being distributed.
-     * @dev Owner can bypass the paused state.
-     * @param _split the split struct containing the split data that gets distributed
-     * @param _token the token to distribute
-     * @param _amount the amount of token to distribute
-     */
-    function approveAndDistribute(
+    function distribute(SplitV2Lib.Split calldata _split, address _token, address _distributor) external pausable {
+        if (splitHash != _split.getHash()) revert InvalidSplit();
+        (uint256 _splitBalance, uint256 _warehouseBalance) = _getSplitBalance(_token);
+
+        if (distributeByPush) {
+            if (_warehouseBalance > 0) {
+                unchecked {
+                    _warehouseBalance -= 1;
+                }
+                _withdrawFromWarehouse(_token, _warehouseBalance);
+            }
+            pushDistribute(_split, _token, _splitBalance + _warehouseBalance, _distributor);
+        } else {
+            if (_splitBalance > 0) {
+                unchecked {
+                    _splitBalance -= 1;
+                }
+                _depositToWarehouse(_token, _splitBalance);
+            }
+            pullDistribute(_split, _token, _splitBalance + _warehouseBalance, _distributor);
+        }
+    }
+
+    function distribute(
         SplitV2Lib.Split calldata _split,
         address _token,
         uint256 _amount,
@@ -105,44 +128,25 @@ contract SplitWalletV2 is Wallet {
         external
         pausable
     {
-        if (_token != NATIVE && IERC20(_token).allowance(address(this), address(SPLITS_WAREHOUSE)) < _amount) {
-            approveSplitsWarehouse(_token);
-        }
-        distribute(_split, _token, _amount, _distributor);
-    }
-
-    /**
-     * @notice Distributes the token to the recipients according to the split
-     * @dev The token must be approved to the Splits Warehouse before calling this function. Owner can bypass the paused
-     * state.
-     * @param _split the split struct containing the split data that gets distributed
-     * @param _token the token to distribute
-     * @param _amount the amount of token to distribute
-     * @param _distributor the distributor of the split
-     */
-    function distribute(
-        SplitV2Lib.Split calldata _split,
-        address _token,
-        uint256 _amount,
-        address _distributor
-    )
-        public
-        pausable
-    {
         if (splitHash != _split.getHash()) revert InvalidSplit();
+
         if (distributeByPush) {
-            return pushDistribute(_split, _token, _amount, _distributor);
+            pushDistribute(_split, _token, _amount, _distributor);
         } else {
-            return pullDistribute(_split, _token, _amount, _distributor);
+            pullDistribute(_split, _token, _amount, _distributor);
         }
     }
 
-    /**
-     * @notice Approves the Splits Warehouse to spend the token
-     * @param _token the token to approve
-     */
-    function approveSplitsWarehouse(address _token) public {
-        IERC20(_token).approve(address(SPLITS_WAREHOUSE), type(uint256).max);
+    function depositToWarehouse(address _token, uint256 _amount) external {
+        _depositToWarehouse(_token, _amount);
+    }
+
+    function withdrawFromWarehouse(address _token, uint256 _amount) external {
+        _withdrawFromWarehouse(_token, _amount);
+    }
+
+    function getSplitBalance(address _token) public view returns (uint256 _splitBalance, uint256 _warehouseBalance) {
+        return _getSplitBalance(_token);
     }
 
     /* -------------------------------------------------------------------------- */
@@ -175,6 +179,32 @@ contract SplitWalletV2 is Wallet {
     /*                              INTERNAL/PRIVATE                              */
     /* -------------------------------------------------------------------------- */
 
+    function _withdrawFromWarehouse(address _token, uint256 _amount) internal {
+        SPLITS_WAREHOUSE.withdraw(address(this), _token, _amount);
+    }
+
+    function _depositToWarehouse(address _token, uint256 _amount) internal {
+        if (_token == NATIVE) {
+            SPLITS_WAREHOUSE.deposit{ value: _amount }(address(this), _token, _amount);
+        } else {
+            if (IERC20(_token).allowance(address(this), address(SPLITS_WAREHOUSE)) < _amount) {
+                IERC20(_token).approve(address(SPLITS_WAREHOUSE), type(uint256).max);
+            }
+            SPLITS_WAREHOUSE.deposit(address(this), _token, _amount);
+        }
+    }
+
+    function _getSplitBalance(address _token) private view returns (uint256 _splitBalance, uint256 _warehouseBalance) {
+        if (_token == NATIVE) {
+            _splitBalance = address(this).balance;
+            _warehouseBalance = SPLITS_WAREHOUSE.balanceOf(address(this), _token.toUint256());
+        } else {
+            _splitBalance = _token.balanceOf(address(this));
+            _warehouseBalance = SPLITS_WAREHOUSE.balanceOf(address(this), _token.toUint256());
+        }
+    }
+
+    // assumes the amount is already present in the split wallet
     function pushDistribute(
         SplitV2Lib.Split calldata _split,
         address _token,
@@ -217,9 +247,10 @@ contract SplitWalletV2 is Wallet {
             _token.safeTransfer(_distributor, distributorReward);
         }
 
-        emit SplitDistributed(_token, amountDistributed + distributorReward, _distributor, true);
+        emit SplitDistributed(_token, _distributor, amountDistributed, distributorReward, true);
     }
 
+    // assumes the amount is already deposited to the warehouse
     function pullDistribute(
         SplitV2Lib.Split calldata _split,
         address _token,
@@ -230,14 +261,8 @@ contract SplitWalletV2 is Wallet {
     {
         (uint256[] memory amounts, uint256 amountDistributed, uint256 distibutorReward) =
             _split.getDistributions(_amount);
-        if (_token == NATIVE) {
-            SPLITS_WAREHOUSE.deposit{ value: amountDistributed }(address(this), _token, amountDistributed);
-            _distributor.safeTransferETH(distibutorReward);
-        } else {
-            SPLITS_WAREHOUSE.deposit(address(this), _token, amountDistributed);
-            _token.safeTransfer(_distributor, distibutorReward);
-        }
+        SPLITS_WAREHOUSE.transfer(_distributor, _token.toUint256(), distibutorReward);
         SPLITS_WAREHOUSE.batchTransfer(_token, _split.recipients, amounts);
-        emit SplitDistributed(_token, amountDistributed + distibutorReward, _distributor, false);
+        emit SplitDistributed(_token, _distributor, amountDistributed, distibutorReward, false);
     }
 }

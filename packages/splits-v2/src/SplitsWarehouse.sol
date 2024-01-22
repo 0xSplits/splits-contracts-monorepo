@@ -176,27 +176,51 @@ contract SplitsWarehouse is ERC6909X {
     /**
      * @notice Withdraws token from the warehouse for msg.sender.
      * @dev It is recommended to withdraw balance - 1 to save gas.
+     * @param _owner The address whose tokens are withdrawn.
      * @param _token The address of the token to be withdrawn.
      * @param _amount The amount of the token to be withdrawn.
      */
-    function withdraw(address _token, uint256 _amount) external {
-        _withdraw(msg.sender, _token.toUint256(), _token, _amount, msg.sender);
+    function withdraw(address _owner, address _token, uint256 _amount) external {
+        if (msg.sender == _owner) {
+            _withdraw(_owner, _token.toUint256(), _token, _amount, _owner);
+        } else {
+            WithdrawConfig memory config = withdrawConfig[_owner];
+            if (config.paused) revert WithdrawalPaused(_owner);
+            if (_owner == address(0)) revert ZeroOwner();
+            _withdraw(_owner, _token.toUint256(), _token, _amount, msg.sender);
+        }
     }
 
     /**
      * @notice Withdraws tokens from the warehouse for msg.sender.
      * @dev It is recommended to withdraw balance - 1 to save gas.
+     * @param _owner The address whose tokens are withdrawn.
      * @param _tokens The addresses of the tokens to be withdrawn.
      * @param _amounts The amounts of the tokens to be withdrawn.
      */
-    function withdraw(address[] memory _tokens, uint256[] memory _amounts) external {
-        if (_tokens.length != _amounts.length) revert LengthMismatch();
+    function withdraw(address _owner, address[] memory _tokens, uint256[] memory _amounts) external {
+        if (msg.sender == _owner) {
+            if (_tokens.length != _amounts.length) revert LengthMismatch();
 
-        for (uint256 i; i < _tokens.length;) {
-            _withdraw(msg.sender, _tokens[i].toUint256(), _tokens[i], _amounts[i], msg.sender);
+            for (uint256 i; i < _tokens.length;) {
+                _withdraw(_owner, _tokens[i].toUint256(), _tokens[i], _amounts[i], _owner);
 
-            unchecked {
-                ++i;
+                unchecked {
+                    ++i;
+                }
+            }
+        } else {
+            WithdrawConfig memory config = withdrawConfig[_owner];
+            if (config.paused) revert WithdrawalPaused(_owner);
+            if (_owner == address(0)) revert ZeroOwner();
+            if (_tokens.length != _amounts.length) revert LengthMismatch();
+
+            for (uint256 i; i < _tokens.length;) {
+                _withdraw(_owner, _tokens[i].toUint256(), _tokens[i], _amounts[i], msg.sender);
+
+                unchecked {
+                    ++i;
+                }
             }
         }
     }

@@ -153,7 +153,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         vm.prank(_owner);
         vm.expectEmit();
         emit Withdraw(_owner, token, _owner, _amount, 0);
-        warehouse.withdraw(token, _amount);
+        warehouse.withdraw(_owner, token, _amount);
 
         assertEq(warehouse.balanceOf(_owner, tokenToId(token)), 0);
         assertEq(ERC20(token).balanceOf(address(warehouse)), 0);
@@ -167,7 +167,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         vm.prank(_owner);
         vm.expectEmit();
         emit Withdraw(_owner, native, _owner, _amount, 0);
-        warehouse.withdraw(native, _amount);
+        warehouse.withdraw(_owner, native, _amount);
 
         assertEq(warehouse.balanceOf(_owner, tokenToId(native)), 0);
         assertEq(address(warehouse).balance, 0);
@@ -180,7 +180,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
         vm.prank(owner);
         vm.expectRevert();
-        warehouse.withdraw(token, 101 ether);
+        warehouse.withdraw(owner, token, 101 ether);
     }
 
     function test_withdrawOwner_Revert_whenOwnerReenters() public {
@@ -190,7 +190,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
         vm.prank(owner);
         vm.expectRevert("Address: unable to send value, recipient may have reverted");
-        warehouse.withdraw(native, 100 ether);
+        warehouse.withdraw(owner, native, 100 ether);
     }
 
     function test_withdrawOwner_Revert_whenNonERC20() public {
@@ -198,7 +198,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
         vm.prank(owner);
         vm.expectRevert();
-        warehouse.withdraw(address(this), 100 ether);
+        warehouse.withdraw(owner, address(this), 100 ether);
     }
 
     /* -------------------------------------------------------------------------- */
@@ -215,7 +215,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         for (uint256 i = 0; i < defaultTokens.length; i++) {
             emit Withdraw(owner, defaultTokens[i], owner, _amount, 0);
         }
-        warehouse.withdraw(defaultTokens, getAmounts(_amount));
+        warehouse.withdraw(owner, defaultTokens, getAmounts(_amount));
 
         for (uint256 i = 0; i < defaultTokens.length; i++) {
             assertEq(warehouse.balanceOf(owner, tokenToId(defaultTokens[i])), 0);
@@ -234,7 +234,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
         vm.prank(owner);
         vm.expectRevert(LengthMismatch.selector);
-        warehouse.withdraw(defaultTokens, new uint256[](1));
+        warehouse.withdraw(owner, defaultTokens, new uint256[](1));
     }
 
     function test_withdrawOwner_multipleTokens_Revert_whenWithdrawGreaterThanBalance() public {
@@ -244,7 +244,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
         vm.prank(owner);
         vm.expectRevert();
-        warehouse.withdraw(defaultTokens, getAmounts(101 ether));
+        warehouse.withdraw(owner, defaultTokens, getAmounts(101 ether));
     }
 
     function test_withdrawOwner_multipleTokens_Revert_whenOwnerReenters() public {
@@ -254,7 +254,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
         vm.prank(owner);
         vm.expectRevert("Address: unable to send value, recipient may have reverted");
-        warehouse.withdraw(defaultTokens, getAmounts(100 ether));
+        warehouse.withdraw(owner, defaultTokens, getAmounts(100 ether));
     }
 
     /* -------------------------------------------------------------------------- */
