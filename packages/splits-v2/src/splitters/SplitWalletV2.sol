@@ -96,6 +96,14 @@ contract SplitWalletV2 is Wallet {
     /*                          PUBLIC/EXTERNAL FUNCTIONS                         */
     /* -------------------------------------------------------------------------- */
 
+    /**
+     * @notice Distributes the split to the recipients. It distributes the amount of tokens present in Warehouse and the
+     * split wallet.
+     * @dev The split must be initialized and the split hash must match the split hash of the split wallet.
+     * @param _split the split struct containing the split data that gets distributed
+     * @param _token the token to distribute
+     * @param _distributor the distributor of the split
+     */
     function distribute(SplitV2Lib.Split calldata _split, address _token, address _distributor) external pausable {
         if (splitHash != _split.getHash()) revert InvalidSplit();
         (uint256 _splitBalance, uint256 _warehouseBalance) = _getSplitBalance(_token);
@@ -119,6 +127,16 @@ contract SplitWalletV2 is Wallet {
         }
     }
 
+    /**
+     * @notice Distributes the split to the recipients. It distributes the amount of tokens present in Warehouse and the
+     * split wallet.
+     * @dev The amount of tokens to distribute must be present in the split wallet or the warehouse depending on the
+     * distribution direction.
+     * @param _split the split struct containing the split data that gets distributed
+     * @param _token the token to distribute
+     * @param _amount the amount of tokens to distribute
+     * @param _distributor the distributor of the split
+     */
     function distribute(
         SplitV2Lib.Split calldata _split,
         address _token,
@@ -137,14 +155,29 @@ contract SplitWalletV2 is Wallet {
         }
     }
 
+    /**
+     * @notice Deposits tokens to the warehouse
+     * @param _token the token to deposit
+     * @param _amount the amount of tokens to deposit
+     */
     function depositToWarehouse(address _token, uint256 _amount) external {
         _depositToWarehouse(_token, _amount);
     }
 
+    /**
+     * @notice Withdraws tokens from the warehouse to the split wallet
+     * @param _token the token to withdraw
+     */
     function withdrawFromWarehouse(address _token, uint256 _amount) external {
         _withdrawFromWarehouse(_token, _amount);
     }
 
+    /**
+     * @notice Gets the total token balance of the split wallet and the warehouse
+     * @param _token the token to get the balance of
+     * @return _splitBalance the token balance in the split wallet
+     * @return _warehouseBalance the token balance in the warehouse of the split wallet
+     */
     function getSplitBalance(address _token) public view returns (uint256 _splitBalance, uint256 _warehouseBalance) {
         return _getSplitBalance(_token);
     }
