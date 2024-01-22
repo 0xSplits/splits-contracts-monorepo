@@ -184,8 +184,7 @@ contract SplitsWarehouse is ERC6909X {
         if (msg.sender == _owner) {
             _withdraw(_owner, _token.toUint256(), _token, _amount, _owner);
         } else {
-            WithdrawConfig memory config = withdrawConfig[_owner];
-            if (config.paused) revert WithdrawalPaused(_owner);
+            if (withdrawConfig[_owner].paused) revert WithdrawalPaused(_owner);
             if (_owner == address(0)) revert ZeroOwner();
             _withdraw(_owner, _token.toUint256(), _token, _amount, msg.sender);
         }
@@ -210,8 +209,7 @@ contract SplitsWarehouse is ERC6909X {
                 }
             }
         } else {
-            WithdrawConfig memory config = withdrawConfig[_owner];
-            if (config.paused) revert WithdrawalPaused(_owner);
+            if (withdrawConfig[_owner].paused) revert WithdrawalPaused(_owner);
             if (_owner == address(0)) revert ZeroOwner();
             if (_tokens.length != _amounts.length) revert LengthMismatch();
 

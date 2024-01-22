@@ -8,6 +8,7 @@ import { SplitV2Lib } from "../libraries/SplitV2.sol";
 import { Wallet } from "../utils/Wallet.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 
 /**
@@ -19,6 +20,7 @@ import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 contract SplitWalletV2 is Wallet {
     using SplitV2Lib for SplitV2Lib.Split;
     using SafeTransferLib for address;
+    using SafeERC20 for IERC20;
     using Cast for address;
 
     /* -------------------------------------------------------------------------- */
@@ -232,7 +234,7 @@ contract SplitWalletV2 is Wallet {
             _splitBalance = address(this).balance;
             _warehouseBalance = SPLITS_WAREHOUSE.balanceOf(address(this), _token.toUint256());
         } else {
-            _splitBalance = _token.balanceOf(address(this));
+            _splitBalance = IERC20(_token).balanceOf(address(this));
             _warehouseBalance = SPLITS_WAREHOUSE.balanceOf(address(this), _token.toUint256());
         }
     }
@@ -271,13 +273,13 @@ contract SplitWalletV2 is Wallet {
                 allocatedAmount = _amount * _split.allocations[i] / _split.totalAllocation;
                 amountDistributed += allocatedAmount;
 
-                _token.safeTransfer(_split.recipients[i], allocatedAmount);
+                IERC20(_token).safeTransfer(_split.recipients[i], allocatedAmount);
                 unchecked {
                     ++i;
                 }
             }
 
-            _token.safeTransfer(_distributor, distributorReward);
+            IERC20(_token).safeTransfer(_distributor, distributorReward);
         }
 
         emit SplitDistributed(_token, _distributor, amountDistributed, distributorReward, true);

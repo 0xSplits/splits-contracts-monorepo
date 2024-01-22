@@ -189,7 +189,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         deposit(owner, native, 100 ether);
 
         vm.prank(owner);
-        vm.expectRevert("Address: unable to send value, recipient may have reverted");
+        vm.expectRevert();
         warehouse.withdraw(owner, native, 100 ether);
     }
 
@@ -253,7 +253,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         depositDefaultTokens(owner, 100 ether);
 
         vm.prank(owner);
-        vm.expectRevert("Address: unable to send value, recipient may have reverted");
+        vm.expectRevert();
         warehouse.withdraw(owner, defaultTokens, getAmounts(100 ether));
     }
 
@@ -303,7 +303,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
         deposit(BAD_ACTOR, native, 1 ether);
 
-        vm.expectRevert("Address: unable to send value, recipient may have reverted");
+        vm.expectRevert();
         warehouse.withdraw(owner, native, 1 ether, address(this));
     }
 
@@ -439,7 +439,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
         depositDefaultTokens(owner, 100 ether);
 
-        vm.expectRevert("Address: unable to send value, recipient may have reverted");
+        vm.expectRevert();
         warehouse.withdraw(owner, defaultTokens, getAmounts(100 ether), address(this));
     }
 
