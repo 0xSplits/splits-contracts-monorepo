@@ -148,39 +148,33 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
     function testFuzz_withdrawOwner_whenERC20(address _owner, uint256 _amount) public {
         assumeAddress(_owner);
 
+        vm.assume(_amount > 0);
+
         testFuzz_depositSingleOwner_whenERC20(_owner, _owner, _amount);
 
         vm.prank(_owner);
         vm.expectEmit();
-        emit Withdraw(_owner, token, _owner, _amount, 0);
-        warehouse.withdraw(_owner, token, _amount);
+        emit Withdraw(_owner, token, _owner, _amount - 1, 0);
+        warehouse.withdraw(_owner, token);
 
-        assertEq(warehouse.balanceOf(_owner, tokenToId(token)), 0);
-        assertEq(ERC20(token).balanceOf(address(warehouse)), 0);
+        assertEq(warehouse.balanceOf(_owner, tokenToId(token)), 1);
+        assertEq(ERC20(token).balanceOf(address(warehouse)), 1);
     }
 
     function testFuzz_withdrawOwner_whenNative(address _owner, uint256 _amount) public {
         assumeAddress(_owner);
 
+        vm.assume(_amount > 0);
+
         testFuzz_depositSingleOwner_whenNativeToken(_owner, _owner, _amount);
 
         vm.prank(_owner);
         vm.expectEmit();
-        emit Withdraw(_owner, native, _owner, _amount, 0);
-        warehouse.withdraw(_owner, native, _amount);
+        emit Withdraw(_owner, native, _owner, _amount - 1, 0);
+        warehouse.withdraw(_owner, native);
 
-        assertEq(warehouse.balanceOf(_owner, tokenToId(native)), 0);
-        assertEq(address(warehouse).balance, 0);
-    }
-
-    function test_withdrawOwner_Revert_whenWithdrawGreaterThanBalance() public {
-        address owner = ALICE.addr;
-
-        testFuzz_depositSingleOwner_whenERC20(owner, owner, 100 ether);
-
-        vm.prank(owner);
-        vm.expectRevert();
-        warehouse.withdraw(owner, token, 101 ether);
+        assertEq(warehouse.balanceOf(_owner, tokenToId(native)), 1);
+        assertEq(address(warehouse).balance, 1);
     }
 
     function test_withdrawOwner_Revert_whenOwnerReenters() public {
@@ -190,7 +184,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
         vm.prank(owner);
         vm.expectRevert();
-        warehouse.withdraw(owner, native, 100 ether);
+        warehouse.withdraw(owner, native);
     }
 
     function test_withdrawOwner_Revert_whenNonERC20() public {
@@ -198,7 +192,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
         vm.prank(owner);
         vm.expectRevert();
-        warehouse.withdraw(owner, address(this), 100 ether);
+        warehouse.withdraw(owner, address(this));
     }
 
     /* -------------------------------------------------------------------------- */
@@ -208,43 +202,25 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
     function testFuzz_withdrawOwner_multipleTokens(uint256 _amount) public {
         address owner = ALICE.addr;
 
+        vm.assume(_amount > 0);
+
         depositDefaultTokens(owner, _amount);
 
         vm.prank(owner);
         vm.expectEmit();
         for (uint256 i = 0; i < defaultTokens.length; i++) {
-            emit Withdraw(owner, defaultTokens[i], owner, _amount, 0);
+            emit Withdraw(owner, defaultTokens[i], owner, _amount - 1, 0);
         }
-        warehouse.withdraw(owner, defaultTokens, getAmounts(_amount));
+        warehouse.withdraw(owner, defaultTokens);
 
         for (uint256 i = 0; i < defaultTokens.length; i++) {
-            assertEq(warehouse.balanceOf(owner, tokenToId(defaultTokens[i])), 0);
+            assertEq(warehouse.balanceOf(owner, tokenToId(defaultTokens[i])), 1);
             if (defaultTokens[i] == native) {
-                assertEq(address(warehouse).balance, 0);
+                assertEq(address(warehouse).balance, 1);
             } else {
-                assertEq(ERC20(defaultTokens[i]).balanceOf(address(warehouse)), 0);
+                assertEq(ERC20(defaultTokens[i]).balanceOf(address(warehouse)), 1);
             }
         }
-    }
-
-    function test_withdrawOwner_multipleTokens_Revert_whenLengthMismatch() public {
-        address owner = ALICE.addr;
-
-        depositDefaultTokens(owner, 100 ether);
-
-        vm.prank(owner);
-        vm.expectRevert(LengthMismatch.selector);
-        warehouse.withdraw(owner, defaultTokens, new uint256[](1));
-    }
-
-    function test_withdrawOwner_multipleTokens_Revert_whenWithdrawGreaterThanBalance() public {
-        address owner = ALICE.addr;
-
-        depositDefaultTokens(owner, 100 ether);
-
-        vm.prank(owner);
-        vm.expectRevert();
-        warehouse.withdraw(owner, defaultTokens, getAmounts(101 ether));
     }
 
     function test_withdrawOwner_multipleTokens_Revert_whenOwnerReenters() public {
@@ -254,7 +230,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
         vm.prank(owner);
         vm.expectRevert();
-        warehouse.withdraw(owner, defaultTokens, getAmounts(100 ether));
+        warehouse.withdraw(owner, defaultTokens);
     }
 
     /* -------------------------------------------------------------------------- */

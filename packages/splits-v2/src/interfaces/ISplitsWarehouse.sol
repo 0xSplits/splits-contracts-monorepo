@@ -10,5 +10,5 @@ interface ISplitsWarehouse is IERC6909 {
 
     function batchTransfer(address _token, address[] memory _recipients, uint256[] memory _amounts) external;
 
-    function withdraw(address _owner, address _token, uint256 _amount) external;
+    function withdraw(address _owner, address _token) external;
 }

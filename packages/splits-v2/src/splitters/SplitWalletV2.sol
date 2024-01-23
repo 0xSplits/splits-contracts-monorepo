@@ -115,7 +115,7 @@ contract SplitWalletV2 is Wallet {
                 unchecked {
                     _warehouseBalance -= 1;
                 }
-                _withdrawFromWarehouse(_token, _warehouseBalance);
+                _withdrawFromWarehouse(_token);
             }
             pushDistribute(_split, _token, _splitBalance + _warehouseBalance, _distributor);
         } else {
@@ -170,8 +170,8 @@ contract SplitWalletV2 is Wallet {
      * @notice Withdraws tokens from the warehouse to the split wallet
      * @param _token the token to withdraw
      */
-    function withdrawFromWarehouse(address _token, uint256 _amount) external {
-        _withdrawFromWarehouse(_token, _amount);
+    function withdrawFromWarehouse(address _token) external {
+        _withdrawFromWarehouse(_token);
     }
 
     /**
@@ -214,8 +214,8 @@ contract SplitWalletV2 is Wallet {
     /*                              INTERNAL/PRIVATE                              */
     /* -------------------------------------------------------------------------- */
 
-    function _withdrawFromWarehouse(address _token, uint256 _amount) internal {
-        SPLITS_WAREHOUSE.withdraw(address(this), _token, _amount);
+    function _withdrawFromWarehouse(address _token) internal {
+        SPLITS_WAREHOUSE.withdraw(address(this), _token);
     }
 
     function _depositToWarehouse(address _token, uint256 _amount) internal {

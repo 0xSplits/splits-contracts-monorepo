@@ -78,21 +78,26 @@ contract SplitsWarehouseHandler is CommonBase, StdCheats, StdUtils {
         warehouseBalance[token] += _amount;
     }
 
-    function withdraw(uint256 _user, uint256 _token, uint256 _amount) public {
+    function withdraw(uint256 _user, uint256 _token) public {
         _token = bound(_token, 0, tokens.length - 1);
         address token = tokens[_token];
 
         _user = bound(_user, 0, users.length - 1);
         address user = users[_user];
-        _amount = bound(_amount, 0, warehouse.balanceOf(user, token.toUint256()));
+
+        uint256 balance = warehouse.balanceOf(user, token.toUint256());
+
+        if (balance == 0) {
+            return;
+        }
 
         vm.prank(user);
         if (user == badActor && token == native) {
             return;
         }
-        warehouse.withdraw(user, token, _amount);
+        warehouse.withdraw(user, token);
 
-        warehouseBalance[token] -= _amount;
+        warehouseBalance[token] -= balance - 1;
     }
 
     function withdrawForUser(uint256 _user, uint256 _token, uint192 _amount, uint256 _withdrawer) public {

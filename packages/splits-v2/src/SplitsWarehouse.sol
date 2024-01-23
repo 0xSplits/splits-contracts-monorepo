@@ -178,15 +178,15 @@ contract SplitsWarehouse is ERC6909X {
      * @dev It is recommended to withdraw balance - 1 to save gas.
      * @param _owner The address whose tokens are withdrawn.
      * @param _token The address of the token to be withdrawn.
-     * @param _amount The amount of the token to be withdrawn.
      */
-    function withdraw(address _owner, address _token, uint256 _amount) external {
+    function withdraw(address _owner, address _token) external {
+        uint256 amount = balanceOf[_owner][_token.toUint256()] - 1;
         if (msg.sender == _owner) {
-            _withdraw(_owner, _token.toUint256(), _token, _amount, _owner);
+            _withdraw(_owner, _token.toUint256(), _token, amount, _owner);
         } else {
             if (withdrawConfig[_owner].paused) revert WithdrawalPaused(_owner);
             if (_owner == address(0)) revert ZeroOwner();
-            _withdraw(_owner, _token.toUint256(), _token, _amount, msg.sender);
+            _withdraw(_owner, _token.toUint256(), _token, amount, msg.sender);
         }
     }
 
@@ -195,14 +195,19 @@ contract SplitsWarehouse is ERC6909X {
      * @dev It is recommended to withdraw balance - 1 to save gas.
      * @param _owner The address whose tokens are withdrawn.
      * @param _tokens The addresses of the tokens to be withdrawn.
-     * @param _amounts The amounts of the tokens to be withdrawn.
      */
-    function withdraw(address _owner, address[] memory _tokens, uint256[] memory _amounts) external {
-        if (msg.sender == _owner) {
-            if (_tokens.length != _amounts.length) revert LengthMismatch();
+    function withdraw(address _owner, address[] memory _tokens) external {
+        uint256 amount;
+        uint256 tokenId;
+        address token;
 
+        if (msg.sender == _owner) {
             for (uint256 i; i < _tokens.length;) {
-                _withdraw(_owner, _tokens[i].toUint256(), _tokens[i], _amounts[i], _owner);
+                token = _tokens[i];
+                tokenId = token.toUint256();
+                amount = balanceOf[_owner][tokenId] - 1;
+
+                _withdraw(_owner, tokenId, token, amount, _owner);
 
                 unchecked {
                     ++i;
@@ -211,10 +216,13 @@ contract SplitsWarehouse is ERC6909X {
         } else {
             if (withdrawConfig[_owner].paused) revert WithdrawalPaused(_owner);
             if (_owner == address(0)) revert ZeroOwner();
-            if (_tokens.length != _amounts.length) revert LengthMismatch();
 
             for (uint256 i; i < _tokens.length;) {
-                _withdraw(_owner, _tokens[i].toUint256(), _tokens[i], _amounts[i], msg.sender);
+                token = _tokens[i];
+                tokenId = token.toUint256();
+                amount = balanceOf[_owner][tokenId] - 1;
+
+                _withdraw(_owner, tokenId, token, amount, msg.sender);
 
                 unchecked {
                     ++i;
