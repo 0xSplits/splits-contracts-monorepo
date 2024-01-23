@@ -29,7 +29,6 @@ contract SplitWalletV2 is Wallet {
 
     error UnauthorizedInitializer();
     error InvalidSplit();
-    error ZeroAddress();
 
     /* -------------------------------------------------------------------------- */
     /*                                   EVENTS                                   */
@@ -111,7 +110,7 @@ contract SplitWalletV2 is Wallet {
         (uint256 _splitBalance, uint256 _warehouseBalance) = _getSplitBalance(_token);
 
         if (distributeByPush) {
-            if (_warehouseBalance > 0) {
+            if (_warehouseBalance > 1) {
                 unchecked {
                     _warehouseBalance -= 1;
                 }
@@ -119,7 +118,7 @@ contract SplitWalletV2 is Wallet {
             }
             pushDistribute(_split, _token, _splitBalance + _warehouseBalance, _distributor);
         } else {
-            if (_splitBalance > 0) {
+            if (_splitBalance > 1) {
                 unchecked {
                     _splitBalance -= 1;
                 }

@@ -33,7 +33,6 @@ contract SplitsWarehouse is ERC6909X {
     error LengthMismatch();
     error ZeroOwner();
     error WithdrawalPaused(address owner);
-    error InvalidIncentive();
 
     /* -------------------------------------------------------------------------- */
     /*                                   EVENTS                                   */
