@@ -88,6 +88,30 @@ library SplitV2Lib {
         }
     }
 
+    function getDistributionsMem(
+        Split memory _split,
+        uint256 _amount
+    )
+        internal
+        pure
+        returns (uint256[] memory amounts, uint256 amountDistributed, uint256 distributorReward)
+    {
+        uint256 numOfRecipients = _split.recipients.length;
+        amounts = new uint256[](numOfRecipients);
+
+        distributorReward = _amount * _split.distributionIncentive / PERCENTAGE_SCALE;
+
+        _amount -= distributorReward;
+
+        for (uint256 i = 0; i < numOfRecipients;) {
+            amounts[i] = _amount * _split.allocations[i] / _split.totalAllocation;
+            amountDistributed += amounts[i];
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
     function calculateDistributorReward(
         uint16 _distributionIncentive,
         uint256 _amount

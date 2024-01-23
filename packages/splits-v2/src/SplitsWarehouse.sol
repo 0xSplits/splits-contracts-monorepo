@@ -127,7 +127,7 @@ contract SplitsWarehouse is ERC6909X {
         if (id == NATIVE_TOKEN_ID) {
             return nativeTokenSymbol.toString();
         }
-        return string.concat(METADATA_PREFIX_SYMBOL, IERC20(id.toAddress()).name());
+        return string.concat(METADATA_PREFIX_SYMBOL, IERC20(id.toAddress()).symbol());
     }
 
     /**
