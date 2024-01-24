@@ -35,3 +35,7 @@ To test all packages, run the following command:
 To lint all packages, run the following command:
 
 `pnpm lint`
+
+### Deployment
+
+To deploy contracts, please refer to the README in the respective package.
