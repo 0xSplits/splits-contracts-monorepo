@@ -107,19 +107,19 @@ contract SplitWalletV2 is Wallet {
 
         (uint256 splitBalance, uint256 warehouseBalance) = getSplitBalance(_token);
         if (_split.distributeByPush) {
-            if (warehouseBalance >= 2) {
+            if (warehouseBalance > 1) {
                 withdrawFromWarehouse(_token);
                 unchecked {
                     warehouseBalance -= 1;
                 }
-            } if (warehouseBalance > 0) {
+            } else if (warehouseBalance > 0) {
                 unchecked {
                     warehouseBalance -= 1;
                 }
             }
             pushDistribute(_split, _token, warehouseBalance + splitBalance, _distributor);
         } else {
-            if (splitBalance >= 2) {
+            if (splitBalance > 1) {
                 unchecked {
                     splitBalance -= 1;
                 }
