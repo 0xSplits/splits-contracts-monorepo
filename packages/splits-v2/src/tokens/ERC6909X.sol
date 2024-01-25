@@ -18,6 +18,7 @@ contract ERC6909X is ERC6909, EIP712, Nonces, IERC6909X {
     /*                            CONSTANTS/IMMUTABLES                            */
     /* -------------------------------------------------------------------------- */
 
+    /// should we pre-compute this?
     bytes32 public constant APPROVE_AND_CALL_TYPE_HASH = keccak256(
         // solhint-disable-next-line max-line-length
         "ERC6909XApproveAndCall(bool temporary,address owner,address spender,bool operator,uint256 id,uint256 amount,address target,bytes data,uint256 nonce,uint256 deadline)"
@@ -207,6 +208,7 @@ contract ERC6909X is ERC6909, EIP712, Nonces, IERC6909X {
         );
     }
 
+    /// what is this exposed for?
     function DOMAIN_SEPARATOR() external view virtual returns (bytes32) {
         return _domainSeparatorV4();
     }
