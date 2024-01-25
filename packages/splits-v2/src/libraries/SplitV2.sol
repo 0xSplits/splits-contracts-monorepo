@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+// license?
 pragma solidity ^0.8.18;
 
 library SplitV2Lib {
@@ -7,7 +8,6 @@ library SplitV2Lib {
     /* -------------------------------------------------------------------------- */
 
     error InvalidSplit_TotalAllocationMismatch();
-    error InvalidSplit_InvalidIncentive();
     error InvalidSplit_LengthMismatch();
 
     /* -------------------------------------------------------------------------- */
@@ -27,6 +27,7 @@ library SplitV2Lib {
         uint256[] allocations;
         uint256 totalAllocation;
         uint16 distributionIncentive;
+        bool distributeByPush;
     }
 
     /* -------------------------------------------------------------------------- */
@@ -48,19 +49,18 @@ library SplitV2Lib {
     }
 
     function validate(Split calldata _split) internal pure {
-        uint256 numOfRecipients = _split.allocations.length;
-        if (_split.recipients.length != numOfRecipients) {
+        uint256 numOfRecipients = _split.recipients.length;
+        if (_split.allocations.length != numOfRecipients) {
             revert InvalidSplit_LengthMismatch();
         }
-        uint256 totalAllocation;
 
-        for (uint256 i = 0; i < numOfRecipients;) {
+        uint256 totalAllocation;
+        for (uint256 i; i < numOfRecipients;) {
             totalAllocation += _split.allocations[i];
             unchecked {
                 ++i;
             }
         }
-
         if (totalAllocation != _split.totalAllocation) revert InvalidSplit_TotalAllocationMismatch();
     }
 
@@ -76,10 +76,9 @@ library SplitV2Lib {
         amounts = new uint256[](numOfRecipients);
 
         distributorReward = _amount * _split.distributionIncentive / PERCENTAGE_SCALE;
-
         _amount -= distributorReward;
 
-        for (uint256 i = 0; i < numOfRecipients;) {
+        for (uint256 i; i < numOfRecipients;) {
             amounts[i] = _amount * _split.allocations[i] / _split.totalAllocation;
             amountDistributed += amounts[i];
             unchecked {
@@ -100,10 +99,9 @@ library SplitV2Lib {
         amounts = new uint256[](numOfRecipients);
 
         distributorReward = _amount * _split.distributionIncentive / PERCENTAGE_SCALE;
-
         _amount -= distributorReward;
 
-        for (uint256 i = 0; i < numOfRecipients;) {
+        for (uint256 i; i < numOfRecipients;) {
             amounts[i] = _amount * _split.allocations[i] / _split.totalAllocation;
             amountDistributed += amounts[i];
             unchecked {
