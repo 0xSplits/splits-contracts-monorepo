@@ -183,7 +183,6 @@ contract SplitsWarehouse is ERC6909X {
         uint256 tokenId = _token.toUint256();
         uint256 length = _receivers.length;
         for (uint256 i; i < length;) {
-            // does caching this save gas?
             amount = _amounts[i];
             sum += amount;
             _mint(_receivers[i], tokenId, amount);
@@ -313,7 +312,6 @@ contract SplitsWarehouse is ERC6909X {
         address receiver;
         uint256 length = _receivers.length;
         for (uint256 i; i < length;) {
-            // does caching this save gas?
             receiver = _receivers[i];
             amount = _amounts[i];
 
