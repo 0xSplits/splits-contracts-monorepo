@@ -213,9 +213,8 @@ contract SplitsWarehouse is ERC6909X {
         if (msg.sender != _owner && tx.origin != _owner && withdrawConfig[_owner].paused)
             revert WithdrawalPaused(_owner);
 
-        uint256 tokenId = _token.toUint256();
-        uint256 amount = balanceOf[_owner][tokenId] - 1;
-        _withdraw(_owner, tokenId, amount, msg.sender, 0);
+        uint256 amount = balanceOf[_owner][_token.toUint256()] - 1;
+        _withdraw(_owner, _token, amount, msg.sender, 0);
     }
 
     /**
@@ -229,13 +228,11 @@ contract SplitsWarehouse is ERC6909X {
             revert WithdrawalPaused(_owner);
 
         uint256 amount;
-        uint256 tokenId;
         uint256 length = _tokens.length;
         for (uint256 i; i < length;) {
-            tokenId = _tokens[i].toUint256();
-            amount = balanceOf[_owner][tokenId] - 1;
+            amount = balanceOf[_owner][_tokens[i].toUint256()] - 1;
 
-            _withdraw(_owner, tokenId, amount, msg.sender, 0);
+            _withdraw(_owner, _tokens[i], amount, msg.sender, 0);
 
             unchecked {
                 ++i;
@@ -256,7 +253,7 @@ contract SplitsWarehouse is ERC6909X {
         if (config.paused) revert WithdrawalPaused(_owner);
 
         uint256 reward = _amount * config.incentive / PERCENTAGE_SCALE;
-        _withdraw(_owner, _token.toUint256(), _amount, _withdrawer, reward);
+        _withdraw(_owner, _token, _amount, _withdrawer, reward);
     }
 
     /**
@@ -283,7 +280,7 @@ contract SplitsWarehouse is ERC6909X {
         uint256 length = _tokens.length;
         for (uint256 i; i < length;) {
             reward = _amounts[i] * config.incentive / PERCENTAGE_SCALE;
-            _withdraw(_owner, _tokens[i].toUint256(), _amounts[i], _withdrawer, reward);
+            _withdraw(_owner, _tokens[i], _amounts[i], _withdrawer, reward);
 
             unchecked {
                 ++i;
@@ -345,25 +342,24 @@ contract SplitsWarehouse is ERC6909X {
 
     function _withdraw(
         address _owner,
-        uint256 _id,
+        address _token,
         uint256 _amount,
         address _withdrawer,
         uint256 _reward
     )
         internal
     {
-        _burn(_owner, _id, _amount);
+        _burn(_owner, _token.toUint256(), _amount);
 
-        address token = _id.toAddress();
         uint256 amountToOwner = _amount - _reward;
-        if (_id == NATIVE_TOKEN_ID) {
+        if (_token == NATIVE_TOKEN) {
             payable(_owner).sendValue(amountToOwner);
             if (_reward != 0) payable(_withdrawer).sendValue(_reward);
         } else {
-            IERC20(token).safeTransfer(_owner, amountToOwner);
-            if (_reward != 0) IERC20(token).safeTransfer(_withdrawer, _reward);
+            IERC20(_token).safeTransfer(_owner, amountToOwner);
+            if (_reward != 0) IERC20(_token).safeTransfer(_withdrawer, _reward);
         }
 
-        emit Withdraw(_owner, token, _withdrawer, amountToOwner, _reward);
+        emit Withdraw(_owner, _token, _withdrawer, amountToOwner, _reward);
     }
 }
