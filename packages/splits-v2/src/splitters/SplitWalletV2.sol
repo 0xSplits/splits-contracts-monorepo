@@ -133,7 +133,6 @@ contract SplitWalletV2 is Wallet {
         }
     }
 
-    /// I think my biggest complain here is rather than taking an extra param which tells the split how much to withdraw/deposit first, we rely on a multicall which 1/ adds integration complexity & 2/ adds gas? spent a lot of time just staring at these fns and it just feels off to me atm
     /**
      * @notice Distributes the split to the recipients. It distributes the amount of tokens present in Warehouse and the
      * split wallet.
@@ -141,14 +140,16 @@ contract SplitWalletV2 is Wallet {
      * @dev The amount of tokens to distribute must be present in the split wallet or the warehouse depending on the
      * distribution direction.
      * @param _split the split struct containing the split data that gets distributed
-     * @param _token the token to distribute
-     * @param _amount the amount of tokens to distribute
-     * @param _distributor the distributor of the split
+     * @param _token The token to distribute
+     * @param _distributeAmount The amount of tokens to distribute
+     * @param _warehouseTransferAmount The amount of tokens to transfer from/to the warehouse
+     * @param _distributor The distributor of the split
      */
     function distribute(
         SplitV2Lib.Split calldata _split,
         address _token,
-        uint256 _amount,
+        uint256 _distributeAmount,
+        uint256 _warehouseTransferAmount,
         address _distributor
     )
         external
@@ -157,13 +158,14 @@ contract SplitWalletV2 is Wallet {
         if (splitHash != _split.getHash()) revert InvalidSplit();
 
         if (_split.distributeByPush) {
-            pushDistribute(_split, _token, _amount, _distributor);
+            if (_warehouseTransferAmount != 0) withdrawFromWarehouse(_token);
+            pushDistribute(_split, _token, _distributeAmount, _distributor);
         } else {
-            pullDistribute(_split, _token, _amount, _distributor);
+            if (_warehouseTransferAmount != 0) depositToWarehouse(_token, _warehouseTransferAmount);
+            pullDistribute(_split, _token, _distributeAmount, _distributor);
         }
     }
 
-    /// should this be pausable? if so would have to return to separate external/internal fns
     /**
      * @notice Deposits tokens to the warehouse
      * @param _token the token to deposit
@@ -180,7 +182,6 @@ contract SplitWalletV2 is Wallet {
         }
     }
 
-    /// should this be pausable? if so would have to return to separate external/internal fns
     /**
      * @notice Withdraws tokens from the warehouse to the split wallet
      * @param _token the token to withdraw

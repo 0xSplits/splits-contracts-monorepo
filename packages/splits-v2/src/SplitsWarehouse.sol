@@ -151,23 +151,21 @@ contract SplitsWarehouse is ERC6909X {
     /**
      * @notice Deposits token to the warehouse for a specified address.
      * @dev If the token is native, the amount should be sent as value.
-     * @param _owner The address that will receive the wrapped tokens.
+     * @param _receiver The address that will receive the wrapped tokens.
      * @param _token The address of the token to be deposited.
      * @param _amount The amount of the token to be deposited.
      */
-    function deposit(address _owner, address _token, uint256 _amount) external payable {
-        if (_owner == address(0)) revert ZeroOwner();
+    function deposit(address _receiver, address _token, uint256 _amount) external payable {
+        if (_receiver == address(0)) revert ZeroOwner();
         if (_token == NATIVE_TOKEN) {
             if (_amount != msg.value) revert InvalidAmount();
         } else {
             IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
         }
 
-        _mint(_owner, _token.toUint256(), _amount);
+        _mint(_receiver, _token.toUint256(), _amount);
     }
 
-    /// should this operate on uint256 _id instead?
-    /// also wonder if we should mimic the transfer ordering (receivers, id, amounts)?
     /**
      * @notice Batch deposits token to the warehouse for the specified addresses from msg.sender.
      * @dev If the token is native, the amount should be sent as value.
@@ -175,7 +173,7 @@ contract SplitsWarehouse is ERC6909X {
      * @param _receivers The addresses that will receive the wrapped tokens.
      * @param _amounts The amounts of the token to be deposited.
      */
-    function batchDeposit(address _token, address[] calldata _receivers, uint256[] calldata _amounts) external payable {
+    function batchDeposit(address[] calldata _receivers, address _token, uint256[] calldata _amounts) external payable {
         if (_receivers.length != _amounts.length) revert LengthMismatch();
 
         uint256 sum;
@@ -210,50 +208,13 @@ contract SplitsWarehouse is ERC6909X {
      * @param _token The address of the token to be withdrawn.
      */
     function withdraw(address _owner, address _token) external {
-        if (msg.sender != _owner && tx.origin != _owner && withdrawConfig[_owner].paused)
-            revert WithdrawalPaused(_owner);
+        if (msg.sender != _owner && tx.origin != _owner)
+            // nest to reduce gas in the happy-case (solidity/evm won't short circuit)
+            if (withdrawConfig[_owner].paused)
+                revert WithdrawalPaused(_owner);
 
         uint256 amount = balanceOf[_owner][_token.toUint256()] - 1;
         _withdraw(_owner, _token, amount, msg.sender, 0);
-    }
-
-    /**
-     * @notice Withdraws tokens from the warehouse for msg.sender.
-     * @dev Bypasses withdrawal incentives.
-     * @param _owner The address whose tokens are withdrawn.
-     * @param _tokens The addresses of the tokens to be withdrawn.
-     */
-    function withdraw(address _owner, address[] calldata _tokens) external {
-        if (msg.sender != _owner && tx.origin != _owner && withdrawConfig[_owner].paused)
-            revert WithdrawalPaused(_owner);
-
-        uint256 amount;
-        uint256 length = _tokens.length;
-        for (uint256 i; i < length;) {
-            amount = balanceOf[_owner][_tokens[i].toUint256()] - 1;
-
-            _withdraw(_owner, _tokens[i], amount, msg.sender, 0);
-
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    /**
-     * @notice Withdraws token from the warehouse for a specified address.
-     * @dev It is recommended to withdraw balance - 1 to save gas.
-     * @param _owner The address whose tokens are withdrawn.
-     * @param _token The address of the token to be withdrawn.
-     * @param _amount The amount of the token to be withdrawn.
-     * @param _withdrawer The address that will receive the withdrawer incentive.
-     */
-    function withdraw(address _owner, address _token, uint256 _amount, address _withdrawer) external {
-        WithdrawConfig memory config = withdrawConfig[_owner];
-        if (config.paused) revert WithdrawalPaused(_owner);
-
-        uint256 reward = _amount * config.incentive / PERCENTAGE_SCALE;
-        _withdraw(_owner, _token, _amount, _withdrawer, reward);
     }
 
     /**

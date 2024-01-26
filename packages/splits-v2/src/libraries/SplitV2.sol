@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-// license?
 pragma solidity ^0.8.18;
 
 library SplitV2Lib {
@@ -27,6 +26,7 @@ library SplitV2Lib {
         address[] recipients;
         uint256[] allocations;
         uint256 totalAllocation;
+        // TODO: should incentive & byPush be saved in storage?
         uint16 distributionIncentive;
         bool distributeByPush;
     }

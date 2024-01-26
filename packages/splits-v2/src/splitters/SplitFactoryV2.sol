@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.18;
 
+// TODO: do we want to use our clone or the minimal standard?
 import { Clone } from "../libraries/Clone.sol";
 import { SplitV2Lib } from "../libraries/SplitV2.sol";
 import { SplitWalletV2 } from "./SplitWalletV2.sol";
@@ -23,23 +24,7 @@ contract SplitFactoryV2 {
     /*                                   EVENTS                                   */
     /* -------------------------------------------------------------------------- */
 
-    event SplitCreated(address indexed split, CreateSplitParams _split);
-
-    /* -------------------------------------------------------------------------- */
-    /*                                   STRUCT                                   */
-    /* -------------------------------------------------------------------------- */
-
-    /**
-     * @notice CreateSplitParams
-     * @param split Split struct
-     * @param owner Owner of the split
-     * @param creator Creator of the split
-     */
-    struct CreateSplitParams {
-        SplitV2Lib.Split split;
-        address owner;
-        address creator;
-    }
+    event SplitCreated(address indexed split, SplitV2Lib.Split splitParams, address owner, address creator);
 
     /* -------------------------------------------------------------------------- */
     /*                                   STORAGE                                  */
@@ -66,78 +51,97 @@ contract SplitFactoryV2 {
 
     /**
      * @notice Create a new split using create2
-     * @param _createSplitParams CreateSplitParams struct
+     * @param _splitParams Params to create split with
+     * @param _owner Owner of created split
+     * @param _creator Creator of created split
      * @param _salt Salt for create2
      */
     function createSplitDeterministic(
-        CreateSplitParams calldata _createSplitParams,
+        SplitV2Lib.Split calldata _splitParams,
+        address _owner,
+        address _creator,
         bytes32 _salt
     )
         external
         returns (address split)
     {
-        split = SPLIT_WALLET_IMPLEMENTATION.cloneDeterministic(_getSalt(_createSplitParams, _salt));
+        split = SPLIT_WALLET_IMPLEMENTATION.cloneDeterministic(_getSalt(_splitParams, _owner, _salt));
 
-        SplitWalletV2(split).initialize(_createSplitParams.split, _createSplitParams.owner);
+        SplitWalletV2(split).initialize(_splitParams, _owner);
 
-        emit SplitCreated(split, _createSplitParams);
+        emit SplitCreated(split, _splitParams, _owner, _creator);
     }
 
     /**
      * @notice Create a new split using create
-     * @param _createSplitParams CreateSplitParams struct
+     * @param _splitParams Params to create split with
+     * @param _owner Owner of created split
+     * @param _creator Creator of created split
      */
-    function createSplit(CreateSplitParams calldata _createSplitParams) external returns (address split) {
+    function createSplit(
+        SplitV2Lib.Split calldata _splitParams,
+        address _owner,
+        address _creator
+    ) external returns (address split) {
         split = SPLIT_WALLET_IMPLEMENTATION.clone();
 
-        SplitWalletV2(split).initialize(_createSplitParams.split, _createSplitParams.owner);
+        SplitWalletV2(split).initialize(_splitParams, _owner);
 
-        emit SplitCreated(split, _createSplitParams);
+        emit SplitCreated(split, _splitParams, _owner, _creator);
     }
 
     /**
      * @notice Predict the address of a new split
-     * @param _createSplitParams CreateSplitParams struct
+     * @param _splitParams Params to create split with
+     * @param _owner Owner of created split
      * @param _salt Salt for create2
      */
     function predictDeterministicAddress(
-        CreateSplitParams calldata _createSplitParams,
+        SplitV2Lib.Split calldata _splitParams,
+        address _owner,
         bytes32 _salt
     )
         external
         view
         returns (address)
     {
-        return _predictDeterministicAddress(_createSplitParams, _salt);
+        return _predictDeterministicAddress(_splitParams, _owner, _salt);
     }
 
     /**
      * @notice Predict the address of a new split and check if it is deployed
-     * @param _createSplitParams CreateSplitParams struct
+     * @param _splitParams Params to create split with
+     * @param _owner Owner of created split
      * @param _salt Salt for create2
      */
     function isDeployed(
-        CreateSplitParams calldata _createSplitParams,
+        SplitV2Lib.Split calldata _splitParams,
+        address _owner,
         bytes32 _salt
     )
         external
         view
-        returns (address split, bool)
+        returns (address split, bool exists)
     {
-        split = _predictDeterministicAddress(_createSplitParams, _salt);
-        return (split, split.code.length > 0);
+        split = _predictDeterministicAddress(_splitParams, _owner, _salt);
+        exists = split.code.length > 0;
     }
 
     /* -------------------------------------------------------------------------- */
     /*                         PRIVATE/INTERNAL FUNCTIONS                         */
     /* -------------------------------------------------------------------------- */
 
-    function _getSalt(CreateSplitParams calldata _createSplitParams, bytes32 _salt) internal pure returns (bytes32) {
-        return keccak256(bytes.concat(abi.encode(_createSplitParams), _salt));
+    function _getSalt(
+        SplitV2Lib.Split calldata _splitParams,
+        address _owner,
+        bytes32 _salt
+    ) internal pure returns (bytes32) {
+        return keccak256(bytes.concat(abi.encode(_splitParams, _owner), _salt));
     }
 
     function _predictDeterministicAddress(
-        CreateSplitParams calldata _createSplitParams,
+        SplitV2Lib.Split calldata _splitParams,
+        address _owner,
         bytes32 _salt
     )
         internal
@@ -145,6 +149,6 @@ contract SplitFactoryV2 {
         returns (address)
     {
         return
-            SPLIT_WALLET_IMPLEMENTATION.predictDeterministicAddress(_getSalt(_createSplitParams, _salt), address(this));
+            SPLIT_WALLET_IMPLEMENTATION.predictDeterministicAddress(_getSalt(_splitParams, _owner, _salt), address(this));
     }
 }
