@@ -15,7 +15,7 @@ import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
  * @title SplitWalletV2
  * @author Splits
  * @notice The implementation logic for v2 splitters.
- /// still need to make a final call on this
+ *  /// still need to make a final call on this
  * @dev `SplitProxy` handles `receive()` itself to avoid the gas cost with `DELEGATECALL`.
  */
 contract SplitWalletV2 is Wallet {
@@ -287,7 +287,7 @@ contract SplitWalletV2 is Wallet {
     {
         (uint256[] memory amounts, uint256 amountDistributed, uint256 distibutorReward) =
             _split.getDistributions(_amount);
-        SPLITS_WAREHOUSE.batchTransfer(_token, _split.recipients, amounts);
+        SPLITS_WAREHOUSE.batchTransfer(_split.recipients, _token, amounts);
         if (distibutorReward > 0) SPLITS_WAREHOUSE.transfer(_distributor, _token.toUint256(), distibutorReward);
         emit SplitDistributed(_token, _distributor, amountDistributed, distibutorReward, false);
     }

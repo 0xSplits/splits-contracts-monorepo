@@ -15,12 +15,6 @@ contract SplitFactoryV2 {
     using Clone for address;
 
     /* -------------------------------------------------------------------------- */
-    /*                                   ERRORS                                   */
-    /* -------------------------------------------------------------------------- */
-
-    error ZeroAddress();
-
-    /* -------------------------------------------------------------------------- */
     /*                                   EVENTS                                   */
     /* -------------------------------------------------------------------------- */
 
@@ -82,7 +76,10 @@ contract SplitFactoryV2 {
         SplitV2Lib.Split calldata _splitParams,
         address _owner,
         address _creator
-    ) external returns (address split) {
+    )
+        external
+        returns (address split)
+    {
         split = SPLIT_WALLET_IMPLEMENTATION.clone();
 
         SplitWalletV2(split).initialize(_splitParams, _owner);
@@ -135,7 +132,11 @@ contract SplitFactoryV2 {
         SplitV2Lib.Split calldata _splitParams,
         address _owner,
         bytes32 _salt
-    ) internal pure returns (bytes32) {
+    )
+        internal
+        pure
+        returns (bytes32)
+    {
         return keccak256(bytes.concat(abi.encode(_splitParams, _owner), _salt));
     }
 
@@ -148,7 +149,8 @@ contract SplitFactoryV2 {
         view
         returns (address)
     {
-        return
-            SPLIT_WALLET_IMPLEMENTATION.predictDeterministicAddress(_getSalt(_splitParams, _owner, _salt), address(this));
+        return SPLIT_WALLET_IMPLEMENTATION.predictDeterministicAddress(
+            _getSalt(_splitParams, _owner, _salt), address(this)
+        );
     }
 }

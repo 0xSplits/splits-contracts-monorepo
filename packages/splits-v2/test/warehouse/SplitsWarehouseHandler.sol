@@ -100,33 +100,6 @@ contract SplitsWarehouseHandler is CommonBase, StdCheats, StdUtils {
         warehouseBalance[token] -= balance - 1;
     }
 
-    function withdrawForUser(uint256 _user, uint256 _token, uint192 _amount, uint256 _withdrawer) public {
-        _user = bound(_user, 0, users.length - 1);
-        address user = users[_user];
-
-        _token = bound(_token, 0, tokens.length - 1);
-        address token = tokens[_token];
-
-        _withdrawer = bound(_withdrawer, 0, users.length - 1);
-        address withdrawer = users[_withdrawer];
-
-        uint256 amount = bound(_amount, 0, warehouse.balanceOf(user, token.toUint256()));
-
-        uint256 reward = amount * uint256(warehouse.getWithdrawConfig(user).incentive) / warehouse.PERCENTAGE_SCALE();
-
-        if (user == badActor && token == native) {
-            return;
-        } else if (withdrawer == badActor && token == native && reward > 0) {
-            return;
-        } else if (warehouse.getWithdrawConfig(user).paused) {
-            return;
-        }
-        vm.prank(withdrawer);
-        warehouse.withdraw(user, token, amount, withdrawer);
-
-        warehouseBalance[token] -= amount;
-    }
-
     function transfer(uint256 _sender, uint256 _receiver, uint256 _token, uint256 _amount) public mockUser(_sender) {
         _sender = bound(_sender, 0, users.length - 1);
         _receiver = bound(_receiver, 0, users.length - 1);
@@ -216,7 +189,7 @@ contract SplitsWarehouseHandler is CommonBase, StdCheats, StdUtils {
 
         _token = bound(_token, 0, tokens.length - 1);
         address token = tokens[_token];
-        warehouse.batchTransfer(token, receiverAddresses, amounts);
+        warehouse.batchTransfer(receiverAddresses, token, amounts);
     }
 
     function filter(

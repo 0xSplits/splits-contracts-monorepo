@@ -156,7 +156,6 @@ contract SplitsWarehouse is ERC6909X {
      * @param _amount The amount of the token to be deposited.
      */
     function deposit(address _receiver, address _token, uint256 _amount) external payable {
-        if (_receiver == address(0)) revert ZeroOwner();
         if (_token == NATIVE_TOKEN) {
             if (_amount != msg.value) revert InvalidAmount();
         } else {
@@ -173,7 +172,14 @@ contract SplitsWarehouse is ERC6909X {
      * @param _receivers The addresses that will receive the wrapped tokens.
      * @param _amounts The amounts of the token to be deposited.
      */
-    function batchDeposit(address[] calldata _receivers, address _token, uint256[] calldata _amounts) external payable {
+    function batchDeposit(
+        address[] calldata _receivers,
+        address _token,
+        uint256[] calldata _amounts
+    )
+        external
+        payable
+    {
         if (_receivers.length != _amounts.length) revert LengthMismatch();
 
         uint256 sum;
@@ -208,10 +214,12 @@ contract SplitsWarehouse is ERC6909X {
      * @param _token The address of the token to be withdrawn.
      */
     function withdraw(address _owner, address _token) external {
-        if (msg.sender != _owner && tx.origin != _owner)
+        if (msg.sender != _owner && tx.origin != _owner) {
             // nest to reduce gas in the happy-case (solidity/evm won't short circuit)
-            if (withdrawConfig[_owner].paused)
+            if (withdrawConfig[_owner].paused) {
                 revert WithdrawalPaused(_owner);
+            }
+        }
 
         uint256 amount = balanceOf[_owner][_token.toUint256()] - 1;
         _withdraw(_owner, _token, amount, msg.sender, 0);
@@ -253,15 +261,13 @@ contract SplitsWarehouse is ERC6909X {
     /*                               BATCH_TRANSFER                               */
     /* -------------------------------------------------------------------------- */
 
-    /// should this operate on uint256 _id instead?
-    /// also wonder if we should mimic the transfer ordering (receivers, id, amounts)?
     /**
      * @notice Batch transfers tokens to the specified addresses from msg.sender.
      * @param _token The address of the token to be transferred.
      * @param _receivers The addresses of the receivers.
      * @param _amounts The amounts of the tokens to be transferred.
      */
-    function batchTransfer(address _token, address[] calldata _receivers, uint256[] calldata _amounts) external {
+    function batchTransfer(address[] calldata _receivers, address _token, uint256[] calldata _amounts) external {
         if (_receivers.length != _amounts.length) revert LengthMismatch();
 
         uint256 sum;

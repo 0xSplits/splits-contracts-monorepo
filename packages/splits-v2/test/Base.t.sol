@@ -117,58 +117,46 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
         }
     }
 
-    function createSplit(
-        SplitReceiver[] memory _recievers,
-        uint16 _distributionIncentive
+    function createSplitParams(
+        SplitReceiver[] memory _receivers,
+        uint16 _distributionIncentive,
+        bool _distributeByPush
     )
         internal
         pure
         returns (SplitV2Lib.Split memory)
     {
+        vm.assume(_receivers.length <= 100);
         uint256 totalAllocation;
-        uint256[] memory allocations = new uint256[](_recievers.length);
-        address[] memory recipients = new address[](_recievers.length);
+        uint256[] memory allocations = new uint256[](_receivers.length);
+        address[] memory recipients = new address[](_receivers.length);
 
-        for (uint256 i = 0; i < _recievers.length; i++) {
-            totalAllocation += uint256(_recievers[i].allocation);
-            allocations[i] = _recievers[i].allocation;
-            recipients[i] = _recievers[i].receiver;
+        for (uint256 i = 0; i < _receivers.length; i++) {
+            vm.assume(_receivers[i].receiver != address(0));
+            totalAllocation += uint256(_receivers[i].allocation);
+            allocations[i] = _receivers[i].allocation;
+            recipients[i] = _receivers[i].receiver;
         }
 
-        return SplitV2Lib.Split(recipients, allocations, totalAllocation, _distributionIncentive);
+        return SplitV2Lib.Split(recipients, allocations, totalAllocation, _distributionIncentive, _distributeByPush);
     }
 
     function predictCreateAddress(address addr, uint256 nonce) internal pure returns (address) {
         return computeCreateAddress(addr, nonce);
     }
 
-    function getCreatSplitParams(
-        SplitReceiver[] memory _receivers,
-        uint16 _distributionIncentive,
-        address _owner,
-        address _creator
-    )
-        internal
-        pure
-        returns (SplitFactoryV2.CreateSplitParams memory)
-    {
-        SplitV2Lib.Split memory splitParams = createSplit(_receivers, _distributionIncentive);
-
-        return SplitFactoryV2.CreateSplitParams({ split: splitParams, owner: _owner, creator: _creator });
-    }
-
     function createSplit(
         SplitReceiver[] memory _receivers,
         uint16 _distributionIncentive,
+        bool _distributeByPush,
         address _owner,
         address _creator
     )
         internal
         returns (address split)
     {
-        SplitFactoryV2.CreateSplitParams memory params =
-            getCreatSplitParams(_receivers, _distributionIncentive, _owner, _creator);
-
-        split = splitFactory.createSplit(params);
+        split = splitFactory.createSplit(
+            createSplitParams(_receivers, _distributionIncentive, _distributeByPush), _owner, _creator
+        );
     }
 }
