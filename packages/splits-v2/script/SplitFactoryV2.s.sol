@@ -4,10 +4,9 @@ pragma solidity ^0.8.18;
 import { SplitFactoryV2 } from "../src/splitters/SplitFactoryV2.sol";
 
 import { BaseScript } from "./Base.s.sol";
-import { console2 } from "forge-std/console2.sol";
 
 contract SplitFactoryV2Script is BaseScript {
-    uint88 constant DEPLOYMENT_SALT = 1;
+    uint88 private constant DEPLOYMENT_SALT = 1;
 
     function run() public {
         address warehouse = getAddressFromConfig("splitsWarehouse");

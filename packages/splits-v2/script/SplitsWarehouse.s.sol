@@ -4,10 +4,9 @@ pragma solidity ^0.8.18;
 import { SplitsWarehouse } from "../src/SplitsWarehouse.sol";
 
 import { BaseScript } from "./Base.s.sol";
-import { console2 } from "forge-std/console2.sol";
 
 contract SplitsWarehouseScript is BaseScript {
-    uint88 constant DEPLOYMENT_SALT = 0;
+    uint88 private constant DEPLOYMENT_SALT = 0;
 
     function run() public {
         string memory name = getStringFromConfig("nativeTokenName");

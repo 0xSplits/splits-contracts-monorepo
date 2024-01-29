@@ -9,7 +9,7 @@ import { LibString } from "solady/utils/LibString.sol";
 contract BaseScript is Script {
     using stdJson for string;
 
-    ICreateX immutable CREATEX = ICreateX(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed);
+    ICreateX private immutable CREATEX = ICreateX(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed);
 
     function getConfig() internal view returns (string memory) {
         string memory dir = string.concat(vm.projectRoot(), "/script/config/");

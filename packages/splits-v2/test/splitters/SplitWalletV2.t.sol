@@ -3,7 +3,6 @@ pragma solidity ^0.8.18;
 
 import { Clone } from "../../src/libraries/Clone.sol";
 import { SplitV2Lib } from "../../src/libraries/SplitV2.sol";
-import { SplitFactoryV2 } from "../../src/splitters/SplitFactoryV2.sol";
 import { SplitWalletV2 } from "../../src/splitters/SplitWalletV2.sol";
 import { Ownable } from "../../src/utils/Ownable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -11,8 +10,6 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Pausable } from "../../src/utils/Pausable.sol";
 import { BaseTest } from "../Base.t.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
-
-import { console2 } from "forge-std/console2.sol";
 
 contract SplitWalletV2Test is BaseTest {
     using SplitV2Lib for SplitV2Lib.Split;
@@ -311,6 +308,7 @@ contract SplitWalletV2Test is BaseTest {
         vm.stopPrank();
     }
 
+    // solhint-disable-next-line code-complexity
     function assertDistribute(
         SplitV2Lib.Split memory _split,
         address _token,

@@ -14,6 +14,7 @@ library Cast {
 
     function toUint160(uint256 x) internal pure returns (uint160 y) {
         if (x >> 160 != 0) revert Overflow();
+        // solhint-disable-next-line no-inline-assembly
         assembly {
             y := x
         }
