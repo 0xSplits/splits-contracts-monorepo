@@ -144,10 +144,6 @@ contract SplitsWarehouse is ERC6909X {
     /*                          PUBLIC/EXTERNAL FUNCTIONS                         */
     /* -------------------------------------------------------------------------- */
 
-    /* -------------------------------------------------------------------------- */
-    /*                                  DEPOSIT                                   */
-    /* -------------------------------------------------------------------------- */
-
     /**
      * @notice Deposits token to the warehouse for a specified address.
      * @dev If the token is native, the amount should be sent as value.
@@ -203,10 +199,6 @@ contract SplitsWarehouse is ERC6909X {
         }
     }
 
-    /* -------------------------------------------------------------------------- */
-    /*                                  WITHDRAW                                  */
-    /* -------------------------------------------------------------------------- */
-
     /**
      * @notice Withdraws token from the warehouse for _owner.
      * @dev Bypasses withdrawal incentives.
@@ -257,10 +249,6 @@ contract SplitsWarehouse is ERC6909X {
         }
     }
 
-    /* -------------------------------------------------------------------------- */
-    /*                               BATCH_TRANSFER                               */
-    /* -------------------------------------------------------------------------- */
-
     /**
      * @notice Batch transfers tokens to the specified addresses from msg.sender.
      * @param _token The address of the token to be transferred.
@@ -289,10 +277,6 @@ contract SplitsWarehouse is ERC6909X {
         }
         balanceOf[msg.sender][tokenId] -= sum;
     }
-
-    /* -------------------------------------------------------------------------- */
-    /*                                OWNER ACTIONS                               */
-    /* -------------------------------------------------------------------------- */
 
     /**
      * @notice Sets the withdraw config for the msg.sender.

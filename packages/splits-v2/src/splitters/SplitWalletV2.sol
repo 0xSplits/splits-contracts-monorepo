@@ -15,7 +15,6 @@ import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
  * @title SplitWalletV2
  * @author Splits
  * @notice The implementation logic for v2 splitters.
- *  /// still need to make a final call on this
  * @dev `SplitProxy` handles `receive()` itself to avoid the gas cost with `DELEGATECALL`.
  */
 contract SplitWalletV2 is Wallet {
@@ -190,11 +189,6 @@ contract SplitWalletV2 is Wallet {
         SPLITS_WAREHOUSE.withdraw(address(this), _token);
     }
 
-    /// these things are very annoying without your mod lol,,
-    /* -------------------------------------------------------------------------- */
-    /*                                    VIEW                                    */
-    /* -------------------------------------------------------------------------- */
-
     /**
      * @notice Gets the total token balance of the split wallet and the warehouse
      * @param _token the token to get the balance of
@@ -205,12 +199,6 @@ contract SplitWalletV2 is Wallet {
         splitBalance = (_token == NATIVE_TOKEN) ? address(this).balance : IERC20(_token).balanceOf(address(this));
         warehouseBalance = SPLITS_WAREHOUSE.balanceOf(address(this), _token.toUint256());
     }
-
-    /// this one looks off-center? not that i really care but idk if i prefer this segmentation to my old one
-    /// particularly bc it doesn't handle subgroups well
-    /* -------------------------------------------------------------------------- */
-    /*                         OWNER FUNCTIONS                                    */
-    /* -------------------------------------------------------------------------- */
 
     /**
      * @notice Updates the split
