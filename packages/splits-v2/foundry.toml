@@ -14,7 +14,7 @@ fs_permissions = [{ access = "read-write", path = "./" }]
 
 [profile.default.fuzz]
 max_test_rejects = 1_000_000
-runs = 50
+runs = 1000
 
 [profile.default.invariant]
 call_override = false

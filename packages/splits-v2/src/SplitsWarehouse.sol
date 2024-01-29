@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
+// license?
 pragma solidity ^0.8.18;
 
 import { Cast } from "./libraries/Cast.sol";
@@ -13,7 +14,7 @@ import { ShortString, ShortStrings } from "@openzeppelin/contracts/utils/ShortSt
 /**
  * @title Splits Token Warehouse
  * @author Splits
- * @notice ERC6909 compliant token warehouse for splits ecosystem of splitters
+ * @notice ERC6909 compliant token warehouse for Splits ecosystem
  * @dev Token id here is address(uint160(uint256 id)).
  */
 contract SplitsWarehouse is ERC6909X {
@@ -38,7 +39,6 @@ contract SplitsWarehouse is ERC6909X {
     /*                                   EVENTS                                   */
     /* -------------------------------------------------------------------------- */
 
-    event WithdrawalsPaused(address indexed owner, bool paused);
     event WithdrawConfigUpdated(address indexed owner, WithdrawConfig config);
     event Withdraw(
         address indexed owner, address indexed token, address indexed withdrawer, uint256 amount, uint256 reward
@@ -58,27 +58,25 @@ contract SplitsWarehouse is ERC6909X {
     /* -------------------------------------------------------------------------- */
 
     /// @notice prefix for metadata name.
-    string private constant METADATA_PREFIX_SYMBOL = "Splits";
-
-    /// @notice prefix for metadata symbol.
     string private constant METADATA_PREFIX_NAME = "Splits Wrapped ";
 
-    /// @notice address of the native token.
+    /// @notice prefix for metadata symbol.
+    string private constant METADATA_PREFIX_SYMBOL = "splits";
+
+    /// @notice address of the native token, inline with ERC 7528.
     address public constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     /// @notice NATIVE_TOKEN.toUint256()
     uint256 public constant NATIVE_TOKEN_ID = 1_364_068_194_842_176_056_990_105_843_868_530_818_345_537_040_110;
 
     /// @notice metadata name of the native token.
-    ShortString private immutable nativeTokenName;
+    ShortString private immutable NATIVE_TOKEN_NAME;
 
     /// @notice metadata symbol of the native token.
-    ShortString private immutable nativeTokenSymbol;
+    ShortString private immutable NATIVE_TOKEN_SYMBOL;
 
-    /// @notice Maximum incentive for withdrawing a token.
-    uint256 public constant MAX_INCENTIVE = 1e5;
-
-    /// @notice Scale for the incentive for withdrawing a token.
+    /// @notice Scale for any numbers representing percentages.
+    /// @dev Used for the token withdrawing incentive.
     uint256 public constant PERCENTAGE_SCALE = 1e6;
 
     /* -------------------------------------------------------------------------- */
@@ -98,8 +96,8 @@ contract SplitsWarehouse is ERC6909X {
     )
         ERC6909X("SplitsWarehouse", "v1")
     {
-        nativeTokenName = _native_token_name.toShortString();
-        nativeTokenSymbol = _native_token_symbol.toShortString();
+        NATIVE_TOKEN_NAME = _native_token_name.toShortString();
+        NATIVE_TOKEN_SYMBOL = _native_token_symbol.toShortString();
     }
 
     /* -------------------------------------------------------------------------- */
@@ -109,11 +107,11 @@ contract SplitsWarehouse is ERC6909X {
     /**
      * @notice Name of a given token.
      * @param id The id of the token.
-     * @return name The name of the token.
+     * @return The name of the token.
      */
     function name(uint256 id) external view returns (string memory) {
         if (id == NATIVE_TOKEN_ID) {
-            return nativeTokenName.toString();
+            return NATIVE_TOKEN_NAME.toString();
         }
         return string.concat(METADATA_PREFIX_NAME, IERC20(id.toAddress()).name());
     }
@@ -121,11 +119,11 @@ contract SplitsWarehouse is ERC6909X {
     /**
      * @notice Symbol of a given token.
      * @param id The id of the token.
-     * @return symbol The symbol of the token.
+     * @return The symbol of the token.
      */
     function symbol(uint256 id) external view returns (string memory) {
         if (id == NATIVE_TOKEN_ID) {
-            return nativeTokenSymbol.toString();
+            return NATIVE_TOKEN_SYMBOL.toString();
         }
         return string.concat(METADATA_PREFIX_SYMBOL, IERC20(id.toAddress()).symbol());
     }
@@ -133,7 +131,7 @@ contract SplitsWarehouse is ERC6909X {
     /**
      * @notice Decimals of a given token.
      * @param id The id of the token.
-     * @return decimals The decimals of the token.
+     * @return The decimals of the token.
      */
     function decimals(uint256 id) external view returns (uint8) {
         if (id == NATIVE_TOKEN_ID) {
@@ -146,107 +144,77 @@ contract SplitsWarehouse is ERC6909X {
     /*                          PUBLIC/EXTERNAL FUNCTIONS                         */
     /* -------------------------------------------------------------------------- */
 
-    /* -------------------------------------------------------------------------- */
-    /*                                  DEPOSIT                                   */
-    /* -------------------------------------------------------------------------- */
-
     /**
      * @notice Deposits token to the warehouse for a specified address.
      * @dev If the token is native, the amount should be sent as value.
-     * @param _owner The address that will receive the wrapped tokens.
+     * @param _receiver The address that will receive the wrapped tokens.
      * @param _token The address of the token to be deposited.
      * @param _amount The amount of the token to be deposited.
      */
-    function deposit(address _owner, address _token, uint256 _amount) external payable {
-        if (_owner == address(0)) revert ZeroOwner();
+    function deposit(address _receiver, address _token, uint256 _amount) external payable {
         if (_token == NATIVE_TOKEN) {
             if (_amount != msg.value) revert InvalidAmount();
         } else {
             IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
         }
 
-        _mint(_owner, _token.toUint256(), _amount);
+        _mint(_receiver, _token.toUint256(), _amount);
     }
 
-    /* -------------------------------------------------------------------------- */
-    /*                                  WITHDRAW                                  */
-    /* -------------------------------------------------------------------------- */
+    /**
+     * @notice Batch deposits token to the warehouse for the specified addresses from msg.sender.
+     * @dev If the token is native, the amount should be sent as value.
+     * @param _token The address of the token to be deposited.
+     * @param _receivers The addresses that will receive the wrapped tokens.
+     * @param _amounts The amounts of the token to be deposited.
+     */
+    function batchDeposit(
+        address[] calldata _receivers,
+        address _token,
+        uint256[] calldata _amounts
+    )
+        external
+        payable
+    {
+        if (_receivers.length != _amounts.length) revert LengthMismatch();
+
+        uint256 sum;
+        uint256 amount;
+        uint256 tokenId = _token.toUint256();
+        uint256 length = _receivers.length;
+        for (uint256 i; i < length;) {
+            amount = _amounts[i];
+            sum += amount;
+            _mint(_receivers[i], tokenId, amount);
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        if (_token == NATIVE_TOKEN) {
+            if (sum != msg.value) revert InvalidAmount();
+        } else {
+            IERC20(_token).safeTransferFrom(msg.sender, address(this), sum);
+        }
+    }
 
     /**
-     * @notice Withdraws token from the warehouse for msg.sender.
-     * @dev It is recommended to withdraw balance - 1 to save gas.
+     * @notice Withdraws token from the warehouse for _owner.
+     * @dev Bypasses withdrawal incentives.
      * @param _owner The address whose tokens are withdrawn.
      * @param _token The address of the token to be withdrawn.
      */
     function withdraw(address _owner, address _token) external {
+        if (msg.sender != _owner && tx.origin != _owner) {
+            // nest to reduce gas in the happy-case (solidity/evm won't short circuit)
+            if (withdrawConfig[_owner].paused) {
+                revert WithdrawalPaused(_owner);
+            }
+        }
+
         uint256 amount = balanceOf[_owner][_token.toUint256()] - 1;
-        if (msg.sender == _owner) {
-            _withdraw(_owner, _token.toUint256(), _token, amount, _owner);
-        } else {
-            if (withdrawConfig[_owner].paused) revert WithdrawalPaused(_owner);
-            if (_owner == address(0)) revert ZeroOwner();
-            _withdraw(_owner, _token.toUint256(), _token, amount, msg.sender);
-        }
-    }
-
-    /**
-     * @notice Withdraws tokens from the warehouse for msg.sender.
-     * @dev It is recommended to withdraw balance - 1 to save gas.
-     * @param _owner The address whose tokens are withdrawn.
-     * @param _tokens The addresses of the tokens to be withdrawn.
-     */
-    function withdraw(address _owner, address[] memory _tokens) external {
-        uint256 amount;
-        uint256 tokenId;
-        address token;
-
-        if (msg.sender == _owner) {
-            for (uint256 i; i < _tokens.length;) {
-                token = _tokens[i];
-                tokenId = token.toUint256();
-                amount = balanceOf[_owner][tokenId] - 1;
-
-                _withdraw(_owner, tokenId, token, amount, _owner);
-
-                unchecked {
-                    ++i;
-                }
-            }
-        } else {
-            if (withdrawConfig[_owner].paused) revert WithdrawalPaused(_owner);
-            if (_owner == address(0)) revert ZeroOwner();
-
-            for (uint256 i; i < _tokens.length;) {
-                token = _tokens[i];
-                tokenId = token.toUint256();
-                amount = balanceOf[_owner][tokenId] - 1;
-
-                _withdraw(_owner, tokenId, token, amount, msg.sender);
-
-                unchecked {
-                    ++i;
-                }
-            }
-        }
-    }
-
-    /**
-     * @notice Withdraws token from the warehouse for a specified address.
-     * @dev It is recommended to withdraw balance - 1 to save gas.
-     * @param _owner The address whose tokens are withdrawn.
-     * @param _token The address of the token to be withdrawn.
-     * @param _amount The amount of the token to be withdrawn.
-     * @param _withdrawer The address that will receive the withdrawer incentive.
-     */
-    function withdraw(address _owner, address _token, uint256 _amount, address _withdrawer) external {
-        WithdrawConfig memory config = withdrawConfig[_owner];
-        if (config.paused) revert WithdrawalPaused(_owner);
-        if (_owner == address(0)) revert ZeroOwner();
-
-        uint256 reward = _amount * config.incentive / PERCENTAGE_SCALE;
-
-        if (reward > 0) _withdraw(_owner, _token.toUint256(), _token, _amount, reward, _withdrawer);
-        else _withdraw(_owner, _token.toUint256(), _token, _amount, _withdrawer);
+        _withdraw(_owner, _token, amount, msg.sender, 0);
     }
 
     /**
@@ -265,46 +233,15 @@ contract SplitsWarehouse is ERC6909X {
     )
         external
     {
-        WithdrawConfig memory config = withdrawConfig[_owner];
         if (_tokens.length != _amounts.length) revert LengthMismatch();
+        WithdrawConfig memory config = withdrawConfig[_owner];
         if (config.paused) revert WithdrawalPaused(_owner);
-        if (_owner == address(0)) revert ZeroOwner();
 
-        if (config.incentive > 0) {
-            uint256 reward;
-            for (uint256 i; i < _tokens.length;) {
-                reward = _amounts[i] * config.incentive / PERCENTAGE_SCALE;
-                _withdraw(_owner, _tokens[i].toUint256(), _tokens[i], _amounts[i], reward, _withdrawer);
-
-                unchecked {
-                    ++i;
-                }
-            }
-        } else {
-            for (uint256 i; i < _tokens.length;) {
-                _withdraw(_owner, _tokens[i].toUint256(), _tokens[i], _amounts[i], _withdrawer);
-
-                unchecked {
-                    ++i;
-                }
-            }
-        }
-    }
-
-    /* -------------------------------------------------------------------------- */
-    /*                               BATCH_TRANSFER                               */
-    /* -------------------------------------------------------------------------- */
-
-    /**
-     * @notice batch transfers tokens to the specified addresses from msg.sender.
-     * @param _token The address of the token to be transferred.
-     * @param _receivers The addresses of the receivers.
-     * @param _amounts The amounts of the tokens to be transferred.
-     */
-    function batchTransfer(address _token, address[] calldata _receivers, uint256[] calldata _amounts) external {
-        uint256 tokenId = _token.toUint256();
-        for (uint256 i; i < _receivers.length;) {
-            transfer(_receivers[i], tokenId, _amounts[i]);
+        uint256 reward;
+        uint256 length = _tokens.length;
+        for (uint256 i; i < length;) {
+            reward = _amounts[i] * config.incentive / PERCENTAGE_SCALE;
+            _withdraw(_owner, _tokens[i], _amounts[i], _withdrawer, reward);
 
             unchecked {
                 ++i;
@@ -312,9 +249,34 @@ contract SplitsWarehouse is ERC6909X {
         }
     }
 
-    /* -------------------------------------------------------------------------- */
-    /*                                OWNER ACTIONS                               */
-    /* -------------------------------------------------------------------------- */
+    /**
+     * @notice Batch transfers tokens to the specified addresses from msg.sender.
+     * @param _token The address of the token to be transferred.
+     * @param _receivers The addresses of the receivers.
+     * @param _amounts The amounts of the tokens to be transferred.
+     */
+    function batchTransfer(address[] calldata _receivers, address _token, uint256[] calldata _amounts) external {
+        if (_receivers.length != _amounts.length) revert LengthMismatch();
+
+        uint256 sum;
+        uint256 tokenId = _token.toUint256();
+        uint256 amount;
+        address receiver;
+        uint256 length = _receivers.length;
+        for (uint256 i; i < length;) {
+            receiver = _receivers[i];
+            amount = _amounts[i];
+
+            sum += amount;
+            balanceOf[receiver][tokenId] += amount;
+            emit Transfer(msg.sender, msg.sender, receiver, tokenId, amount);
+
+            unchecked {
+                ++i;
+            }
+        }
+        balanceOf[msg.sender][tokenId] -= sum;
+    }
 
     /**
      * @notice Sets the withdraw config for the msg.sender.
@@ -326,56 +288,29 @@ contract SplitsWarehouse is ERC6909X {
     }
 
     /* -------------------------------------------------------------------------- */
-    /*                                    VIEW                                    */
-    /* -------------------------------------------------------------------------- */
-
-    /**
-     * @notice Returns the withdraw config for a specified address.
-     * @param _owner The address whose withdraw config is returned.
-     * @return config The withdraw config for the specified address.
-     */
-    function getWithdrawConfig(address _owner) external view returns (WithdrawConfig memory) {
-        return withdrawConfig[_owner];
-    }
-
-    /* -------------------------------------------------------------------------- */
     /*                              INTERNAL/PRIVATE                              */
     /* -------------------------------------------------------------------------- */
 
-    function _withdraw(address _owner, uint256 _id, address _token, uint256 _amount, address _withdrawer) internal {
-        _burn(_owner, _id, _amount);
-
-        if (_token == NATIVE_TOKEN) {
-            payable(_owner).sendValue(_amount);
-        } else {
-            IERC20(_token).safeTransfer(_owner, _amount);
-        }
-
-        emit Withdraw(_owner, _token, _withdrawer, _amount, 0);
-    }
-
     function _withdraw(
         address _owner,
-        uint256 _id,
         address _token,
         uint256 _amount,
-        uint256 _reward,
-        address _withdrawer
+        address _withdrawer,
+        uint256 _reward
     )
         internal
     {
-        _burn(_owner, _id, _amount);
+        _burn(_owner, _token.toUint256(), _amount);
 
-        uint256 amount = _amount - _reward;
-
+        uint256 amountToOwner = _amount - _reward;
         if (_token == NATIVE_TOKEN) {
-            payable(_owner).sendValue(amount);
-            payable(_withdrawer).sendValue(_reward);
+            payable(_owner).sendValue(amountToOwner);
+            if (_reward != 0) payable(_withdrawer).sendValue(_reward);
         } else {
-            IERC20(_token).safeTransfer(_owner, amount);
-            IERC20(_token).safeTransfer(_withdrawer, _reward);
+            IERC20(_token).safeTransfer(_owner, amountToOwner);
+            if (_reward != 0) IERC20(_token).safeTransfer(_withdrawer, _reward);
         }
 
-        emit Withdraw(_owner, _token, _withdrawer, amount, _reward);
+        emit Withdraw(_owner, _token, _withdrawer, amountToOwner, _reward);
     }
 }

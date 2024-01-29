@@ -34,8 +34,7 @@ contract SplitWalletV2 is Wallet {
     /*                                   EVENTS                                   */
     /* -------------------------------------------------------------------------- */
 
-    event SplitUpdated(address indexed _owner, SplitV2Lib.Split _split);
-    event DistributeDirectionUpdated(bool _distributeByPush);
+    event SplitUpdated(SplitV2Lib.Split _split);
     event SplitDistributed(
         address indexed _token,
         address indexed _distributor,
@@ -55,14 +54,11 @@ contract SplitWalletV2 is Wallet {
     address public immutable FACTORY;
 
     /// @notice address of native token
-    address public immutable NATIVE;
+    address public immutable NATIVE_TOKEN;
 
     /* -------------------------------------------------------------------------- */
     /*                                   STORAGE                                  */
     /* -------------------------------------------------------------------------- */
-
-    /// @notice Controls the distribution direction of the split
-    bool public distributeByPush;
 
     /// @notice the split hash - Keccak256 hash of the split struct
     bytes32 public splitHash;
@@ -73,7 +69,7 @@ contract SplitWalletV2 is Wallet {
 
     constructor(address _splitWarehouse) {
         SPLITS_WAREHOUSE = ISplitsWarehouse(_splitWarehouse);
-        NATIVE = SPLITS_WAREHOUSE.NATIVE_TOKEN();
+        NATIVE_TOKEN = SPLITS_WAREHOUSE.NATIVE_TOKEN();
         FACTORY = msg.sender;
     }
 
@@ -81,7 +77,7 @@ contract SplitWalletV2 is Wallet {
      * @notice Initializes the split wallet with a split and its corresponding data.
      * @dev Only the factory can call this function. By default, the distribution direction is push and distributions
      * are unpaused.
-     * @param split the split struct containing the split data that gets initialized
+     * @param split The split struct containing the split data that gets initialized
      */
     function initialize(SplitV2Lib.Split calldata split, address _owner) external {
         if (msg.sender != FACTORY) revert UnauthorizedInitializer();
@@ -101,17 +97,17 @@ contract SplitWalletV2 is Wallet {
      * @notice Distributes the split to the recipients. It distributes the amount of tokens present in Warehouse and the
      * split wallet.
      * @dev The split must be initialized and the split hash must match the split hash of the split wallet.
-     * @param _split the split struct containing the split data that gets distributed
-     * @param _token the token to distribute
-     * @param _distributor the distributor of the split
+     * @param _split The split struct containing the split data that gets distributed
+     * @param _token The token to distribute
+     * @param _distributor The distributor of the split
      */
     function distribute(SplitV2Lib.Split calldata _split, address _token, address _distributor) external pausable {
         if (splitHash != _split.getHash()) revert InvalidSplit();
-        (uint256 splitBalance, uint256 warehouseBalance) = _getSplitBalance(_token);
 
-        if (distributeByPush) {
-            if (warehouseBalance >= 2) {
-                _withdrawFromWarehouse(_token);
+        (uint256 splitBalance, uint256 warehouseBalance) = getSplitBalance(_token);
+        if (_split.distributeByPush) {
+            if (warehouseBalance > 1) {
+                withdrawFromWarehouse(_token);
                 unchecked {
                     warehouseBalance -= 1;
                 }
@@ -122,11 +118,11 @@ contract SplitWalletV2 is Wallet {
             }
             pushDistribute(_split, _token, warehouseBalance + splitBalance, _distributor);
         } else {
-            if (splitBalance >= 2) {
+            if (splitBalance > 1) {
                 unchecked {
                     splitBalance -= 1;
                 }
-                _depositToWarehouse(_token, splitBalance);
+                depositToWarehouse(_token, splitBalance);
             } else if (splitBalance > 0) {
                 unchecked {
                     splitBalance -= 1;
@@ -139,17 +135,20 @@ contract SplitWalletV2 is Wallet {
     /**
      * @notice Distributes the split to the recipients. It distributes the amount of tokens present in Warehouse and the
      * split wallet.
+     * @dev The split must be initialized and the split hash must match the split hash of the split wallet.
      * @dev The amount of tokens to distribute must be present in the split wallet or the warehouse depending on the
      * distribution direction.
      * @param _split the split struct containing the split data that gets distributed
-     * @param _token the token to distribute
-     * @param _amount the amount of tokens to distribute
-     * @param _distributor the distributor of the split
+     * @param _token The token to distribute
+     * @param _distributeAmount The amount of tokens to distribute
+     * @param _warehouseTransferAmount The amount of tokens to transfer from/to the warehouse
+     * @param _distributor The distributor of the split
      */
     function distribute(
         SplitV2Lib.Split calldata _split,
         address _token,
-        uint256 _amount,
+        uint256 _distributeAmount,
+        uint256 _warehouseTransferAmount,
         address _distributor
     )
         external
@@ -157,10 +156,12 @@ contract SplitWalletV2 is Wallet {
     {
         if (splitHash != _split.getHash()) revert InvalidSplit();
 
-        if (distributeByPush) {
-            pushDistribute(_split, _token, _amount, _distributor);
+        if (_split.distributeByPush) {
+            if (_warehouseTransferAmount != 0) withdrawFromWarehouse(_token);
+            pushDistribute(_split, _token, _distributeAmount, _distributor);
         } else {
-            pullDistribute(_split, _token, _amount, _distributor);
+            if (_warehouseTransferAmount != 0) depositToWarehouse(_token, _warehouseTransferAmount);
+            pullDistribute(_split, _token, _distributeAmount, _distributor);
         }
     }
 
@@ -169,16 +170,23 @@ contract SplitWalletV2 is Wallet {
      * @param _token the token to deposit
      * @param _amount the amount of tokens to deposit
      */
-    function depositToWarehouse(address _token, uint256 _amount) external {
-        _depositToWarehouse(_token, _amount);
+    function depositToWarehouse(address _token, uint256 _amount) public {
+        if (_token == NATIVE_TOKEN) {
+            SPLITS_WAREHOUSE.deposit{ value: _amount }(address(this), _token, _amount);
+        } else {
+            if (IERC20(_token).allowance(address(this), address(SPLITS_WAREHOUSE)) < _amount) {
+                IERC20(_token).approve(address(SPLITS_WAREHOUSE), type(uint256).max);
+            }
+            SPLITS_WAREHOUSE.deposit(address(this), _token, _amount);
+        }
     }
 
     /**
      * @notice Withdraws tokens from the warehouse to the split wallet
      * @param _token the token to withdraw
      */
-    function withdrawFromWarehouse(address _token) external {
-        _withdrawFromWarehouse(_token);
+    function withdrawFromWarehouse(address _token) public {
+        SPLITS_WAREHOUSE.withdraw(address(this), _token);
     }
 
     /**
@@ -187,13 +195,10 @@ contract SplitWalletV2 is Wallet {
      * @return splitBalance the token balance in the split wallet
      * @return warehouseBalance the token balance in the warehouse of the split wallet
      */
-    function getSplitBalance(address _token) public view returns (uint256, uint256) {
-        return _getSplitBalance(_token);
+    function getSplitBalance(address _token) public view returns (uint256 splitBalance, uint256 warehouseBalance) {
+        splitBalance = (_token == NATIVE_TOKEN) ? address(this).balance : IERC20(_token).balanceOf(address(this));
+        warehouseBalance = SPLITS_WAREHOUSE.balanceOf(address(this), _token.toUint256());
     }
-
-    /* -------------------------------------------------------------------------- */
-    /*                         OWNER FUNCTIONS                                    */
-    /* -------------------------------------------------------------------------- */
 
     /**
      * @notice Updates the split
@@ -204,49 +209,14 @@ contract SplitWalletV2 is Wallet {
         // throws error if invalid
         _split.validate();
         splitHash = _split.getHash();
-        emit SplitUpdated(owner, _split);
-    }
-
-    /**
-     * @notice Sets the split distribution direction to be push or pull
-     * @dev Only the owner can call this function.
-     * @param _distributeByPush whether to distribute by push or pull
-     */
-    function updateDistributeDirection(bool _distributeByPush) external onlyOwner {
-        distributeByPush = _distributeByPush;
-        emit DistributeDirectionUpdated(_distributeByPush);
+        emit SplitUpdated(_split);
     }
 
     /* -------------------------------------------------------------------------- */
     /*                              INTERNAL/PRIVATE                              */
     /* -------------------------------------------------------------------------- */
 
-    function _withdrawFromWarehouse(address _token) internal {
-        SPLITS_WAREHOUSE.withdraw(address(this), _token);
-    }
-
-    function _depositToWarehouse(address _token, uint256 _amount) internal {
-        if (_token == NATIVE) {
-            SPLITS_WAREHOUSE.deposit{ value: _amount }(address(this), _token, _amount);
-        } else {
-            if (IERC20(_token).allowance(address(this), address(SPLITS_WAREHOUSE)) < _amount) {
-                IERC20(_token).approve(address(SPLITS_WAREHOUSE), type(uint256).max);
-            }
-            SPLITS_WAREHOUSE.deposit(address(this), _token, _amount);
-        }
-    }
-
-    function _getSplitBalance(address _token) private view returns (uint256 splitBalance, uint256 warehouseBalance) {
-        if (_token == NATIVE) {
-            splitBalance = address(this).balance;
-            warehouseBalance = SPLITS_WAREHOUSE.balanceOf(address(this), _token.toUint256());
-        } else {
-            splitBalance = IERC20(_token).balanceOf(address(this));
-            warehouseBalance = SPLITS_WAREHOUSE.balanceOf(address(this), _token.toUint256());
-        }
-    }
-
-    // assumes the amount is already present in the split wallet
+    /// @dev Assumes the amount is already present in the split wallet
     function pushDistribute(
         SplitV2Lib.Split calldata _split,
         address _token,
@@ -261,14 +231,15 @@ contract SplitWalletV2 is Wallet {
         uint256 amountDistributed;
         uint256 allocatedAmount;
 
-        if (_token == NATIVE) {
-            for (uint256 i = 0; i < numOfRecipients;) {
+        if (_token == NATIVE_TOKEN) {
+            for (uint256 i; i < numOfRecipients;) {
                 allocatedAmount = _amount * _split.allocations[i] / _split.totalAllocation;
                 amountDistributed += allocatedAmount;
 
                 if (!_split.recipients[i].trySafeTransferETH(allocatedAmount, SafeTransferLib.GAS_STIPEND_NO_GRIEF)) {
                     SPLITS_WAREHOUSE.deposit{ value: allocatedAmount }(_split.recipients[i], _token, allocatedAmount);
                 }
+
                 unchecked {
                     ++i;
                 }
@@ -276,11 +247,12 @@ contract SplitWalletV2 is Wallet {
 
             if (distributorReward > 0) _distributor.safeTransferETH(distributorReward);
         } else {
-            for (uint256 i = 0; i < numOfRecipients;) {
+            for (uint256 i; i < numOfRecipients;) {
                 allocatedAmount = _amount * _split.allocations[i] / _split.totalAllocation;
                 amountDistributed += allocatedAmount;
 
                 IERC20(_token).safeTransfer(_split.recipients[i], allocatedAmount);
+
                 unchecked {
                     ++i;
                 }
@@ -292,7 +264,7 @@ contract SplitWalletV2 is Wallet {
         emit SplitDistributed(_token, _distributor, amountDistributed, distributorReward, true);
     }
 
-    // assumes the amount is already deposited to the warehouse
+    /// @dev Assumes the amount is already deposited to the warehouse
     function pullDistribute(
         SplitV2Lib.Split calldata _split,
         address _token,
@@ -303,8 +275,8 @@ contract SplitWalletV2 is Wallet {
     {
         (uint256[] memory amounts, uint256 amountDistributed, uint256 distibutorReward) =
             _split.getDistributions(_amount);
+        SPLITS_WAREHOUSE.batchTransfer(_split.recipients, _token, amounts);
         if (distibutorReward > 0) SPLITS_WAREHOUSE.transfer(_distributor, _token.toUint256(), distibutorReward);
-        SPLITS_WAREHOUSE.batchTransfer(_token, _split.recipients, amounts);
         emit SplitDistributed(_token, _distributor, amountDistributed, distibutorReward, false);
     }
 }

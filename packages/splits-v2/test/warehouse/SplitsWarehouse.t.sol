@@ -25,6 +25,11 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
     address public token;
     address[] public defaultTokens;
 
+    struct Receiver {
+        address receiver;
+        uint32 amount;
+    }
+
     function setUp() public override {
         super.setUp();
         token = address(usdc);
@@ -60,7 +65,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
     /* -------------------------------------------------------------------------- */
 
     function test_symbol_whenERC20_returnsWrappedERC20Symbol() public {
-        assertEq(warehouse.symbol(tokenToId(address(usdc))), string.concat("Splits", usdc.symbol()));
+        assertEq(warehouse.symbol(tokenToId(address(usdc))), string.concat("splits", usdc.symbol()));
     }
 
     function test_symbol_whenNativeToken_returnsWrappedSymbol() public {
@@ -129,16 +134,106 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         warehouse.deposit{ value: 100 ether }(msg.sender, native, 99 ether);
     }
 
-    function test_depositSingleOwner_whenNativeToken_Revert_whenOwnerIsZero() public {
-        vm.assume(msg.sender != address(0));
-
-        vm.expectRevert(ZeroOwner.selector);
-        warehouse.deposit{ value: 100 ether }(address(0), native, 100 ether);
-    }
-
     function test_depositSingleOwner_Revert_whenNonERC20() public {
         vm.expectRevert();
         warehouse.deposit(msg.sender, address(this), 100 ether);
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*                             TEST_BATCH_DEPOSIT                             */
+    /* -------------------------------------------------------------------------- */
+
+    function testFuzz_batchDeposit(address _depositor, Receiver[] memory _receivers, bool _native) public {
+        assumeAddress(_depositor);
+
+        address _token = _native ? native : address(usdc);
+
+        uint256 totalAmount = getTotalAmount(_receivers);
+
+        if (_native) {
+            deal(_depositor, totalAmount);
+        } else {
+            deal(_token, _depositor, totalAmount);
+            vm.prank(_depositor);
+            ERC20(token).approve(address(warehouse), totalAmount);
+        }
+
+        (address[] memory receivers, uint256[] memory amounts) = getReceiversAndAmounts(_receivers);
+
+        vm.prank(_depositor);
+        if (_native) {
+            warehouse.batchDeposit{ value: totalAmount }(receivers, _token, amounts);
+        } else {
+            warehouse.batchDeposit(receivers, _token, amounts);
+        }
+
+        for (uint256 i = 0; i < receivers.length; i++) {
+            assertGte(warehouse.balanceOf(receivers[i], tokenToId(_token)), amounts[i]);
+        }
+    }
+
+    function testFuzz_batchDeposit_Revert_InvalidAmount(address _depositor, Receiver[] memory _receivers) public {
+        assumeAddress(_depositor);
+
+        address _token = native;
+
+        uint256 totalAmount = getTotalAmount(_receivers);
+        vm.assume(totalAmount > 0);
+
+        deal(_depositor, totalAmount);
+
+        (address[] memory receivers, uint256[] memory amounts) = getReceiversAndAmounts(_receivers);
+
+        vm.prank(_depositor);
+        vm.expectRevert(InvalidAmount.selector);
+        warehouse.batchDeposit{ value: totalAmount - 1 }(receivers, _token, amounts);
+    }
+
+    function testFuzz_batchDeposit_Revert_LengthMismatch(
+        address[] memory _receivers,
+        uint256[] memory _amounts
+    )
+        public
+    {
+        vm.assume(_receivers.length != _amounts.length);
+
+        vm.expectRevert(LengthMismatch.selector);
+        warehouse.batchDeposit(_receivers, token, _amounts);
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*                               BATCH_TRANSFER                               */
+    /* -------------------------------------------------------------------------- */
+
+    function testFuzz_batchTransfer(address _depositor, Receiver[] memory _receivers) public {
+        assumeAddress(_depositor);
+
+        uint256 totalAmount = getTotalAmount(_receivers);
+
+        deal(_depositor, totalAmount);
+        vm.prank(_depositor);
+        warehouse.deposit{ value: totalAmount }(_depositor, native, totalAmount);
+
+        (address[] memory receivers, uint256[] memory amounts) = getReceiversAndAmounts(_receivers);
+
+        vm.prank(_depositor);
+        warehouse.batchTransfer(receivers, native, amounts);
+
+        for (uint256 i = 0; i < receivers.length; i++) {
+            assertGte(warehouse.balanceOf(receivers[i], tokenToId(native)), amounts[i]);
+        }
+    }
+
+    function testFuzz_batchTransfer_Revert_LengthMismatch(
+        address[] memory _receivers,
+        uint256[] memory _amounts
+    )
+        public
+    {
+        vm.assume(_receivers.length != _amounts.length);
+
+        vm.expectRevert(LengthMismatch.selector);
+        warehouse.batchTransfer(_receivers, token, _amounts);
     }
 
     /* -------------------------------------------------------------------------- */
@@ -193,177 +288,6 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         vm.prank(owner);
         vm.expectRevert();
         warehouse.withdraw(owner, address(this));
-    }
-
-    /* -------------------------------------------------------------------------- */
-    /*                     TEST_WITHDRAW_OWNER_MULTIPLE_TOKENS                    */
-    /* -------------------------------------------------------------------------- */
-
-    function testFuzz_withdrawOwner_multipleTokens(uint256 _amount) public {
-        address owner = ALICE.addr;
-
-        vm.assume(_amount > 0);
-
-        depositDefaultTokens(owner, _amount);
-
-        vm.prank(owner);
-        vm.expectEmit();
-        for (uint256 i = 0; i < defaultTokens.length; i++) {
-            emit Withdraw(owner, defaultTokens[i], owner, _amount - 1, 0);
-        }
-        warehouse.withdraw(owner, defaultTokens);
-
-        for (uint256 i = 0; i < defaultTokens.length; i++) {
-            assertEq(warehouse.balanceOf(owner, tokenToId(defaultTokens[i])), 1);
-            if (defaultTokens[i] == native) {
-                assertEq(address(warehouse).balance, 1);
-            } else {
-                assertEq(ERC20(defaultTokens[i]).balanceOf(address(warehouse)), 1);
-            }
-        }
-    }
-
-    function test_withdrawOwner_multipleTokens_Revert_whenOwnerReenters() public {
-        address owner = BAD_ACTOR;
-
-        depositDefaultTokens(owner, 100 ether);
-
-        vm.prank(owner);
-        vm.expectRevert();
-        warehouse.withdraw(owner, defaultTokens);
-    }
-
-    /* -------------------------------------------------------------------------- */
-    /*                       WITHDRAW_FOR_OWNER_SINGLE_TOKEN                      */
-    /* -------------------------------------------------------------------------- */
-
-    function testFuzz_withdrawForOwner_singleToken_whenERC20(address _owner, uint256 _amount) public {
-        assumeAddress(_owner);
-
-        testFuzz_depositSingleOwner_whenERC20(_owner, _owner, _amount);
-
-        vm.expectEmit();
-        emit Withdraw(_owner, token, address(this), _amount, 0);
-        warehouse.withdraw(_owner, token, _amount, address(this));
-
-        assertEq(warehouse.balanceOf(_owner, tokenToId(token)), 0);
-        assertEq(ERC20(token).balanceOf(_owner), _amount);
-        assertEq(ERC20(token).balanceOf(address(warehouse)), 0);
-    }
-
-    function testFuzz_withdrawForOwner_singleToken_whenNative(address _owner, uint256 _amount) public {
-        assumeAddress(_owner);
-
-        testFuzz_depositSingleOwner_whenNativeToken(_owner, _owner, _amount);
-
-        vm.expectEmit();
-        emit Withdraw(_owner, native, address(this), _amount, 0);
-        warehouse.withdraw(_owner, native, _amount, address(this));
-
-        assertEq(warehouse.balanceOf(_owner, tokenToId(native)), 0);
-        assertEq(address(_owner).balance, _amount);
-        assertEq(address(warehouse).balance, 0);
-    }
-
-    function test_withdrawForOwner_singleToken_Revert_whenWithdrawGreaterThanBalance() public {
-        address owner = ALICE.addr;
-
-        testFuzz_depositSingleOwner_whenERC20(owner, owner, 100 ether);
-
-        vm.expectRevert();
-        warehouse.withdraw(owner, token, 101 ether, address(this));
-    }
-
-    function test_withdrawForOwner_singleToken_Revert_whenOwnerReenters() public {
-        address owner = BAD_ACTOR;
-
-        deposit(BAD_ACTOR, native, 1 ether);
-
-        vm.expectRevert();
-        warehouse.withdraw(owner, native, 1 ether, address(this));
-    }
-
-    function test_withdrawForOwner_singleToken_Revert_whenNonERC20() public {
-        address owner = ALICE.addr;
-
-        vm.expectRevert();
-        warehouse.withdraw(owner, address(this), 100 ether, address(this));
-    }
-
-    function test_withdrawForOwner_singleToken_Revert_whenWithdrawalPaused() public {
-        address owner = ALICE.addr;
-
-        testFuzz_depositSingleOwner_whenERC20(owner, owner, 100 ether);
-
-        SplitsWarehouse.WithdrawConfig memory config = SplitsWarehouse.WithdrawConfig({ incentive: 0, paused: true });
-
-        vm.startPrank(owner);
-        warehouse.setWithdrawConfig(config);
-
-        vm.expectRevert(abi.encodeWithSelector(WithdrawalPaused.selector, owner));
-        warehouse.withdraw(owner, token, 100 ether, address(this));
-        vm.stopPrank();
-    }
-
-    function test_withdrawForOwner_singleToken_Revert_whenZeroOwner() public {
-        vm.expectRevert(ZeroOwner.selector);
-        warehouse.withdraw(address(0), token, 100 ether, address(this));
-    }
-
-    function testFuzz_withdrawForOwner_singleToken_whenERC20WithIncentive(
-        address _owner,
-        uint192 _amount,
-        uint16 _incentive,
-        address _withdrawer
-    )
-        public
-    {
-        assumeAddress(_owner);
-        assumeAddress(_withdrawer);
-        vm.assume(_owner != _withdrawer);
-        vm.assume(_withdrawer.balance == 0);
-
-        testFuzz_depositSingleOwner_whenERC20(_owner, _owner, _amount);
-        testFuzz_setWithdrawalConfig(_owner, SplitsWarehouse.WithdrawConfig({ incentive: _incentive, paused: false }));
-
-        uint256 reward = uint256(_amount) * uint256(_incentive) / warehouse.PERCENTAGE_SCALE();
-
-        vm.expectEmit();
-        emit Withdraw(_owner, token, _withdrawer, _amount - reward, reward);
-        warehouse.withdraw(_owner, token, _amount, _withdrawer);
-
-        assertEq(warehouse.balanceOf(_owner, tokenToId(token)), 0);
-        assertEq(ERC20(token).balanceOf(_owner), _amount - reward);
-        assertEq(ERC20(token).balanceOf(_withdrawer), reward);
-        assertEq(ERC20(token).balanceOf(address(warehouse)), 0);
-    }
-
-    function testFuzz_withdrawForOwner_singleToken_whenNativeWithIncentive(
-        address _owner,
-        uint192 _amount,
-        uint16 _incentive,
-        address _withdrawer
-    )
-        public
-    {
-        assumeAddress(_owner);
-        assumeAddress(_withdrawer);
-        vm.assume(_owner != _withdrawer);
-        vm.assume(_withdrawer.balance == 0);
-
-        testFuzz_depositSingleOwner_whenNativeToken(_owner, _owner, _amount);
-        testFuzz_setWithdrawalConfig(_owner, SplitsWarehouse.WithdrawConfig({ incentive: _incentive, paused: false }));
-
-        uint256 reward = uint256(_amount) * uint256(_incentive) / warehouse.PERCENTAGE_SCALE();
-
-        vm.expectEmit();
-        emit Withdraw(_owner, native, _withdrawer, _amount - reward, reward);
-        warehouse.withdraw(_owner, native, _amount, _withdrawer);
-
-        assertEq(warehouse.balanceOf(_owner, tokenToId(native)), 0);
-        assertEq(address(_owner).balance, _amount - reward);
-        assertEq(_withdrawer.balance, reward);
-        assertEq(address(warehouse).balance, 0);
     }
 
     /* -------------------------------------------------------------------------- */
@@ -442,7 +366,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
     }
 
     function test_withdrawForOwner_multipleTokens_Revert_whenZeroOwner() public {
-        vm.expectRevert(ZeroOwner.selector);
+        vm.expectRevert();
         warehouse.withdraw(address(0), defaultTokens, getAmounts(100 ether), address(this));
     }
 
@@ -489,10 +413,10 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         vm.prank(_owner);
         warehouse.setWithdrawConfig(_config);
 
-        SplitsWarehouse.WithdrawConfig memory config = warehouse.getWithdrawConfig(_owner);
+        (uint16 incentive, bool paused) = warehouse.withdrawConfig(_owner);
 
-        assertEq(config.paused, _config.paused);
-        assertEq(config.incentive, _config.incentive);
+        assertEq(paused, _config.paused);
+        assertEq(incentive, _config.incentive);
     }
 
     /* -------------------------------------------------------------------------- */
@@ -527,5 +451,27 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
             warehouse.deposit(_owner, _token, _amount);
         }
         vm.stopPrank();
+    }
+
+    function getTotalAmount(Receiver[] memory receivers) internal pure returns (uint256 totalAmount) {
+        for (uint256 i = 0; i < receivers.length; i++) {
+            totalAmount += receivers[i].amount;
+        }
+    }
+
+    function getReceiversAndAmounts(Receiver[] memory receivers)
+        internal
+        pure
+        returns (address[] memory, uint256[] memory)
+    {
+        address[] memory _receivers = new address[](receivers.length);
+        uint256[] memory amounts = new uint256[](receivers.length);
+
+        for (uint256 i = 0; i < receivers.length; i++) {
+            _receivers[i] = receivers[i].receiver;
+            amounts[i] = receivers[i].amount;
+        }
+
+        return (_receivers, amounts);
     }
 }

@@ -12,8 +12,10 @@ library Cast {
         return uint256(uint160(value));
     }
 
-    function toUint160(uint256 x) internal pure returns (uint160) {
-        if (x >= 1 << 160) revert Overflow();
-        return uint160(x);
+    function toUint160(uint256 x) internal pure returns (uint160 y) {
+        if (x >> 160 != 0) revert Overflow();
+        assembly {
+            y := x
+        }
     }
 }

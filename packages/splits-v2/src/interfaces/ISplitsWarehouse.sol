@@ -8,7 +8,7 @@ interface ISplitsWarehouse is IERC6909 {
 
     function deposit(address _owner, address _token, uint256 _amount) external payable;
 
-    function batchTransfer(address _token, address[] memory _recipients, uint256[] memory _amounts) external;
+    function batchTransfer(address[] memory _recipients, address _token, uint256[] memory _amounts) external;
 
     function withdraw(address _owner, address _token) external;
 }
