@@ -171,10 +171,11 @@ contract SplitWalletV2Test is BaseTest {
     /*                            DISTRIBUTE FUNCTIONS                            */
     /* -------------------------------------------------------------------------- */
 
-    function test_distribute_Revert_whenPaused(
+    function testFuzz_distribute_Revert_whenPaused(
         SplitReceiver[] memory _receivers,
         uint16 _distributionIncentive,
-        bool _distributeByPush
+        bool _distributeByPush,
+        bool _useSimpleDistribute
     )
         public
     {
@@ -185,13 +186,18 @@ contract SplitWalletV2Test is BaseTest {
         wallet.setPaused(true);
 
         vm.expectRevert(Pausable.Paused.selector);
-        wallet.distribute(split, address(usdc), ALICE.addr);
+        if (_useSimpleDistribute) {
+            wallet.distribute(split, address(usdc), ALICE.addr);
+        } else {
+            wallet.distribute(split, address(usdc), 0, 0, ALICE.addr);
+        }
     }
 
-    function test_distribute_Revert_whenInvalidSplit(
+    function testFuzz_distribute_Revert_whenInvalidSplit(
         SplitReceiver[] memory _receivers,
         uint16 _distributionIncentive,
-        bool _distributeByPush
+        bool _distributeByPush,
+        bool _useSimpleDistribute
     )
         public
     {
@@ -205,7 +211,11 @@ contract SplitWalletV2Test is BaseTest {
         }
 
         vm.expectRevert(SplitWalletV2.InvalidSplit.selector);
-        wallet.distribute(split, address(usdc), ALICE.addr);
+        if (_useSimpleDistribute) {
+            wallet.distribute(split, address(usdc), ALICE.addr);
+        } else {
+            wallet.distribute(split, address(usdc), 0, 0, ALICE.addr);
+        }
     }
 
     function testFuzz_distribute_whenPaused_byOwner(
@@ -353,7 +363,8 @@ contract SplitWalletV2Test is BaseTest {
     function testFuzz_depositToWarehouse(bool _native, uint256 _amount) public {
         vm.assume(_amount > 0);
         address _token = _native ? native : address(usdc);
-        dealSplit(address(wallet), _token, _amount, 0);
+        if (_native) deal(address(wallet), _amount);
+        else deal(_token, address(wallet), _amount);
 
         wallet.depositToWarehouse(_token, _amount);
 
@@ -379,6 +390,17 @@ contract SplitWalletV2Test is BaseTest {
 
         vm.expectRevert();
         wallet.depositToWarehouse(_token, _amount);
+    }
+
+    function testFuzz_getSplitsBalance(bool _native) public {
+        address _token = _native ? native : address(usdc);
+
+        dealSplit(address(wallet), _token, 100, 100);
+
+        (uint256 splitBalance, uint256 warehouseBalance) = wallet.getSplitBalance(_token);
+
+        assertEq(splitBalance, 100);
+        assertEq(warehouseBalance, 100);
     }
 
     function dealSplit(address _split, address _token, uint256 _splitAmount, uint256 _warehouseAmount) internal {

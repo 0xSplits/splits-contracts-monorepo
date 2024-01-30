@@ -290,6 +290,16 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
         warehouse.withdraw(owner, address(this));
     }
 
+    function test_withdrawOwner_Revert_withdrawalPaused() public {
+        address owner = ALICE.addr;
+
+        vm.prank(owner);
+        warehouse.setWithdrawConfig(SplitsWarehouse.WithdrawConfig({ incentive: 0, paused: true }));
+
+        vm.expectRevert(abi.encodeWithSelector(WithdrawalPaused.selector, owner));
+        warehouse.withdraw(owner, address(this));
+    }
+
     /* -------------------------------------------------------------------------- */
     /*                     WITHDRAW_FOR_OWNER_MULTIPLE_TOKENS                     */
     /* -------------------------------------------------------------------------- */

@@ -3,22 +3,31 @@ pragma solidity ^0.8.18;
 
 import { BaseTest } from "../Base.t.sol";
 
+import { IERC165 } from "../../src/interfaces/IERC165.sol";
+import { IERC6909 } from "../../src/interfaces/IERC6909.sol";
+import { IERC6909X } from "../../src/interfaces/IERC6909X.sol";
+
 import { ERC6909XUtils } from "../utils/ERC6909XUtils.sol";
+
+import { ERC6909Callback } from "./ERC6909Callback.sol";
 import { ERC6909Test as ERC6909 } from "./ERC6909Test.sol";
 
 contract ERC6909Test is BaseTest {
     error ExpiredSignature(uint256 deadline);
     error InvalidSigner();
     error InvalidPermitParams();
+    error InvalidAck();
 
     ERC6909 public erc6909;
     ERC6909XUtils public permitUtils;
+    ERC6909Callback public callback;
 
     function setUp() public override {
         super.setUp();
 
         erc6909 = new ERC6909("ERC6909", "V1");
         permitUtils = new ERC6909XUtils(erc6909.DOMAIN_SEPARATOR());
+        callback = new ERC6909Callback();
     }
 
     /* -------------------------------------------------------------------------- */
@@ -175,8 +184,154 @@ contract ERC6909Test is BaseTest {
     }
 
     /* -------------------------------------------------------------------------- */
-    /*                                 PERMIT_TEST                                */
+    /*                               ERC6909X TESTS                               */
     /* -------------------------------------------------------------------------- */
+
+    function testFuzz_supportsInterface(bytes4 _interfaceId) public {
+        bool supported = erc6909.supportsInterface(_interfaceId);
+
+        if (
+            _interfaceId == type(IERC6909X).interfaceId || _interfaceId == type(IERC165).interfaceId
+                || _interfaceId == type(IERC6909).interfaceId
+        ) {
+            assertEq(supported, true);
+        } else {
+            assertEq(supported, false);
+        }
+    }
+
+    function testFuzz_temporaryApproveAndCall(address _owner, bool _isOperator, uint256 _id, uint256 _amount) public {
+        if (_isOperator) {
+            _id = 0;
+            _amount = 0;
+        }
+        address target = address(callback);
+        bytes memory data;
+        vm.prank(_owner);
+        erc6909.temporaryApproveAndCall(target, _isOperator, _id, _amount, target, data);
+
+        assertEq(erc6909.isOperator(_owner, target), false);
+        assertEq(erc6909.allowance(_owner, target, _id), 0);
+    }
+
+    function test_temporaryApproveAndCall_Revert_InvalidAck() public {
+        address target = address(this);
+        bytes memory data;
+        vm.prank(ALICE.addr);
+        vm.expectRevert(InvalidAck.selector);
+        erc6909.temporaryApproveAndCall(target, true, 0, 0, target, data);
+    }
+
+    function test_temporaryApproveAndCall_Revert_InvalidPermitParams() public {
+        address target = address(callback);
+        bytes memory data;
+        vm.prank(ALICE.addr);
+        vm.expectRevert(InvalidPermitParams.selector);
+        erc6909.temporaryApproveAndCall(target, true, 1, 100, target, data);
+    }
+
+    function testFuzz_temporaryApproveAndCallBySig(bool _isOperator, uint256 _id, uint256 _amount) public {
+        Account memory _owner = ALICE;
+        if (_isOperator) {
+            _id = 0;
+            _amount = 0;
+        }
+
+        address target = address(callback);
+
+        uint256 nonce = erc6909.nonces(_owner.addr);
+
+        uint256 deadline = type(uint256).max;
+
+        bytes memory signature = getPermitSignature(
+            true, _owner.addr, _owner.key, target, _isOperator, _id, _amount, target, "", nonce++, deadline
+        );
+
+        erc6909.temporaryApproveAndCallBySig(
+            _owner.addr, target, _isOperator, _id, _amount, target, "", deadline, signature
+        );
+
+        assertEq(erc6909.isOperator(_owner.addr, target), false);
+        assertEq(erc6909.allowance(_owner.addr, target, _id), 0);
+    }
+
+    function testFuzz_temporaryApproveAndCallBySig_Revert_whenExpired(
+        bool _isOperator,
+        uint256 _id,
+        uint256 _amount
+    )
+        public
+    {
+        Account memory _owner = ALICE;
+        if (_isOperator) {
+            _id = 0;
+            _amount = 0;
+        }
+
+        address target = address(callback);
+
+        uint256 nonce = erc6909.nonces(_owner.addr);
+
+        uint256 deadline = block.timestamp - 1;
+
+        bytes memory signature = getPermitSignature(
+            true, _owner.addr, _owner.key, target, _isOperator, _id, _amount, target, "", nonce++, deadline
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(ExpiredSignature.selector, deadline));
+        erc6909.temporaryApproveAndCallBySig(
+            _owner.addr, target, _isOperator, _id, _amount, target, "", deadline, signature
+        );
+    }
+
+    function testFuzz_temporaryApproveAndCallBySig_Revert_whenDoubleSpend(
+        bool _isOperator,
+        uint256 _id,
+        uint256 _amount
+    )
+        public
+    {
+        Account memory _owner = ALICE;
+        if (_isOperator) {
+            _id = 0;
+            _amount = 0;
+        }
+
+        address target = address(callback);
+
+        uint256 nonce = erc6909.nonces(_owner.addr);
+
+        uint256 deadline = type(uint256).max;
+
+        bytes memory signature = getPermitSignature(
+            true, _owner.addr, _owner.key, target, _isOperator, _id, _amount, target, "", nonce++, deadline
+        );
+
+        erc6909.temporaryApproveAndCallBySig(
+            _owner.addr, target, _isOperator, _id, _amount, target, "", deadline, signature
+        );
+
+        vm.expectRevert(InvalidSigner.selector);
+        erc6909.temporaryApproveAndCallBySig(
+            _owner.addr, target, _isOperator, _id, _amount, target, "", deadline, signature
+        );
+    }
+
+    function test_temporaryApproveAndCallBySig_Revert_whenInvalidPermitParams() public {
+        Account memory _owner = ALICE;
+
+        address target = address(callback);
+
+        uint256 nonce = erc6909.nonces(_owner.addr);
+
+        uint256 deadline = type(uint256).max;
+
+        bytes memory signature =
+            getPermitSignature(true, _owner.addr, _owner.key, target, true, 1, 1, target, "", nonce++, deadline);
+
+        vm.expectRevert(InvalidPermitParams.selector);
+        erc6909.temporaryApproveAndCallBySig(_owner.addr, target, true, 1, 1, target, "", deadline, signature);
+    }
 
     function testFuzz_approveBySig(address _spender, uint256 _id, bool _isOperator, uint256 _value) public {
         Account memory _owner = ALICE;
@@ -326,4 +481,16 @@ contract ERC6909Test is BaseTest {
 
         digest = permitUtils.getTypedDataHash(permit);
     }
+
+    function onTemporaryApprove(
+        address owner,
+        bool isOperator,
+        uint256 id,
+        uint256 amount,
+        bytes calldata
+    )
+        external
+        view
+        returns (bytes4)
+    { }
 }
