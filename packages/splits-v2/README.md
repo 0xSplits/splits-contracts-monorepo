@@ -1,22 +1,24 @@
-## Splits v2
+# Splits - v2
 
-### Build
+![Architecture](docs/architecture.png)
+
+## Build
 
 `pnpm build`
 
-### Test
+## Test
 
 `pnpm test`
 
-#### Coverage
+### Coverage
 
 `pnpm test:coverage`
 
-#### Coverage Report
+### Coverage Report
 
 `pnpm test:coverage:report`
 
-### lint
+## Lint
 
 `pnpm lint`
 
@@ -24,7 +26,7 @@
 
 `pnpm format`
 
-### Deployment
+## Deployment
 
 To deploy contracts, please ensure you have the environment variables set in `.env` file. Please refer to `.env.sample`
 for the required environment variables.
@@ -39,7 +41,7 @@ files contains the input needed for the constructors of the contracts.
 
 To deploy contracts and verify contracts, run the following command:
 
-#### Splits Warehouse
+### Splits Warehouse
 
 `pnpm deploy:SplitsWarehouse`
 
@@ -47,7 +49,7 @@ For a test run, use the following command:
 
 `pnpm deploy:SplitsWarehouse:test`
 
-#### Split Factory V2
+### Split Factory V2
 
 `pnpm deploy:SplitFactoryV2`
 
