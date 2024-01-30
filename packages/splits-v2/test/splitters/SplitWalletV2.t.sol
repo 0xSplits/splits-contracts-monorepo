@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.18;
 
 import { Clone } from "../../src/libraries/Clone.sol";
@@ -229,6 +229,7 @@ contract SplitWalletV2Test is BaseTest {
 
         vm.startPrank(ALICE.addr);
         wallet.setPaused(true);
+        if (split.totalAllocation == 0 && split.recipients.length > 0) vm.expectRevert();
         wallet.distribute(split, token, ALICE.addr);
         vm.stopPrank();
 
@@ -256,6 +257,7 @@ contract SplitWalletV2Test is BaseTest {
 
         wallet.distribute(split, token, ALICE.addr);
 
+        if (split.totalAllocation == 0 && split.recipients.length > 0) vm.expectRevert();
         assertDistribute(split, token, _warehouseAmount, _splitAmount, ALICE.addr);
     }
 
@@ -278,6 +280,7 @@ contract SplitWalletV2Test is BaseTest {
 
         dealSplit(address(wallet), native, splitAmount, _warehouseAmount);
 
+        if (split.totalAllocation == 0 && split.recipients.length > 0) vm.expectRevert();
         wallet.distribute(split, native, ALICE.addr);
         assertDistribute(split, native, _warehouseAmount, splitAmount, ALICE.addr);
     }

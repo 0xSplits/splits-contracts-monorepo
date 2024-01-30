@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.18;
 
 import { SplitsWarehouse } from "../../src/SplitsWarehouse.sol";
@@ -100,6 +100,33 @@ contract SplitsWarehouseHandler is CommonBase, StdCheats, StdUtils {
         warehouseBalance[token] -= balance - 1;
     }
 
+    function withdraw(uint256 _user, uint256[2] memory _amounts, uint256 _withdrawer) public {
+        _user = bound(_user, 0, users.length - 1);
+        address user = users[_user];
+
+        _withdrawer = bound(_withdrawer, 0, users.length - 1);
+        address withdrawer = users[_withdrawer];
+
+        address[] memory _tokens = new address[](2);
+        uint256[] memory amounts = new uint256[](2);
+
+        for (uint256 i = 0; i < 2; i++) {
+            _tokens[i] = tokens[i];
+            amounts[i] = bound(_amounts[i], 0, warehouse.balanceOf(user, _tokens[i].toUint256()));
+        }
+
+        (, bool paused) = warehouse.withdrawConfig(user);
+
+        vm.prank(withdrawer);
+        if (user == badActor || paused) {
+            return;
+        }
+        warehouse.withdraw(user, _tokens, amounts, withdrawer);
+
+        warehouseBalance[tokens[0]] -= amounts[0];
+        warehouseBalance[tokens[1]] -= amounts[1];
+    }
+
     function transfer(uint256 _sender, uint256 _receiver, uint256 _token, uint256 _amount) public mockUser(_sender) {
         _sender = bound(_sender, 0, users.length - 1);
         _receiver = bound(_receiver, 0, users.length - 1);
@@ -190,6 +217,42 @@ contract SplitsWarehouseHandler is CommonBase, StdCheats, StdUtils {
         _token = bound(_token, 0, tokens.length - 1);
         address token = tokens[_token];
         warehouse.batchTransfer(receiverAddresses, token, amounts);
+    }
+
+    function batchDeposit(
+        uint256 _sender,
+        uint256[5] memory _receivers,
+        uint256[5] memory _amounts,
+        uint256 _token
+    )
+        public
+        mockUser(_sender)
+    {
+        address[] memory receiverAddresses = new address[](5);
+        uint256[] memory amounts = new uint256[](5);
+        _sender = bound(_sender, 0, users.length - 1);
+        _token = bound(_token, 0, tokens.length - 1);
+        address token = tokens[_token];
+
+        uint256 balance = token == native ? address(this).balance : IERC20(tokens[_token]).balanceOf(address(this));
+        uint256 amount = 0;
+        for (uint256 i = 0; i < 5; i++) {
+            _receivers[i] = bound(_receivers[i], 0, users.length - 1);
+            receiverAddresses[i] = users[_receivers[i]];
+
+            amounts[i] = bound(_amounts[i], 0, balance);
+            balance -= amounts[i];
+            amount += amounts[i];
+        }
+
+        if (token == native) {
+            warehouse.batchDeposit{ value: amount }(receiverAddresses, token, amounts);
+        } else {
+            IERC20(token).approve(address(warehouse), amount);
+            warehouse.batchDeposit(receiverAddresses, token, amounts);
+        }
+
+        warehouseBalance[token] += amount;
     }
 
     function filter(
