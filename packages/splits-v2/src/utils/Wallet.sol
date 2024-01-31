@@ -6,7 +6,7 @@ import { Pausable } from "./Pausable.sol";
 /**
  * @title Wallet Implementation
  * @author 0xSplits
- * @notice Minimal smart wallet clone-implementation
+ * @notice Minimal smart wallet clone-implementation.
  */
 abstract contract Wallet is Pausable {
     /* -------------------------------------------------------------------------- */
@@ -42,8 +42,9 @@ abstract contract Wallet is Pausable {
     /* -------------------------------------------------------------------------- */
 
     /**
-     * @notice Execute a batch of calls
-     * @dev The calls are executed in order, reverting if any of them fails, can only be called by the owner
+     * @notice Execute a batch of calls.
+     * @dev The calls are executed in order, reverting if any of them fails. Can
+     * only be called by the owner.
      * @param _calls The calls to execute
      */
     function execCalls(Call[] calldata _calls)

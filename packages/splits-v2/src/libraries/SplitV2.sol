@@ -15,12 +15,12 @@ library SplitV2Lib {
 
     /**
      * @notice Split struct
-     * @dev This struct is used to store the split information
-     * @param recipients The recipients of the split
-     * @param allocations The allocations of the split
-     * @param totalAllocation The total allocation of the split
-     * @param distributionIncentive The incentive for distribution
-     * @param distributeByPush Whether the split balance should be pushed to recipients
+     * @dev This struct is used to store the split information.
+     * @param recipients The recipients of the split.
+     * @param allocations The allocations of the split.
+     * @param totalAllocation The total allocation of the split.
+     * @param distributionIncentive The incentive for distribution.
+     * @param distributeByPush Whether the split balance should be pushed to recipients.
      */
     struct Split {
         address[] recipients;
@@ -111,14 +111,27 @@ library SplitV2Lib {
         }
     }
 
+    function calculateAllocatedAmount(
+        Split calldata _split,
+        uint256 i,
+        uint256 _amount
+    )
+        internal
+        pure
+        returns (uint256 allocatedAmount)
+    {
+        allocatedAmount = _amount * _split.allocations[i] / _split.totalAllocation;
+    }
+
+
     function calculateDistributorReward(
-        uint16 _distributionIncentive,
+        Split calldata _split,
         uint256 _amount
     )
         internal
         pure
         returns (uint256 distributorReward)
     {
-        distributorReward = _amount * _distributionIncentive / PERCENTAGE_SCALE;
+        distributorReward = _amount * _split.distributionIncentive / PERCENTAGE_SCALE;
     }
 }
