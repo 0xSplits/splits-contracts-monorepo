@@ -41,7 +41,13 @@ abstract contract Pausable is Ownable {
     /* -------------------------------------------------------------------------- */
 
     modifier pausable() virtual {
-        if (paused && msg.sender != owner) revert Paused();
+        // is solc smart enough to only use a single SLOAD here?
+        address owner_ = owner;
+        bool paused_ = paused;
+        if (msg.sender != owner_ && tx.origin != owner_ && msg.sender != address(this)) {
+            // nest to reduce gas in the happy-case (solidity/evm won't short circuit)
+            if (paused_) revert Paused();
+        }
         _;
     }
 
