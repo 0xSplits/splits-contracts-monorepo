@@ -260,6 +260,7 @@ contract SplitWalletV2 is Wallet {
             if (distributorReward > 0) IERC20(_token).safeTransfer(_distributor, distributorReward);
         }
 
+        // TODO: is there an issue w rounding on the indexer when we only include amountDistributed here?
         emit SplitDistributed(_token, _distributor, amountDistributed, distributorReward, true);
     }
 
@@ -276,6 +277,7 @@ contract SplitWalletV2 is Wallet {
             _split.getDistributions(_amount);
         SPLITS_WAREHOUSE.batchTransfer(_split.recipients, _token, amounts);
         if (distibutorReward > 0) SPLITS_WAREHOUSE.transfer(_distributor, _token.toUint256(), distibutorReward);
+        // TODO: is there an issue w rounding on the indexer when we only include amountDistributed here?
         emit SplitDistributed(_token, _distributor, amountDistributed, distibutorReward, false);
     }
 }
