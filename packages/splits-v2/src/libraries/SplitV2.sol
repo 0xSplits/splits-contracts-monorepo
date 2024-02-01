@@ -113,14 +113,14 @@ library SplitV2Lib {
 
     function calculateAllocatedAmount(
         Split calldata _split,
-        uint256 i,
-        uint256 _amount
+        uint256 _amount,
+        uint256 _index
     )
         internal
         pure
         returns (uint256 allocatedAmount)
     {
-        allocatedAmount = _amount * _split.allocations[i] / _split.totalAllocation;
+        allocatedAmount = _amount * _split.allocations[_index] / _split.totalAllocation;
     }
 
 
