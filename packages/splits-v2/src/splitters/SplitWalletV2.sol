@@ -35,13 +35,7 @@ contract SplitWalletV2 is Wallet {
     /* -------------------------------------------------------------------------- */
 
     event SplitUpdated(SplitV2Lib.Split _split);
-    event SplitDistributed(
-        address indexed _token,
-        address indexed _distributor,
-        uint256 _amountDistributed,
-        uint256 _distributorReward,
-        bool _distributeByPush
-    );
+    event SplitDistributed(address indexed _token, address indexed _distributor, uint256 _amountDistributed);
 
     /* -------------------------------------------------------------------------- */
     /*                            CONSTANTS/IMMUTABLES                            */
@@ -222,17 +216,13 @@ contract SplitWalletV2 is Wallet {
         internal
     {
         uint256 numOfRecipients = _split.recipients.length;
-        // NOTE: are these fns silly?
         uint256 distributorReward = _split.calculateDistributorReward(_amount);
         uint256 amountToDistribute = _amount - distributorReward;
-        uint256 amountDistributed;
         uint256 allocatedAmount;
 
         if (_token == NATIVE_TOKEN) {
             for (uint256 i; i < numOfRecipients;) {
-                // NOTE: are these fns silly?
                 allocatedAmount = _split.calculateAllocatedAmount(amountToDistribute, i);
-                amountDistributed += allocatedAmount;
 
                 if (!_split.recipients[i].trySafeTransferETH(allocatedAmount, SafeTransferLib.GAS_STIPEND_NO_GRIEF)) {
                     SPLITS_WAREHOUSE.deposit{ value: allocatedAmount }(_split.recipients[i], _token, allocatedAmount);
@@ -246,9 +236,7 @@ contract SplitWalletV2 is Wallet {
             if (distributorReward > 0) _distributor.safeTransferETH(distributorReward);
         } else {
             for (uint256 i; i < numOfRecipients;) {
-                // NOTE: are these fns silly?
                 allocatedAmount = _split.calculateAllocatedAmount(amountToDistribute, i);
-                amountDistributed += allocatedAmount;
 
                 IERC20(_token).safeTransfer(_split.recipients[i], allocatedAmount);
 
@@ -259,9 +247,7 @@ contract SplitWalletV2 is Wallet {
 
             if (distributorReward > 0) IERC20(_token).safeTransfer(_distributor, distributorReward);
         }
-
-        // TODO: is there an issue w rounding on the indexer when we only include amountDistributed here?
-        emit SplitDistributed(_token, _distributor, amountDistributed, distributorReward, true);
+        emit SplitDistributed(_token, _distributor, _amount);
     }
 
     /// @dev Assumes the amount is already deposited to the warehouse.
@@ -273,11 +259,9 @@ contract SplitWalletV2 is Wallet {
     )
         internal
     {
-        (uint256[] memory amounts, uint256 amountDistributed, uint256 distibutorReward) =
-            _split.getDistributions(_amount);
+        (uint256[] memory amounts, uint256 distibutorReward) = _split.getDistributions(_amount);
         SPLITS_WAREHOUSE.batchTransfer(_split.recipients, _token, amounts);
         if (distibutorReward > 0) SPLITS_WAREHOUSE.transfer(_distributor, _token.toUint256(), distibutorReward);
-        // TODO: is there an issue w rounding on the indexer when we only include amountDistributed here?
-        emit SplitDistributed(_token, _distributor, amountDistributed, distibutorReward, false);
+        emit SplitDistributed(_token, _distributor, _amount);
     }
 }

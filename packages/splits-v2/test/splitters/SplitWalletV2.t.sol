@@ -435,7 +435,7 @@ contract SplitWalletV2Test is BaseTest {
         uint256 totalAmount = _warehouseAmount + _splitAmount;
         if (_warehouseAmount > 0 && _split.distributeByPush == true) totalAmount -= 1;
         if (_splitAmount > 0 && _split.distributeByPush == false) totalAmount -= 1;
-        (uint256[] memory amounts,, uint256 reward) = SplitV2Lib.getDistributionsMem(_split, totalAmount);
+        (uint256[] memory amounts, uint256 reward) = SplitV2Lib.getDistributionsMem(_split, totalAmount);
 
         if (_split.distributeByPush) {
             if (_token == native) {

@@ -41,7 +41,6 @@ abstract contract Pausable is Ownable {
     /* -------------------------------------------------------------------------- */
 
     modifier pausable() virtual {
-        // is solc smart enough to only use a single SLOAD here?
         address owner_ = owner;
         bool paused_ = paused;
         if (paused_) {

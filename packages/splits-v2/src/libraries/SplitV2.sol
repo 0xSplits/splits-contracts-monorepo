@@ -71,7 +71,7 @@ library SplitV2Lib {
     )
         internal
         pure
-        returns (uint256[] memory amounts, uint256 amountDistributed, uint256 distributorReward)
+        returns (uint256[] memory amounts, uint256 distributorReward)
     {
         uint256 numOfRecipients = _split.recipients.length;
         amounts = new uint256[](numOfRecipients);
@@ -81,7 +81,6 @@ library SplitV2Lib {
 
         for (uint256 i; i < numOfRecipients;) {
             amounts[i] = _amount * _split.allocations[i] / _split.totalAllocation;
-            amountDistributed += amounts[i];
             unchecked {
                 ++i;
             }
@@ -94,7 +93,7 @@ library SplitV2Lib {
     )
         internal
         pure
-        returns (uint256[] memory amounts, uint256 amountDistributed, uint256 distributorReward)
+        returns (uint256[] memory amounts, uint256 distributorReward)
     {
         uint256 numOfRecipients = _split.recipients.length;
         amounts = new uint256[](numOfRecipients);
@@ -104,7 +103,6 @@ library SplitV2Lib {
 
         for (uint256 i; i < numOfRecipients;) {
             amounts[i] = _amount * _split.allocations[i] / _split.totalAllocation;
-            amountDistributed += amounts[i];
             unchecked {
                 ++i;
             }
@@ -122,7 +120,6 @@ library SplitV2Lib {
     {
         allocatedAmount = _amount * _split.allocations[_index] / _split.totalAllocation;
     }
-
 
     function calculateDistributorReward(
         Split calldata _split,
