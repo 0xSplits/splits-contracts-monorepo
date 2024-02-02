@@ -214,13 +214,7 @@ contract SplitsWarehouse is ERC6909X {
         }
 
         uint256 amount = balanceOf[_owner][_token.toUint256()] - 1;
-        _withdraw({
-            _owner: _owner,
-            _token: _token,
-            _amount: amount,
-            _withdrawer: msg.sender,
-            _reward: 0
-        });
+        _withdraw({ _owner: _owner, _token: _token, _amount: amount, _withdrawer: msg.sender, _reward: 0 });
     }
 
     /**
