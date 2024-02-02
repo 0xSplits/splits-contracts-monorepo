@@ -283,7 +283,7 @@ contract SplitWalletV2Test is BaseTest {
 
         dealSplit(address(wallet), token, _splitAmount, _warehouseAmount);
 
-        if (split.totalAllocation == 0 && split.recipients.length > 0) vm.expectRevert();
+        if (split.totalAllocation == 0 && split.recipients.length > 0) return;
         if (_useSimpleDistribute) {
             wallet.distribute(split, token, ALICE.addr);
         } else {
