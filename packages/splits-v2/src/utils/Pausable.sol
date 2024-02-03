@@ -41,7 +41,14 @@ abstract contract Pausable is Ownable {
     /* -------------------------------------------------------------------------- */
 
     modifier pausable() virtual {
-        if (paused && msg.sender != owner) revert Paused();
+        address owner_ = owner;
+        bool paused_ = paused;
+        if (paused_) {
+            // nest to reduce gas in the happy-case (solidity/evm won't short circuit)
+            if (msg.sender != owner_ && tx.origin != owner_ && msg.sender != address(this)) {
+                revert Paused();
+            }
+        }
         _;
     }
 

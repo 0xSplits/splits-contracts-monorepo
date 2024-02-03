@@ -35,13 +35,7 @@ contract SplitWalletV2 is Wallet {
     /* -------------------------------------------------------------------------- */
 
     event SplitUpdated(SplitV2Lib.Split _split);
-    event SplitDistributed(
-        address indexed _token,
-        address indexed _distributor,
-        uint256 _amountDistributed,
-        uint256 _distributorReward,
-        bool _distributeByPush
-    );
+    event SplitDistributed(address indexed _token, address indexed _distributor, uint256 _amountDistributed);
 
     /* -------------------------------------------------------------------------- */
     /*                            CONSTANTS/IMMUTABLES                            */
@@ -75,8 +69,7 @@ contract SplitWalletV2 is Wallet {
 
     /**
      * @notice Initializes the split wallet with a split and its corresponding data.
-     * @dev Only the factory can call this function. By default, the distribution direction is push and distributions
-     * are unpaused.
+     * @dev Only the factory can call this function.
      * @param split The split struct containing the split data that gets initialized
      */
     function initialize(SplitV2Lib.Split calldata split, address _owner) external {
@@ -94,12 +87,11 @@ contract SplitWalletV2 is Wallet {
     /* -------------------------------------------------------------------------- */
 
     /**
-     * @notice Distributes the split to the recipients. It distributes the amount of tokens present in Warehouse and the
-     * split wallet.
-     * @dev The split must be initialized and the split hash must match the split hash of the split wallet.
-     * @param _split The split struct containing the split data that gets distributed
-     * @param _token The token to distribute
-     * @param _distributor The distributor of the split
+     * @notice Distributes the tokens in the split & Warehouse to the recipients.
+     * @dev The split must be initialized and the hash of _split must match splitHash.
+     * @param _split The split struct containing the split data that gets distributed.
+     * @param _token The token to distribute.
+     * @param _distributor The distributor of the split.
      */
     function distribute(SplitV2Lib.Split calldata _split, address _token, address _distributor) external pausable {
         if (splitHash != _split.getHash()) revert InvalidSplit();
@@ -133,16 +125,14 @@ contract SplitWalletV2 is Wallet {
     }
 
     /**
-     * @notice Distributes the split to the recipients. It distributes the amount of tokens present in Warehouse and the
-     * split wallet.
-     * @dev The split must be initialized and the split hash must match the split hash of the split wallet.
-     * @dev The amount of tokens to distribute must be present in the split wallet or the warehouse depending on the
-     * distribution direction.
-     * @param _split the split struct containing the split data that gets distributed
-     * @param _token The token to distribute
-     * @param _distributeAmount The amount of tokens to distribute
-     * @param _warehouseTransferAmount The amount of tokens to transfer from/to the warehouse
-     * @param _distributor The distributor of the split
+     * @notice Distributes a specific amount of tokens in the split & Warehouse to the recipients.
+     * @dev The split must be initialized and the hash of _split must match splitHash.
+     * @dev Will revert if the amount of tokens to transfer or distribute doesn't exist.
+     * @param _split The split struct containing the split data that gets distributed.
+     * @param _token The token to distribute.
+     * @param _distributeAmount The amount of tokens to distribute.
+     * @param _warehouseTransferAmount The amount of tokens to transfer from/to the warehouse.
+     * @param _distributor The distributor of the split.
      */
     function distribute(
         SplitV2Lib.Split calldata _split,
@@ -166,9 +156,9 @@ contract SplitWalletV2 is Wallet {
     }
 
     /**
-     * @notice Deposits tokens to the warehouse
-     * @param _token the token to deposit
-     * @param _amount the amount of tokens to deposit
+     * @notice Deposits tokens to the warehouse.
+     * @param _token The token to deposit.
+     * @param _amount The amount of tokens to deposit
      */
     function depositToWarehouse(address _token, uint256 _amount) public {
         if (_token == NATIVE_TOKEN) {
@@ -182,18 +172,18 @@ contract SplitWalletV2 is Wallet {
     }
 
     /**
-     * @notice Withdraws tokens from the warehouse to the split wallet
-     * @param _token the token to withdraw
+     * @notice Withdraws tokens from the warehouse to the split wallet.
+     * @param _token The token to withdraw.
      */
     function withdrawFromWarehouse(address _token) public {
         SPLITS_WAREHOUSE.withdraw(address(this), _token);
     }
 
     /**
-     * @notice Gets the total token balance of the split wallet and the warehouse
-     * @param _token the token to get the balance of
-     * @return splitBalance the token balance in the split wallet
-     * @return warehouseBalance the token balance in the warehouse of the split wallet
+     * @notice Gets the total token balance of the split wallet and the warehouse.
+     * @param _token The token to get the balance of.
+     * @return splitBalance The token balance in the split wallet.
+     * @return warehouseBalance The token balance in the warehouse of the split wallet.
      */
     function getSplitBalance(address _token) public view returns (uint256 splitBalance, uint256 warehouseBalance) {
         splitBalance = (_token == NATIVE_TOKEN) ? address(this).balance : IERC20(_token).balanceOf(address(this));
@@ -201,9 +191,9 @@ contract SplitWalletV2 is Wallet {
     }
 
     /**
-     * @notice Updates the split
+     * @notice Updates the split.
      * @dev Only the owner can call this function.
-     * @param _split the split struct containing the split data that gets updated
+     * @param _split The new split struct.
      */
     function updateSplit(SplitV2Lib.Split calldata _split) external onlyOwner {
         // throws error if invalid
@@ -216,7 +206,7 @@ contract SplitWalletV2 is Wallet {
     /*                              INTERNAL/PRIVATE                              */
     /* -------------------------------------------------------------------------- */
 
-    /// @dev Assumes the amount is already present in the split wallet
+    /// @dev Assumes the amount is already present in the split wallet.
     function pushDistribute(
         SplitV2Lib.Split calldata _split,
         address _token,
@@ -226,15 +216,13 @@ contract SplitWalletV2 is Wallet {
         internal
     {
         uint256 numOfRecipients = _split.recipients.length;
-        uint256 distributorReward = SplitV2Lib.calculateDistributorReward(_split.distributionIncentive, _amount);
-        _amount -= distributorReward;
-        uint256 amountDistributed;
+        uint256 distributorReward = _split.calculateDistributorReward(_amount);
+        uint256 amountToDistribute = _amount - distributorReward;
         uint256 allocatedAmount;
 
         if (_token == NATIVE_TOKEN) {
             for (uint256 i; i < numOfRecipients;) {
-                allocatedAmount = _amount * _split.allocations[i] / _split.totalAllocation;
-                amountDistributed += allocatedAmount;
+                allocatedAmount = _split.calculateAllocatedAmount(amountToDistribute, i);
 
                 if (!_split.recipients[i].trySafeTransferETH(allocatedAmount, SafeTransferLib.GAS_STIPEND_NO_GRIEF)) {
                     SPLITS_WAREHOUSE.deposit{ value: allocatedAmount }(_split.recipients[i], _token, allocatedAmount);
@@ -248,8 +236,7 @@ contract SplitWalletV2 is Wallet {
             if (distributorReward > 0) _distributor.safeTransferETH(distributorReward);
         } else {
             for (uint256 i; i < numOfRecipients;) {
-                allocatedAmount = _amount * _split.allocations[i] / _split.totalAllocation;
-                amountDistributed += allocatedAmount;
+                allocatedAmount = _split.calculateAllocatedAmount(amountToDistribute, i);
 
                 IERC20(_token).safeTransfer(_split.recipients[i], allocatedAmount);
 
@@ -260,11 +247,10 @@ contract SplitWalletV2 is Wallet {
 
             if (distributorReward > 0) IERC20(_token).safeTransfer(_distributor, distributorReward);
         }
-
-        emit SplitDistributed(_token, _distributor, amountDistributed, distributorReward, true);
+        emit SplitDistributed(_token, _distributor, _amount);
     }
 
-    /// @dev Assumes the amount is already deposited to the warehouse
+    /// @dev Assumes the amount is already deposited to the warehouse.
     function pullDistribute(
         SplitV2Lib.Split calldata _split,
         address _token,
@@ -273,10 +259,9 @@ contract SplitWalletV2 is Wallet {
     )
         internal
     {
-        (uint256[] memory amounts, uint256 amountDistributed, uint256 distibutorReward) =
-            _split.getDistributions(_amount);
+        (uint256[] memory amounts, uint256 distibutorReward) = _split.getDistributions(_amount);
         SPLITS_WAREHOUSE.batchTransfer(_split.recipients, _token, amounts);
         if (distibutorReward > 0) SPLITS_WAREHOUSE.transfer(_distributor, _token.toUint256(), distibutorReward);
-        emit SplitDistributed(_token, _distributor, amountDistributed, distibutorReward, false);
+        emit SplitDistributed(_token, _distributor, _amount);
     }
 }

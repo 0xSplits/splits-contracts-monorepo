@@ -214,7 +214,7 @@ contract SplitsWarehouse is ERC6909X {
         }
 
         uint256 amount = balanceOf[_owner][_token.toUint256()] - 1;
-        _withdraw(_owner, _token, amount, msg.sender, 0);
+        _withdraw({ _owner: _owner, _token: _token, _amount: amount, _withdrawer: msg.sender, _reward: 0 });
     }
 
     /**
@@ -267,9 +267,9 @@ contract SplitsWarehouse is ERC6909X {
             receiver = _receivers[i];
             amount = _amounts[i];
 
-            sum += amount;
             balanceOf[receiver][tokenId] += amount;
             emit Transfer(msg.sender, msg.sender, receiver, tokenId, amount);
+            sum += amount;
 
             unchecked {
                 ++i;
