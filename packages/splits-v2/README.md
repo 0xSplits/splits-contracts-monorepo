@@ -39,7 +39,8 @@ To understand how the configuration works, please refer to [foundry docs](https:
 Each contract has its own deployment script. A config file is present in the `config` folder for each chain. The config
 files contains the input needed for the constructors of the contracts.
 
-The scripts use foundry's wallet to import the private key. To create the wallet refer to [this](https://book.getfoundry.sh/reference/cast/cast-wallet-import).
+The scripts use foundry's wallet to import the private key. To create the wallet refer to
+[this](https://book.getfoundry.sh/reference/cast/cast-wallet-import).
 
 e.g. `cast wallet import SPLITS_DEPLOYER --interactive`
 

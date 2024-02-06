@@ -44,7 +44,7 @@ abstract contract Pausable is Ownable {
         address owner_ = owner;
         bool paused_ = paused;
         if (paused_) {
-            // nest to reduce gas in the happy-case (solidity/evm won't short circuit)
+            // solhint-disable-next-line avoid-tx-origin
             if (msg.sender != owner_ && tx.origin != owner_ && msg.sender != address(this)) {
                 revert Paused();
             }
