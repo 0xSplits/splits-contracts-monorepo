@@ -10,6 +10,12 @@ import { Pausable } from "./Pausable.sol";
  */
 abstract contract Wallet is Pausable {
     /* -------------------------------------------------------------------------- */
+    /*                                   ERRORS                                   */
+    /* -------------------------------------------------------------------------- */
+
+    error TargetNotContract();
+
+    /* -------------------------------------------------------------------------- */
     /*                                   STRUCTS                                  */
     /* -------------------------------------------------------------------------- */
 
@@ -60,6 +66,11 @@ abstract contract Wallet is Pausable {
         bool success;
         for (uint256 i; i < length;) {
             Call calldata calli = _calls[i];
+
+            if (calli.to.code.length == 0) {
+                if (calli.data.length > 0) revert TargetNotContract();
+            }
+
             (success, returnData[i]) = calli.to.call{ value: calli.value }(calli.data);
 
             // solhint-disable-next-line
