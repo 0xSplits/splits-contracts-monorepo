@@ -84,7 +84,14 @@ contract WalletTest is BaseTest {
         calls[0] = call;
 
         vm.prank(wallet.owner());
-        vm.expectRevert(Wallet.TargetNotContract.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Wallet.InvalidCalldataForEOA.selector,
+                0,
+                BOB.addr,
+                abi.encodeWithSelector(Ownable.transferOwnership.selector, BOB.addr)
+            )
+        );
         wallet.execCalls(calls);
     }
 }
