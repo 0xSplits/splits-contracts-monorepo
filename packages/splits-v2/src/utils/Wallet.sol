@@ -13,7 +13,7 @@ abstract contract Wallet is Pausable {
     /*                                   ERRORS                                   */
     /* -------------------------------------------------------------------------- */
 
-    error InvalidCalldataForEOA(uint256 _index, address _target, bytes _calldata);
+    error InvalidCalldataForEOA(Call call);
 
     /* -------------------------------------------------------------------------- */
     /*                                   STRUCTS                                  */
@@ -68,7 +68,7 @@ abstract contract Wallet is Pausable {
             Call calldata calli = _calls[i];
 
             if (calli.to.code.length == 0) {
-                if (calli.data.length > 0) revert InvalidCalldataForEOA(i, calli.to, calli.data);
+                if (calli.data.length > 0) revert InvalidCalldataForEOA(calli);
             }
 
             (success, returnData[i]) = calli.to.call{ value: calli.value }(calli.data);
