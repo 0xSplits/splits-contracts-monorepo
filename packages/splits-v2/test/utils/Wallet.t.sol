@@ -72,4 +72,19 @@ contract WalletTest is BaseTest {
         vm.expectRevert();
         wallet.execCalls(new Wallet.Call[](1));
     }
+
+    function test_execCalls_Revert_TargetNotContract() public {
+        Wallet.Call memory call = Wallet.Call({
+            to: address(BOB.addr),
+            value: 0,
+            data: abi.encodeWithSelector(Ownable.transferOwnership.selector, BOB.addr)
+        });
+
+        Wallet.Call[] memory calls = new Wallet.Call[](1);
+        calls[0] = call;
+
+        vm.prank(wallet.owner());
+        vm.expectRevert(abi.encodeWithSelector(Wallet.InvalidCalldataForEOA.selector, call));
+        wallet.execCalls(calls);
+    }
 }
