@@ -12,7 +12,7 @@ contract ERC6909XUtils {
 
     bytes32 public constant APPROVE_AND_CALL_TYPE_HASH = keccak256(
         // solhint-disable-next-line max-line-length
-        "ERC6909XApproveAndCall(bool temporary,address owner,address spender,bool operator,uint256 id,uint256 amount,address target,bytes data,uint256 nonce,uint256 deadline)"
+        "ERC6909XApproveAndCall(bool temporary,address owner,address spender,bool operator,uint256 id,uint256 amount,address target,bytes data,uint256 nonce,uint48 deadline)"
     );
 
     struct ERC6909XApproveAndCall {
@@ -25,7 +25,7 @@ contract ERC6909XUtils {
         address target;
         bytes data;
         uint256 nonce;
-        uint256 deadline;
+        uint48 deadline;
     }
 
     // computes the hash of a permit

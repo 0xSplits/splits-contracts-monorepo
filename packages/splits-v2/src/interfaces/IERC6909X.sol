@@ -26,7 +26,7 @@ interface IERC6909X is IERC5267 {
         uint256 amount,
         address target,
         bytes calldata data,
-        uint256 deadline,
+        uint48 deadline,
         bytes calldata signature
     )
         external
@@ -38,7 +38,7 @@ interface IERC6909X is IERC5267 {
         bool operator,
         uint256 id,
         uint256 amount,
-        uint256 deadline,
+        uint48 deadline,
         bytes calldata signature
     )
         external

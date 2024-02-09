@@ -13,7 +13,7 @@ import { ERC6909Callback } from "./ERC6909Callback.sol";
 import { ERC6909Test as ERC6909 } from "./ERC6909Test.sol";
 
 contract ERC6909Test is BaseTest {
-    error ExpiredSignature(uint256 deadline);
+    error ExpiredSignature(uint48 deadline);
     error InvalidSigner();
     error InvalidPermitParams();
     error InvalidAck();
@@ -241,7 +241,7 @@ contract ERC6909Test is BaseTest {
 
         uint256 nonce = erc6909.nonces(_owner.addr);
 
-        uint256 deadline = type(uint256).max;
+        uint48 deadline = type(uint48).max;
 
         bytes memory signature = getPermitSignature(
             true, _owner.addr, _owner.key, target, _isOperator, _id, _amount, target, "", nonce++, deadline
@@ -272,7 +272,7 @@ contract ERC6909Test is BaseTest {
 
         uint256 nonce = erc6909.nonces(_owner.addr);
 
-        uint256 deadline = block.timestamp - 1;
+        uint48 deadline = uint48(block.timestamp) - 1;
 
         bytes memory signature = getPermitSignature(
             true, _owner.addr, _owner.key, target, _isOperator, _id, _amount, target, "", nonce++, deadline
@@ -301,7 +301,7 @@ contract ERC6909Test is BaseTest {
 
         uint256 nonce = erc6909.nonces(_owner.addr);
 
-        uint256 deadline = type(uint256).max;
+        uint48 deadline = type(uint48).max;
 
         bytes memory signature = getPermitSignature(
             true, _owner.addr, _owner.key, target, _isOperator, _id, _amount, target, "", nonce++, deadline
@@ -324,7 +324,7 @@ contract ERC6909Test is BaseTest {
 
         uint256 nonce = erc6909.nonces(_owner.addr);
 
-        uint256 deadline = type(uint256).max;
+        uint48 deadline = type(uint48).max;
 
         bytes memory signature =
             getPermitSignature(true, _owner.addr, _owner.key, target, true, 1, 1, target, "", nonce++, deadline);
@@ -342,7 +342,7 @@ contract ERC6909Test is BaseTest {
 
         uint256 nonce = erc6909.nonces(_owner.addr);
 
-        uint256 deadline = type(uint256).max;
+        uint48 deadline = type(uint48).max;
 
         bytes memory signature = getPermitSignature(
             false, _owner.addr, _owner.key, _spender, _isOperator, _id, _value, address(0), "", nonce++, deadline
@@ -373,7 +373,7 @@ contract ERC6909Test is BaseTest {
 
         uint256 nonce = erc6909.nonces(_owner.addr);
 
-        uint256 deadline = block.timestamp - 1;
+        uint48 deadline = uint48(block.timestamp) - 1;
 
         bytes memory signature = getPermitSignature(
             false, _owner.addr, _owner.key, _spender, _isOperator, _id, _value, address(0), "", nonce++, deadline
@@ -390,7 +390,7 @@ contract ERC6909Test is BaseTest {
 
         uint256 nonce = erc6909.nonces(_owner.addr);
 
-        uint256 deadline = type(uint256).max;
+        uint48 deadline = type(uint48).max;
 
         bytes memory signature = getPermitSignature(
             false, _owner.addr, _owner.key, _spender, isOperator, _id, _value, address(0), "", nonce++, deadline
@@ -417,7 +417,7 @@ contract ERC6909Test is BaseTest {
 
         uint256 nonce = erc6909.nonces(_owner.addr);
 
-        uint256 deadline = type(uint256).max;
+        uint48 deadline = type(uint48).max;
 
         bytes memory signature = getPermitSignature(
             false, _owner.addr, _owner.key, _spender, isOperator, _id, _value, address(0), "", nonce++, deadline
@@ -438,7 +438,7 @@ contract ERC6909Test is BaseTest {
         address _target,
         bytes memory _data,
         uint256 _nonce,
-        uint256 _deadline
+        uint48 _deadline
     )
         public
         view
@@ -460,7 +460,7 @@ contract ERC6909Test is BaseTest {
         address _target,
         bytes memory _data,
         uint256 _nonce,
-        uint256 _deadline
+        uint48 _deadline
     )
         public
         view

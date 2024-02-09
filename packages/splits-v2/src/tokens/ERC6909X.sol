@@ -20,14 +20,14 @@ contract ERC6909X is ERC6909, EIP712, Nonces, IERC6909X {
 
     bytes32 public constant APPROVE_AND_CALL_TYPE_HASH = keccak256(
         // solhint-disable-next-line max-line-length
-        "ERC6909XApproveAndCall(bool temporary,address owner,address spender,bool operator,uint256 id,uint256 amount,address target,bytes data,uint256 nonce,uint256 deadline)"
+        "ERC6909XApproveAndCall(bool temporary,address owner,address spender,bool operator,uint256 id,uint256 amount,address target,bytes data,uint256 nonce,uint48 deadline)"
     );
 
     /* -------------------------------------------------------------------------- */
     /*                                   ERRORS                                   */
     /* -------------------------------------------------------------------------- */
 
-    error ExpiredSignature(uint256 deadline);
+    error ExpiredSignature(uint48 deadline);
     error InvalidSigner();
     error InvalidPermitParams();
     error InvalidAck();
@@ -73,7 +73,7 @@ contract ERC6909X is ERC6909, EIP712, Nonces, IERC6909X {
         uint256 amount,
         address target,
         bytes memory data,
-        uint256 deadline,
+        uint48 deadline,
         bytes memory signature
     )
         external
@@ -93,7 +93,7 @@ contract ERC6909X is ERC6909, EIP712, Nonces, IERC6909X {
         bool operator,
         uint256 id,
         uint256 amount,
-        uint256 deadline,
+        uint48 deadline,
         bytes memory signature
     )
         external
@@ -160,7 +160,7 @@ contract ERC6909X is ERC6909, EIP712, Nonces, IERC6909X {
         address target,
         bytes memory data,
         uint256 nonce,
-        uint256 deadline,
+        uint48 deadline,
         bytes memory signature
     )
         internal
@@ -182,7 +182,7 @@ contract ERC6909X is ERC6909, EIP712, Nonces, IERC6909X {
         address target,
         bytes memory data,
         uint256 nonce,
-        uint256 deadline
+        uint48 deadline
     )
         internal
         view
