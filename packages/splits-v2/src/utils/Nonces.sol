@@ -2,30 +2,67 @@
 pragma solidity ^0.8.18;
 
 /**
- * @title Track user Nonces
- * @dev Inspired by OpenZeppelin's Nonces.sol
+ * @title Track user nonces.
+ * @dev Inspired by Uniswap's Permit2 UnorderedNonces.
  */
-abstract contract Nonces {
-    mapping(address account => uint256) private _nonces;
+abstract contract UnorderedNonces {
+    /* -------------------------------------------------------------------------- */
+    /*                                   ERRORS                                   */
+    /* -------------------------------------------------------------------------- */
+
+    error InvalidNonce();
+
+    /* -------------------------------------------------------------------------- */
+    /*                                   EVENTS                                   */
+    /* -------------------------------------------------------------------------- */
+
+    event NonceInvalidation(address indexed owner, uint256 word, uint256 bitMap);
+
+    /* -------------------------------------------------------------------------- */
+    /*                                   STORAGE                                  */
+    /* -------------------------------------------------------------------------- */
 
     /**
-     * @dev Returns the next unused nonce for an address.
+     * @notice Mapping of token owner to a specified word to a bitmap.
+     * @dev word is capped at type(uint248).max.
+     * @dev returns a uint256 bitmap.
      */
-    function nonces(address owner) public view virtual returns (uint256) {
-        return _nonces[owner];
+    mapping(address account => mapping(uint256 word => uint256 bitMap)) public nonceBitMap;
+
+    /* -------------------------------------------------------------------------- */
+    /*                             EXTERNAL FUNCTIONS                             */
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @notice Invalidates the bits specified in mask for the bitmap at the word position.
+     * @dev The word is maxed at type(uint248).max.
+     * @param _word A number to index the nonceBitmap at.
+     * @param _bitMap A bitmap masked against msg.sender's current bitmap at the word position.
+     */
+    function invalidateNonces(uint256 _word, uint256 _bitMap) external {
+        nonceBitMap[msg.sender][_word] |= _bitMap;
+
+        emit NonceInvalidation(msg.sender, _word, _bitMap);
     }
 
-    /**
-     * @dev Consumes a nonce.
-     *
-     * Returns the current value and increments nonce.
-     */
-    function _useNonce(address owner) internal virtual returns (uint256) {
-        // For each account, the nonce has an initial value of 0, can only be incremented by one, and cannot be
-        // decremented or reset. This guarantees that the nonce never overflows.
-        unchecked {
-            // It is important to do x++ and not ++x here.
-            return _nonces[owner]++;
-        }
+    /* -------------------------------------------------------------------------- */
+    /*                             INTERNAL FUNCTIONS                             */
+    /* -------------------------------------------------------------------------- */
+
+    function useNonce(address from, uint256 nonce) internal {
+        // word is nonce divided by 256.
+        uint256 word = uint256(nonce) >> 8;
+
+        // bitMap is nonce modulo 256.
+        uint256 bitMap = uint8(nonce);
+
+        // bit is 1 shifted left by the bitMap.
+        uint256 bit = 1 << bitMap;
+
+        // flip the bit in the bitmap by taking a bitwise XOR.
+        uint256 flipped = nonceBitMap[from][word] ^= bit;
+
+        // check if the bit was already flipped.
+        if (flipped & bit == 0) revert InvalidNonce();
     }
 }

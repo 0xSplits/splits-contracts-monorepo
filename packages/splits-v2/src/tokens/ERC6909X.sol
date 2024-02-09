@@ -3,7 +3,7 @@ pragma solidity ^0.8.18;
 
 import { IERC6909X } from "../interfaces/IERC6909X.sol";
 import { IERC6909XCallback } from "../interfaces/IERC6909XCallback.sol";
-import { Nonces } from "../utils/Nonces.sol";
+import { UnorderedNonces } from "../utils/Nonces.sol";
 import { ERC6909 } from "./ERC6909.sol";
 import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
@@ -13,7 +13,7 @@ import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/Sig
  * @dev Implementation of the ERC-6909 Permit extension allowing approvals to spenders and operators to be made via
  * signatures.
  */
-contract ERC6909X is ERC6909, EIP712, Nonces, IERC6909X {
+contract ERC6909X is ERC6909, EIP712, UnorderedNonces, IERC6909X {
     /* -------------------------------------------------------------------------- */
     /*                            CONSTANTS/IMMUTABLES                            */
     /* -------------------------------------------------------------------------- */
@@ -73,13 +73,15 @@ contract ERC6909X is ERC6909, EIP712, Nonces, IERC6909X {
         uint256 amount,
         address target,
         bytes memory data,
+        uint256 nonce,
         uint48 deadline,
         bytes memory signature
     )
         external
         returns (bool)
     {
-        uint256 nonce = _useNonce(owner);
+        // if the nonce is invalid, the function will revert.
+        useNonce(owner, nonce);
         _validateApproveAndCallSignature( /* temporary = */
             true, owner, spender, operator, id, amount, target, data, nonce, deadline, signature
         );
@@ -93,13 +95,15 @@ contract ERC6909X is ERC6909, EIP712, Nonces, IERC6909X {
         bool operator,
         uint256 id,
         uint256 amount,
+        uint256 nonce,
         uint48 deadline,
         bytes memory signature
     )
         external
         returns (bool)
     {
-        uint256 nonce = _useNonce(owner);
+        // if the nonce is invalid, the function will revert.
+        useNonce(owner, nonce);
         _validateApproveAndCallSignature( /* temporary = */
             false, owner, spender, operator, id, amount, address(0), "", nonce, deadline, signature
         );
