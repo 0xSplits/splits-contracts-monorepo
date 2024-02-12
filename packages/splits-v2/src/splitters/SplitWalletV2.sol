@@ -164,10 +164,11 @@ contract SplitWalletV2 is Wallet {
         if (_token == NATIVE_TOKEN) {
             SPLITS_WAREHOUSE.deposit{ value: _amount }(address(this), _token, _amount);
         } else {
-            if (IERC20(_token).allowance(address(this), address(SPLITS_WAREHOUSE)) < _amount) {
+            try SPLITS_WAREHOUSE.deposit(address(this), _token, _amount) { }
+            catch {
                 IERC20(_token).approve(address(SPLITS_WAREHOUSE), type(uint256).max);
+                SPLITS_WAREHOUSE.deposit(address(this), _token, _amount);
             }
-            SPLITS_WAREHOUSE.deposit(address(this), _token, _amount);
         }
     }
 
