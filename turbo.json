@@ -6,6 +6,10 @@
       "dependsOn": ["^build"],
       "outputs": [".next/**", "!.next/cache/**"]
     },
+    "build:optimized": {
+      "dependsOn": ["^build:optimized"],
+      "outputs": [".next/**", "!.next/cache/**"]
+    },
     "lint": {
       "dependsOn": ["^lint"]
     },
@@ -14,6 +18,9 @@
     },
     "test": {
       "dependsOn": ["^test"]
+    },
+    "test:optimized": {
+      "dependsOn": ["^test:optimized"]
     },
     "dev": {
       "cache": false,

@@ -1,16 +1,16 @@
 [profile.default]
 auto_detect_solc = false
-gas_reports = ["*"]
+gas_reports = ["SplitsWarehouse", "SplitFactoryV2", "SplitWalletV2"]
 optimizer = true
 optimizer_runs = 5_000_000
 out = "out"
 script = "script"
-solc = "0.8.18"
+solc = "0.8.23"
 src = "src"
 test = "test"
 allow_paths = ['../../node_modules']
 fs_permissions = [{ access = "read-write", path = "./" }]
-
+evm_version = "shanghai"
 
 [profile.default.fuzz]
 max_test_rejects = 1_000_000
@@ -21,6 +21,18 @@ call_override = false
 depth = 20
 fail_on_revert = true
 runs = 20
+
+[profile.optimized]
+out = "out-optimized"
+via_ir = true
+
+[profile.test-optimized]
+ffi = true
+src = "test"
+
+[doc]
+ignore = ["**/*.t.sol"]
+out = "docs"
 
 [profile.ci]
 fuzz = { runs = 10_000 }
@@ -36,34 +48,6 @@ quote_style = "double"
 tab_width = 4
 wrap_comments = true
 sort_imports = true
-
-[profile.smt]
-out = "out-optimized"
-script = "src"
-test = "src"
-via_ir = false
-
-[profile.smt.model_checker]
-engine = "chc" # constrained Horn clauses
-invariants = ["contract", "reentrancy"]
-show_proved_safe = true
-show_unproved = true
-show_unsupported = true
-timeout = 100_000 # in milliseconds, per solving query
-targets = [
-    "assert",
-    "constantCondition",
-    "divByZero",
-    "outOfBounds",
-    "overflow",
-    "underflow",
-]
-
-[profile.smt.model_checker.contracts]
-"src/SplitsWarehouse.sol" = ["SplitsWarehouse"]
-"src/splitters/SplitWalletV2.sol" = ["SplitWalletV2"]
-"src/splitters/SplitFactoryV2.sol" = ["SplitFactoryV2"]
-
 
 [etherscan]
 mainnet = { key = "${ETHERSCAN_API_KEY}" }

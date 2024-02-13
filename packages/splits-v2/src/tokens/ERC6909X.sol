@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.23;
 
 import { IERC6909X } from "../interfaces/IERC6909X.sol";
 import { IERC6909XCallback } from "../interfaces/IERC6909XCallback.sol";

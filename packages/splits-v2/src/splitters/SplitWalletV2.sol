@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.23;
 
 import { ISplitsWarehouse } from "../interfaces/ISplitsWarehouse.sol";
 
@@ -222,28 +222,20 @@ contract SplitWalletV2 is Wallet {
         uint256 allocatedAmount;
 
         if (_token == NATIVE_TOKEN) {
-            for (uint256 i; i < numOfRecipients;) {
+            for (uint256 i; i < numOfRecipients; ++i) {
                 allocatedAmount = _split.calculateAllocatedAmount(amountToDistribute, i);
 
                 if (!_split.recipients[i].trySafeTransferETH(allocatedAmount, SafeTransferLib.GAS_STIPEND_NO_GRIEF)) {
                     SPLITS_WAREHOUSE.deposit{ value: allocatedAmount }(_split.recipients[i], _token, allocatedAmount);
                 }
-
-                unchecked {
-                    ++i;
-                }
             }
 
             if (distributorReward > 0) _distributor.safeTransferETH(distributorReward);
         } else {
-            for (uint256 i; i < numOfRecipients;) {
+            for (uint256 i; i < numOfRecipients; ++i) {
                 allocatedAmount = _split.calculateAllocatedAmount(amountToDistribute, i);
 
                 IERC20(_token).safeTransfer(_split.recipients[i], allocatedAmount);
-
-                unchecked {
-                    ++i;
-                }
             }
 
             if (distributorReward > 0) IERC20(_token).safeTransfer(_distributor, distributorReward);

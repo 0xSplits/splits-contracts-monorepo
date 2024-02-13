@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.23;
 
 library SplitV2Lib {
     /* -------------------------------------------------------------------------- */
@@ -56,11 +56,8 @@ library SplitV2Lib {
         }
 
         uint256 totalAllocation;
-        for (uint256 i; i < numOfRecipients;) {
+        for (uint256 i; i < numOfRecipients; ++i) {
             totalAllocation += _split.allocations[i];
-            unchecked {
-                ++i;
-            }
         }
         if (totalAllocation != _split.totalAllocation) revert InvalidSplit_TotalAllocationMismatch();
     }
@@ -79,11 +76,8 @@ library SplitV2Lib {
         distributorReward = _amount * _split.distributionIncentive / PERCENTAGE_SCALE;
         _amount -= distributorReward;
 
-        for (uint256 i; i < numOfRecipients;) {
+        for (uint256 i; i < numOfRecipients; ++i) {
             amounts[i] = _amount * _split.allocations[i] / _split.totalAllocation;
-            unchecked {
-                ++i;
-            }
         }
     }
 
@@ -101,11 +95,8 @@ library SplitV2Lib {
         distributorReward = _amount * _split.distributionIncentive / PERCENTAGE_SCALE;
         _amount -= distributorReward;
 
-        for (uint256 i; i < numOfRecipients;) {
+        for (uint256 i; i < numOfRecipients; ++i) {
             amounts[i] = _amount * _split.allocations[i] / _split.totalAllocation;
-            unchecked {
-                ++i;
-            }
         }
     }
 

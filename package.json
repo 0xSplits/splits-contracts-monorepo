@@ -3,11 +3,13 @@
   "private": true,
   "scripts": {
     "build": "turbo build",
+    "build:optimized": "turbo build:optimized",
     "dev": "turbo dev",
     "lint": "turbo lint",
     "lint:sol": "turbo lint:sol",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "test": "turbo test",
+    "test:optimized": "turbo test:optimized",
     "test:coverage": "turbo test:coverage"
   },
   "devDependencies": {
