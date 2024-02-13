@@ -37,12 +37,12 @@ abstract contract UnorderedNonces {
      * @notice Invalidates the bits specified in mask for the bitmap at the word position.
      * @dev The word is maxed at type(uint248).max.
      * @param _word A number to index the nonceBitmap at.
-     * @param _bitMap A bitmap masked against msg.sender's current bitmap at the word position.
+     * @param _mask A bitmap masked against msg.sender's current bitmap at the word position.
      */
-    function invalidateNonces(uint256 _word, uint256 _bitMap) external {
-        nonceBitMap[msg.sender][_word] |= _bitMap;
+    function invalidateNonces(uint256 _word, uint256 _mask) external {
+        nonceBitMap[msg.sender][_word] |= _mask;
 
-        emit NonceInvalidation(msg.sender, _word, _bitMap);
+        emit NonceInvalidation(msg.sender, _word, _mask);
     }
 
     /* -------------------------------------------------------------------------- */
