@@ -2,7 +2,7 @@
 auto_detect_solc = false
 gas_reports = ["*"]
 optimizer = true
-optimizer_runs = 1000
+optimizer_runs = 5_000_000
 out = "out"
 script = "script"
 solc = "0.8.18"
@@ -41,7 +41,7 @@ sort_imports = true
 out = "out-optimized"
 script = "src"
 test = "src"
-via_ir = true
+via_ir = false
 
 [profile.smt.model_checker]
 engine = "chc" # constrained Horn clauses

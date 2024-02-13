@@ -39,3 +39,16 @@ To lint all packages, run the following command:
 ### Deployment
 
 To deploy contracts, please refer to the README in the respective package.
+
+### Acknowledgements
+
+Shout out to the following projects for inspiration and guidance:
+
+- [jtriley](https://github.com/jtriley-eth/ERC-6909)
+- [frangio](https://github.com/frangio/erc6909-extensions)
+- [Solady](https://github.com/vectorized/solady)
+- [OpenZeppelin Contracts](https://github.com/OpenZeppelin/openzeppelin-contracts)
+- [Zora Protocol](https://github.com/ourzora/zora-protocol)
+- [Solmate](https://github.com/transmissions11/solmate)
+- [PaulRBerg's Foundry Template](https://github.com/PaulRBerg/foundry-template)
+- [Uniswap's Permit2](https://github.com/Uniswap/permit2)

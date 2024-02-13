@@ -187,17 +187,19 @@ contract ERC6909Test is BaseTest {
     /*                               ERC6909X TESTS                               */
     /* -------------------------------------------------------------------------- */
 
-    function testFuzz_supportsInterface(bytes4 _interfaceId) public {
-        bool supported = erc6909.supportsInterface(_interfaceId);
+    function test_supportsInterface_ERC6909() public {
+        bool supported = erc6909.supportsInterface(0x0f632fb3);
+        assertEq(supported, true);
+    }
 
-        if (
-            _interfaceId == type(IERC6909X).interfaceId || _interfaceId == type(IERC165).interfaceId
-                || _interfaceId == type(IERC6909).interfaceId
-        ) {
-            assertEq(supported, true);
-        } else {
-            assertEq(supported, false);
-        }
+    function test_supportsInterface_ERC165() public {
+        bool supported = erc6909.supportsInterface(0x01ffc9a7);
+        assertEq(supported, true);
+    }
+
+    function test_supportsInterface_IERC6909X() public {
+        bool supported = erc6909.supportsInterface(0xeb858add);
+        assertEq(supported, true);
     }
 
     function testFuzz_temporaryApproveAndCall(address _owner, bool _isOperator, uint256 _id, uint256 _amount) public {

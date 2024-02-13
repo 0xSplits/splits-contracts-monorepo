@@ -66,8 +66,8 @@ contract SplitsWarehouse is ERC6909X {
     /// @notice address of the native token, inline with ERC 7528.
     address public constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
-    /// @notice NATIVE_TOKEN.toUint256()
-    uint256 public constant NATIVE_TOKEN_ID = 1_364_068_194_842_176_056_990_105_843_868_530_818_345_537_040_110;
+    /// @notice uint256 representation of the native token.
+    uint256 public constant NATIVE_TOKEN_ID = uint256(uint160(NATIVE_TOKEN));
 
     /// @notice metadata name of the native token.
     ShortString private immutable NATIVE_TOKEN_NAME;
