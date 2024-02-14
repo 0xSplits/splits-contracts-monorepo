@@ -16,7 +16,7 @@ abstract contract UnorderedNonces {
     /*                                   EVENTS                                   */
     /* -------------------------------------------------------------------------- */
 
-    event NonceInvalidation(address indexed owner, uint256 word, uint256 bitMap);
+    event NonceInvalidation(address indexed owner, uint256 nonce);
 
     /* -------------------------------------------------------------------------- */
     /*                                   STORAGE                                  */
@@ -34,15 +34,18 @@ abstract contract UnorderedNonces {
     /* -------------------------------------------------------------------------- */
 
     /**
-     * @notice Invalidates the bits specified in mask for the bitmap at the word position.
-     * @dev The word is maxed at type(uint248).max.
-     * @param _word A number to index the nonceBitmap at.
-     * @param _mask A bitmap masked against msg.sender's current bitmap at the word position.
+     * @notice Invalidates the nonce for the msg.sender.
+     * @dev if the nonce is already invalidated, the function will succeed.
+     * @param nonce nonce to invalidate.
      */
-    function invalidateNonces(uint256 _word, uint256 _mask) external {
-        nonceBitMap[msg.sender][_word] |= _mask;
+    function invalidateNonce(uint256 nonce) external {
+        (uint256 word, uint256 bit) = calculateWordAndBit(nonce);
 
-        emit NonceInvalidation({ owner: msg.sender, word: _word, bitMap: _mask });
+        // flip the bit in the bitmap by taking a bitwise OR.
+        // if the bit is already flipped, the result will be the same.
+        nonceBitMap[msg.sender][word] |= bit;
+
+        emit NonceInvalidation(msg.sender, nonce);
     }
 
     /* -------------------------------------------------------------------------- */
@@ -50,19 +53,20 @@ abstract contract UnorderedNonces {
     /* -------------------------------------------------------------------------- */
 
     function useNonce(address _from, uint256 _nonce) internal {
-        // word is nonce divided by 256.
-        uint256 word = uint256(_nonce) >> 8;
-
-        // bitMap is nonce modulo 256.
-        uint256 bitMap = uint8(_nonce);
-
-        // bit is 1 shifted left by the bitMap.
-        uint256 bit = 1 << bitMap;
+        (uint256 word, uint256 bit) = calculateWordAndBit(_nonce);
 
         // flip the bit in the bitmap by taking a bitwise XOR.
         uint256 flipped = nonceBitMap[_from][word] ^= bit;
 
         // check if the bit was already flipped.
         if (flipped & bit == 0) revert InvalidNonce();
+    }
+
+    function calculateWordAndBit(uint256 nonce) internal pure returns (uint256 word, uint256 bit) {
+        // word is nonce divided by 256.
+        word = uint256(nonce) >> 8;
+
+        // bit is 1 shifted left by the nonce modulo 256.
+        bit = 1 << uint8(nonce);
     }
 }

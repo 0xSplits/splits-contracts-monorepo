@@ -346,9 +346,8 @@ contract ERC6909Test is BaseTest {
             true, _owner.addr, _owner.key, target, _isOperator, _id, _amount, target, "", _nonce, deadline
         );
 
-        (uint256 word, uint256 bit) = getMask(_nonce);
         vm.prank(_owner.addr);
-        erc6909.invalidateNonces(word, bit);
+        erc6909.invalidateNonce(_nonce);
 
         vm.expectRevert(InvalidNonce.selector);
         erc6909.temporaryApproveAndCallBySig(
@@ -467,10 +466,8 @@ contract ERC6909Test is BaseTest {
             false, _owner.addr, _owner.key, _spender, isOperator, _id, _value, address(0), "", _nonce, deadline
         );
 
-        (uint256 word, uint256 bit) = getMask(_nonce);
-
         vm.prank(_owner.addr);
-        erc6909.invalidateNonces(word, bit);
+        erc6909.invalidateNonce(_nonce);
 
         vm.expectRevert(InvalidNonce.selector);
         erc6909.approveBySig(_owner.addr, _spender, isOperator, _id, _value, _nonce, deadline, signature);
