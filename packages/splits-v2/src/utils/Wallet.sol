@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.23;
 
 import { Pausable } from "./Pausable.sol";
 
@@ -64,7 +64,7 @@ abstract contract Wallet is Pausable {
         returnData = new bytes[](length);
 
         bool success;
-        for (uint256 i; i < length;) {
+        for (uint256 i; i < length; ++i) {
             Call calldata calli = _calls[i];
 
             if (calli.to.code.length == 0) {
@@ -75,10 +75,6 @@ abstract contract Wallet is Pausable {
 
             // solhint-disable-next-line
             require(success, string(returnData[i]));
-
-            unchecked {
-                ++i;
-            }
         }
 
         emit ExecCalls(_calls);

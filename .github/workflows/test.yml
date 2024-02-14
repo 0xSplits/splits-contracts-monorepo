@@ -43,10 +43,10 @@ jobs:
         run: pnpm install
 
       - name: Build
-        run: pnpm build
+        run: pnpm build:optimized
 
       - name: Lint
         run: pnpm lint
 
       - name: Test
-        run: pnpm test
+        run: pnpm test:optimized

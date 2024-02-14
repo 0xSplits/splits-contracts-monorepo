@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // license?
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.23;
 
 import { Cast } from "./libraries/Cast.sol";
 import { Math } from "./libraries/Math.sol";
@@ -182,14 +182,10 @@ contract SplitsWarehouse is ERC6909X {
         uint256 amount;
         uint256 tokenId = _token.toUint256();
         uint256 length = _receivers.length;
-        for (uint256 i; i < length;) {
+        for (uint256 i; i < length; ++i) {
             amount = _amounts[i];
             sum += amount;
             _mint(_receivers[i], tokenId, amount);
-
-            unchecked {
-                ++i;
-            }
         }
 
         if (_token == NATIVE_TOKEN) {
@@ -239,13 +235,9 @@ contract SplitsWarehouse is ERC6909X {
 
         uint256 reward;
         uint256 length = _tokens.length;
-        for (uint256 i; i < length;) {
+        for (uint256 i; i < length; ++i) {
             reward = _amounts[i] * config.incentive / PERCENTAGE_SCALE;
             _withdraw(_owner, _tokens[i], _amounts[i], _withdrawer, reward);
-
-            unchecked {
-                ++i;
-            }
         }
     }
 
@@ -263,17 +255,13 @@ contract SplitsWarehouse is ERC6909X {
         uint256 amount;
         address receiver;
         uint256 length = _receivers.length;
-        for (uint256 i; i < length;) {
+        for (uint256 i; i < length; ++i) {
             receiver = _receivers[i];
             amount = _amounts[i];
 
             balanceOf[receiver][tokenId] += amount;
             emit Transfer(msg.sender, msg.sender, receiver, tokenId, amount);
             sum += amount;
-
-            unchecked {
-                ++i;
-            }
         }
         balanceOf[msg.sender][tokenId] -= sum;
     }
