@@ -329,6 +329,7 @@ contract SplitsWarehouse is ERC6909X {
             if (_reward != 0) IERC20(_token).safeTransfer({ to: _withdrawer, value: _reward });
         }
 
+        // solhint-disable-next-line
         emit Withdraw({ owner: _owner, token: _token, withdrawer: _withdrawer, amount: amountToOwner, reward: _reward });
     }
 }
