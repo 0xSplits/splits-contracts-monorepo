@@ -5,7 +5,7 @@ import { Pausable } from "./Pausable.sol";
 
 /**
  * @title Wallet Implementation
- * @author 0xSplits
+ * @author Splits
  * @notice Minimal smart wallet clone-implementation.
  */
 abstract contract Wallet is Pausable {
@@ -30,10 +30,6 @@ abstract contract Wallet is Pausable {
     /* -------------------------------------------------------------------------- */
 
     event ExecCalls(Call[] calls);
-
-    /* -------------------------------------------------------------------------- */
-    /*                                   STORAGE                                  */
-    /* -------------------------------------------------------------------------- */
 
     /* -------------------------------------------------------------------------- */
     /*                          CONSTRUCTOR & INITIALIZER                         */
@@ -68,7 +64,8 @@ abstract contract Wallet is Pausable {
             Call calldata calli = _calls[i];
 
             if (calli.to.code.length == 0) {
-                if (calli.data.length > 0) revert InvalidCalldataForEOA(calli);
+                // When the call is to an EOA, the calldata must be empty.
+                if (calli.data.length > 0) revert InvalidCalldataForEOA({ call: calli });
             }
 
             (success, returnData[i]) = calli.to.call{ value: calli.value }(calli.data);
@@ -77,6 +74,6 @@ abstract contract Wallet is Pausable {
             require(success, string(returnData[i]));
         }
 
-        emit ExecCalls(_calls);
+        emit ExecCalls({ calls: _calls });
     }
 }

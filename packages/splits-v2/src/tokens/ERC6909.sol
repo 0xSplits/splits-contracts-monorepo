@@ -11,77 +11,94 @@ abstract contract ERC6909 is IERC6909 {
     /*                               ERC6909 STORAGE                              */
     /* -------------------------------------------------------------------------- */
 
+    /// @inheritdoc IERC6909
     mapping(address owner => mapping(address operator => bool approved)) public isOperator;
 
+    /// @inheritdoc IERC6909
     mapping(address owner => mapping(uint256 id => uint256 amount)) public balanceOf;
 
+    /// @inheritdoc IERC6909
     mapping(address owner => mapping(address spender => mapping(uint256 tokenId => uint256 amount))) public allowance;
 
     /* -------------------------------------------------------------------------- */
     /*                                ERC6909 LOGIC                               */
     /* -------------------------------------------------------------------------- */
 
-    function transfer(address receiver, uint256 id, uint256 amount) public virtual returns (bool) {
-        balanceOf[msg.sender][id] -= amount;
+    /// @inheritdoc IERC6909
+    function transfer(address _receiver, uint256 _id, uint256 _amount) public virtual returns (bool) {
+        balanceOf[msg.sender][_id] -= _amount;
 
-        balanceOf[receiver][id] += amount;
+        balanceOf[_receiver][_id] += _amount;
 
-        emit Transfer(msg.sender, msg.sender, receiver, id, amount);
+        emit Transfer({ caller: msg.sender, sender: msg.sender, receiver: _receiver, id: _id, amount: _amount });
 
         return true;
     }
 
-    function transferFrom(address sender, address receiver, uint256 id, uint256 amount) public virtual returns (bool) {
-        if (msg.sender != sender && !isOperator[sender][msg.sender]) {
-            uint256 allowed = allowance[sender][msg.sender][id];
-            if (allowed != type(uint256).max) allowance[sender][msg.sender][id] = allowed - amount;
+    /// @inheritdoc IERC6909
+    function transferFrom(
+        address _sender,
+        address _receiver,
+        uint256 _id,
+        uint256 _amount
+    )
+        public
+        virtual
+        returns (bool)
+    {
+        if (msg.sender != _sender && !isOperator[_sender][msg.sender]) {
+            uint256 allowed = allowance[_sender][msg.sender][_id];
+            if (allowed != type(uint256).max) allowance[_sender][msg.sender][_id] = allowed - _amount;
         }
 
-        balanceOf[sender][id] -= amount;
+        balanceOf[_sender][_id] -= _amount;
 
-        balanceOf[receiver][id] += amount;
+        balanceOf[_receiver][_id] += _amount;
 
-        emit Transfer(msg.sender, sender, receiver, id, amount);
+        emit Transfer({ caller: msg.sender, sender: _sender, receiver: _receiver, id: _id, amount: _amount });
 
         return true;
     }
 
-    function approve(address spender, uint256 id, uint256 amount) public virtual returns (bool) {
-        return _approve(msg.sender, spender, id, amount);
+    /// @inheritdoc IERC6909
+    function approve(address _spender, uint256 _id, uint256 _amount) public virtual returns (bool) {
+        return _approve({ _owner: msg.sender, _spender: _spender, _id: _id, _amount: _amount });
     }
 
-    function setOperator(address operator, bool approved) public virtual returns (bool) {
-        return _setOperator(msg.sender, operator, approved);
+    /// @inheritdoc IERC6909
+    function setOperator(address _operator, bool _approved) public virtual returns (bool) {
+        return _setOperator({ _owner: msg.sender, _operator: _operator, _approved: _approved });
     }
 
     /* -------------------------------------------------------------------------- */
     /*                                ERC165 LOGIC                                */
     /* -------------------------------------------------------------------------- */
 
-    function supportsInterface(bytes4 interfaceId) public view virtual returns (bool) {
-        return interfaceId == type(IERC6909).interfaceId || interfaceId == type(IERC165).interfaceId;
+    /// @inheritdoc IERC165
+    function supportsInterface(bytes4 _interfaceId) public view virtual returns (bool) {
+        return _interfaceId == type(IERC6909).interfaceId || _interfaceId == type(IERC165).interfaceId;
     }
 
     /* -------------------------------------------------------------------------- */
     /*                          INTERNAL MINT/BURN LOGIC                          */
     /* -------------------------------------------------------------------------- */
 
-    function _mint(address receiver, uint256 id, uint256 amount) internal virtual {
-        balanceOf[receiver][id] += amount;
+    function _mint(address _receiver, uint256 _id, uint256 _amount) internal virtual {
+        balanceOf[_receiver][_id] += _amount;
 
-        emit Transfer(msg.sender, address(0), receiver, id, amount);
+        emit Transfer({ caller: msg.sender, sender: address(0), receiver: _receiver, id: _id, amount: _amount });
     }
 
-    function _burn(address sender, uint256 id, uint256 amount) internal virtual {
-        balanceOf[sender][id] -= amount;
+    function _burn(address _sender, uint256 _id, uint256 _amount) internal virtual {
+        balanceOf[_sender][_id] -= _amount;
 
-        emit Transfer(msg.sender, sender, address(0), id, amount);
+        emit Transfer({ caller: msg.sender, sender: _sender, receiver: address(0), id: _id, amount: _amount });
     }
 
     function _setOperator(address _owner, address _operator, bool _approved) internal virtual returns (bool) {
         isOperator[_owner][_operator] = _approved;
 
-        emit OperatorSet(_owner, _operator, _approved);
+        emit OperatorSet({ owner: _owner, spender: _operator, approved: _approved });
 
         return true;
     }
@@ -89,7 +106,7 @@ abstract contract ERC6909 is IERC6909 {
     function _approve(address _owner, address _spender, uint256 _id, uint256 _amount) internal virtual returns (bool) {
         allowance[_owner][_spender][_id] = _amount;
 
-        emit Approval(_owner, _spender, _id, _amount);
+        emit Approval({ owner: _owner, spender: _spender, id: _id, amount: _amount });
 
         return true;
     }

@@ -42,8 +42,7 @@ abstract contract Pausable is Ownable {
 
     modifier pausable() virtual {
         address owner_ = owner;
-        bool paused_ = paused;
-        if (paused_) {
+        if (paused) {
             // solhint-disable-next-line avoid-tx-origin
             if (msg.sender != owner_ && tx.origin != owner_ && msg.sender != address(this)) {
                 revert Paused();
@@ -58,6 +57,6 @@ abstract contract Pausable is Ownable {
 
     function setPaused(bool _paused) public virtual onlyOwner {
         paused = _paused;
-        emit SetPaused(_paused);
+        emit SetPaused({ paused: _paused });
     }
 }

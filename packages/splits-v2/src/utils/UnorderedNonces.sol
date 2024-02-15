@@ -42,25 +42,25 @@ abstract contract UnorderedNonces {
     function invalidateNonces(uint256 _word, uint256 _mask) external {
         nonceBitMap[msg.sender][_word] |= _mask;
 
-        emit NonceInvalidation(msg.sender, _word, _mask);
+        emit NonceInvalidation({ owner: msg.sender, word: _word, bitMap: _mask });
     }
 
     /* -------------------------------------------------------------------------- */
     /*                             INTERNAL FUNCTIONS                             */
     /* -------------------------------------------------------------------------- */
 
-    function useNonce(address from, uint256 nonce) internal {
+    function useNonce(address _from, uint256 _nonce) internal {
         // word is nonce divided by 256.
-        uint256 word = uint256(nonce) >> 8;
+        uint256 word = uint256(_nonce) >> 8;
 
         // bitMap is nonce modulo 256.
-        uint256 bitMap = uint8(nonce);
+        uint256 bitMap = uint8(_nonce);
 
         // bit is 1 shifted left by the bitMap.
         uint256 bit = 1 << bitMap;
 
         // flip the bit in the bitmap by taking a bitwise XOR.
-        uint256 flipped = nonceBitMap[from][word] ^= bit;
+        uint256 flipped = nonceBitMap[_from][word] ^= bit;
 
         // check if the bit was already flipped.
         if (flipped & bit == 0) revert InvalidNonce();

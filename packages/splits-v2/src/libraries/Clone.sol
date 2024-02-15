@@ -18,7 +18,7 @@ library Clone {
     uint256 private constant ZERO_PTR = 0x60;
 
     /// @dev Deploys a modified minimal proxy of `implementation`
-    function clone(address implementation) internal returns (address instance) {
+    function clone(address _implementation) internal returns (address instance) {
         assembly ("memory-safe") {
             /**
              * --------------------------------------------------------------------------+
@@ -96,7 +96,7 @@ library Clone {
             let fp := mload(FREE_PTR)
 
             mstore(0x51, 0x5af43d3d93803e605757fd5bf3) // 13 bytes
-            mstore(0x44, implementation) // 20 bytes
+            mstore(0x44, _implementation) // 20 bytes
             mstore(0x30, 0x593da1005b3d3d3d3d363d3d37363d73) // 16 bytes
             // `keccak256("ReceiveETH(uint256)")`
             mstore(0x20, 0x9e4ac34f21c619cefc926c8bd93b54bf5a39c7ab2127a895af1cc0691d7e3dff) // 32 bytes
@@ -122,7 +122,7 @@ library Clone {
     }
 
     /// @dev Deploys a modified minimal proxy of `implementation`
-    function cloneDeterministic(address implementation, bytes32 salt) internal returns (address instance) {
+    function cloneDeterministic(address _implementation, bytes32 _salt) internal returns (address instance) {
         assembly ("memory-safe") {
             /**
              * --------------------------------------------------------------------------+
@@ -200,7 +200,7 @@ library Clone {
             let fp := mload(FREE_PTR)
 
             mstore(0x51, 0x5af43d3d93803e605757fd5bf3) // 13 bytes
-            mstore(0x44, implementation) // 20 bytes
+            mstore(0x44, _implementation) // 20 bytes
             mstore(0x30, 0x593da1005b3d3d3d3d363d3d37363d73) // 16 bytes
             // `keccak256("ReceiveETH(uint256)")`
             mstore(0x20, 0x9e4ac34f21c619cefc926c8bd93b54bf5a39c7ab2127a895af1cc0691d7e3dff) // 32 bytes
@@ -209,7 +209,7 @@ library Clone {
             // total: 113 bytes = 0x71
             // offset: 15 bytes = 0x0f
             // data: 98 bytes = 0x62
-            instance := create2(0, 0x0f, 0x71, salt)
+            instance := create2(0, 0x0f, 0x71, _salt)
 
             // restore free pointer, zero slot
             mstore(FREE_PTR, fp)
@@ -225,14 +225,14 @@ library Clone {
         }
     }
 
-    function initCodeHash(address implementation) internal pure returns (bytes32 hash) {
+    function initCodeHash(address _implementation) internal pure returns (bytes32 hash) {
         /// @solidity memory-safe-assembly
         assembly {
             // save free pointer
             let fp := mload(FREE_PTR)
 
             mstore(0x51, 0x5af43d3d93803e605757fd5bf3) // 13 bytes
-            mstore(0x44, implementation) // 20 bytes
+            mstore(0x44, _implementation) // 20 bytes
             mstore(0x30, 0x593da1005b3d3d3d3d363d3d37363d73) // 16 bytes
             // `keccak256("ReceiveETH(uint256)")`
             mstore(0x20, 0x9e4ac34f21c619cefc926c8bd93b54bf5a39c7ab2127a895af1cc0691d7e3dff) // 32 bytes
@@ -247,22 +247,22 @@ library Clone {
     }
 
     function predictDeterministicAddress(
-        address implementation,
-        bytes32 salt,
-        address deployer
+        address _implementation,
+        bytes32 _salt,
+        address _deployer
     )
         internal
         pure
         returns (address predicted)
     {
-        bytes32 hash = initCodeHash(implementation);
-        predicted = predictDeterministicAddress(hash, salt, deployer);
+        bytes32 hash = initCodeHash(_implementation);
+        predicted = predictDeterministicAddress({ _hash: hash, _salt: _salt, _deployer: _deployer });
     }
 
     function predictDeterministicAddress(
-        bytes32 hash,
-        bytes32 salt,
-        address deployer
+        bytes32 _hash,
+        bytes32 _salt,
+        address _deployer
     )
         internal
         pure
@@ -272,9 +272,9 @@ library Clone {
         assembly {
             // Compute and store the bytecode hash.
             mstore8(0x00, 0xff) // Write the prefix.
-            mstore(0x35, hash)
-            mstore(0x01, shl(96, deployer))
-            mstore(0x15, salt)
+            mstore(0x35, _hash)
+            mstore(0x01, shl(96, _deployer))
+            mstore(0x15, _salt)
             predicted := keccak256(0x00, 0x55)
             mstore(0x35, 0) // Restore the overwritten part of the free memory pointer.
         }
