@@ -243,6 +243,9 @@ contract ERC6909Test is BaseTest {
         public
     {
         Account memory _owner = ALICE;
+
+        assertEq(erc6909.isValidNonce(_owner.addr, _nonce), true);
+
         if (_isOperator) {
             _id = 0;
             _amount = 0;
@@ -262,6 +265,7 @@ contract ERC6909Test is BaseTest {
 
         assertEq(erc6909.isOperator(_owner.addr, target), false);
         assertEq(erc6909.allowance(_owner.addr, target, _id), 0);
+        assertEq(erc6909.isValidNonce(_owner.addr, _nonce), false);
     }
 
     function testFuzz_temporaryApproveAndCallBySig_Revert_whenExpired(
@@ -379,6 +383,9 @@ contract ERC6909Test is BaseTest {
         public
     {
         Account memory _owner = ALICE;
+
+        assertEq(erc6909.isValidNonce(_owner.addr, _nonce), true);
+
         if (_isOperator) {
             _id = 0;
             _value = 0;
@@ -397,6 +404,8 @@ contract ERC6909Test is BaseTest {
         } else {
             assertEq(erc6909.allowance(_owner.addr, _spender, _id), _value);
         }
+
+        assertEq(erc6909.isValidNonce(_owner.addr, _nonce), false);
     }
 
     function testFuzz_approveBySig_Revert_whenExpired(

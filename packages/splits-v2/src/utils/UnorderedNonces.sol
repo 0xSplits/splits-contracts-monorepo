@@ -48,6 +48,18 @@ abstract contract UnorderedNonces {
         emit NonceInvalidation(msg.sender, nonce);
     }
 
+    /**
+     * @notice Check if a nonce can be used for a given address.
+     * @param from address to check.
+     * @param nonce nonce to check.
+     * @return true returns true if the nonce is unused, false otherwise.
+     */
+    function isValidNonce(address from, uint256 nonce) external view returns (bool) {
+        (uint256 word, uint256 bit) = calculateWordAndBit(nonce);
+
+        return nonceBitMap[from][word] & bit == 0;
+    }
+
     /* -------------------------------------------------------------------------- */
     /*                             INTERNAL FUNCTIONS                             */
     /* -------------------------------------------------------------------------- */
@@ -60,6 +72,8 @@ abstract contract UnorderedNonces {
 
         // check if the bit was already flipped.
         if (flipped & bit == 0) revert InvalidNonce();
+
+        emit NonceInvalidation(from, nonce);
     }
 
     function calculateWordAndBit(uint256 nonce) internal pure returns (uint256 word, uint256 bit) {
