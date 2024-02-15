@@ -52,7 +52,7 @@ contract SplitFactoryV2Test is BaseTest {
         splitFactory.createSplitDeterministic(params, _owner, _creator, _salt);
     }
 
-    function testFuzz_createSplit(
+    function testFuzz_create2SplitOwner(
         SplitReceiver[] memory _receivers,
         uint16 _distributionIncentive,
         bool _distributeByPush,
@@ -63,12 +63,15 @@ contract SplitFactoryV2Test is BaseTest {
     {
         SplitV2Lib.Split memory params = createSplitParams(_receivers, _distributionIncentive, _distributeByPush);
 
+        address predictedAddress = splitFactory.predictDeterministicAddress(tx.origin);
+
         SplitWalletV2 split = SplitWalletV2(splitFactory.createSplit(params, _owner, _creator));
 
         assertEq(split.owner(), _owner);
+        assertEq(address(split), predictedAddress);
     }
 
-    function testFuzz_createSplit_sameParams(
+    function testFuzz_create2SplitOwner_sameParams(
         SplitReceiver[] memory _receivers,
         uint16 _distributionIncentive,
         bool _distributeByPush,
@@ -77,13 +80,16 @@ contract SplitFactoryV2Test is BaseTest {
     )
         public
     {
-        testFuzz_createSplit(_receivers, _distributionIncentive, _distributeByPush, _owner, _creator);
+        testFuzz_create2SplitOwner(_receivers, _distributionIncentive, _distributeByPush, _owner, _creator);
+
+        address predictedAddress = splitFactory.predictDeterministicAddress(tx.origin);
 
         SplitV2Lib.Split memory params = createSplitParams(_receivers, _distributionIncentive, _distributeByPush);
 
         SplitWalletV2 split = SplitWalletV2(splitFactory.createSplit(params, _owner, _owner));
 
         assertEq(split.owner(), _owner);
+        assertEq(address(split), predictedAddress);
     }
 
     function testFuzz_isDeployed(

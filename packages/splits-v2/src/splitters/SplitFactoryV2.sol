@@ -3,6 +3,8 @@ pragma solidity ^0.8.23;
 
 import { Clone } from "../libraries/Clone.sol";
 import { SplitV2Lib } from "../libraries/SplitV2.sol";
+
+import { Nonces } from "../utils/Nonces.sol";
 import { SplitWalletV2 } from "./SplitWalletV2.sol";
 
 /**
@@ -10,7 +12,7 @@ import { SplitWalletV2 } from "./SplitWalletV2.sol";
  * @author Splits
  * @notice Minimal smart wallet clone-factory for v2 splitters.
  */
-contract SplitFactoryV2 {
+contract SplitFactoryV2 is Nonces {
     using Clone for address;
 
     /* -------------------------------------------------------------------------- */
@@ -68,10 +70,10 @@ contract SplitFactoryV2 {
     }
 
     /**
-     * @notice Create a new split using create.
-     * @param _splitParams Params to create split with.
-     * @param _owner Owner of created split.
-     * @param _creator Creator of created split.
+     * @notice Create a new split using create2 with sender's nonce as salt
+     * @param _splitParams Params to create split with
+     * @param _owner Owner of created split
+     * @param _creator Creator of created split
      */
     function createSplit(
         SplitV2Lib.Split calldata _splitParams,
@@ -81,7 +83,7 @@ contract SplitFactoryV2 {
         external
         returns (address split)
     {
-        split = SPLIT_WALLET_IMPLEMENTATION.clone();
+        split = SPLIT_WALLET_IMPLEMENTATION.cloneDeterministic(keccak256(abi.encode(_useNonce(tx.origin))));
 
         SplitWalletV2(split).initialize(_splitParams, _owner);
 
@@ -104,6 +106,18 @@ contract SplitFactoryV2 {
         returns (address)
     {
         return _predictDeterministicAddress({ _splitParams: _splitParams, _owner: _owner, _salt: _salt });
+    }
+
+    /**
+     * @notice Predict the address of a new split using nonce of user as salt.
+     * @param _user User to predict address for.
+     */
+    function predictDeterministicAddress(address _user) external view returns (address) {
+        return Clone.predictDeterministicAddress({
+            _implementation: SPLIT_WALLET_IMPLEMENTATION,
+            _salt: keccak256(abi.encode(nonces(_user))),
+            _deployer: address(this)
+        });
     }
 
     /**
