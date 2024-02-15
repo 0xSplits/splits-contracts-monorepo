@@ -16,7 +16,7 @@ abstract contract UnorderedNonces {
     /*                                   EVENTS                                   */
     /* -------------------------------------------------------------------------- */
 
-    event NonceInvalidation(address indexed owner, uint256 nonce);
+    event NonceInvalidation(address indexed owner, uint256 indexed nonce);
 
     /* -------------------------------------------------------------------------- */
     /*                                   STORAGE                                  */
