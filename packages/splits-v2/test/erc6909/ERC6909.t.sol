@@ -506,6 +506,31 @@ contract ERC6909Test is BaseTest {
         erc6909.approveBySig(_owner.addr, _spender, isOperator, _id, _value, _nonce, deadline, signature);
     }
 
+    function testFuzz_invalidateNonce(uint256 _nonce) public {
+        Account memory _owner = ALICE;
+
+        assertEq(erc6909.isValidNonce(_owner.addr, _nonce), true);
+
+        vm.prank(_owner.addr);
+        erc6909.invalidateNonce(_nonce);
+
+        assertEq(erc6909.isValidNonce(_owner.addr, _nonce), false);
+    }
+
+    function testFuzz_invalidateNonce_whenNonceIsInvalid(uint256 _nonce) public {
+        Account memory _owner = ALICE;
+
+        vm.prank(_owner.addr);
+        erc6909.invalidateNonce(_nonce);
+
+        assertEq(erc6909.isValidNonce(_owner.addr, _nonce), false);
+
+        vm.prank(_owner.addr);
+        erc6909.invalidateNonce(_nonce);
+
+        assertEq(erc6909.isValidNonce(_owner.addr, _nonce), false);
+    }
+
     function getPermitSignature(
         bool _temporary,
         address _owner,
