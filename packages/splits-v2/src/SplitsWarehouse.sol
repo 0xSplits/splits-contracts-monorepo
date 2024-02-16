@@ -43,7 +43,6 @@ contract SplitsWarehouse is ERC6909X {
     event Withdraw(
         address indexed owner, address indexed token, address indexed withdrawer, uint256 amount, uint256 reward
     );
-    // TODO: do we need deposit events?
 
     /* -------------------------------------------------------------------------- */
     /*                                   STRUCTS                                  */

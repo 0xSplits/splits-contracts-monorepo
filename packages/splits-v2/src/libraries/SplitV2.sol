@@ -26,7 +26,6 @@ library SplitV2Lib {
         address[] recipients;
         uint256[] allocations;
         uint256 totalAllocation;
-        // TODO: should incentive & byPush be saved in storage?
         uint16 distributionIncentive;
         bool distributeByPush;
     }

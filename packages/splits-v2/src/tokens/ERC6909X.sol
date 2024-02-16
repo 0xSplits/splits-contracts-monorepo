@@ -244,7 +244,6 @@ contract ERC6909X is ERC6909, EIP712, UnorderedNonces, IERC6909X {
         internal
         returns (bool prevIsOperator, uint256 prevAllowance)
     {
-        // TODO: add events?
         if (_operator) {
             if (_id != 0 || _amount != 0) revert InvalidPermitParams();
             prevIsOperator = isOperator[_owner][_spender];
