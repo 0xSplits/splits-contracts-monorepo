@@ -30,7 +30,7 @@ contract SplitWalletV2Test is BaseTest {
     function setUp() public override {
         super.setUp();
 
-        wallet = SplitWalletV2(Clone.clone(address(new SplitWalletV2(address(warehouse)))));
+        wallet = SplitWalletV2(Clone.cloneDeterministic((address(new SplitWalletV2(address(warehouse)))), 0));
     }
 
     /* -------------------------------------------------------------------------- */
