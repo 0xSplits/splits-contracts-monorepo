@@ -48,6 +48,11 @@ contract SplitsWarehouse is ERC6909X {
     /*                                   STRUCTS                                  */
     /* -------------------------------------------------------------------------- */
 
+    /**
+     * @notice Withdraw config for a user.
+     * @param incentive The incentive for withdrawing tokens.
+     * @param paused The paused state of the withdrawal.
+     */
     struct WithdrawConfig {
         uint16 incentive;
         bool paused;
@@ -90,6 +95,11 @@ contract SplitsWarehouse is ERC6909X {
     /*                                 CONSTRUCTOR                                */
     /* -------------------------------------------------------------------------- */
 
+    /**
+     * @notice Constructs the SplitsWarehouse contract.
+     * @param _native_token_name The name of the native token.
+     * @param _native_token_symbol The symbol of the native token.
+     */
     constructor(
         string memory _native_token_name,
         string memory _native_token_symbol
@@ -155,10 +165,10 @@ contract SplitsWarehouse is ERC6909X {
         if (_token == NATIVE_TOKEN) {
             if (_amount != msg.value) revert InvalidAmount();
         } else {
-            IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
+            IERC20(_token).safeTransferFrom({ from: msg.sender, to: address(this), value: _amount });
         }
 
-        _mint(_receiver, _token.toUint256(), _amount);
+        _mint({ _receiver: _receiver, _id: _token.toUint256(), _amount: _amount });
     }
 
     /**
@@ -182,16 +192,17 @@ contract SplitsWarehouse is ERC6909X {
         uint256 amount;
         uint256 tokenId = _token.toUint256();
         uint256 length = _receivers.length;
+
         for (uint256 i; i < length; ++i) {
             amount = _amounts[i];
             sum += amount;
-            _mint(_receivers[i], tokenId, amount);
+            _mint({ _receiver: _receivers[i], _id: tokenId, _amount: amount });
         }
 
         if (_token == NATIVE_TOKEN) {
             if (sum != msg.value) revert InvalidAmount();
         } else {
-            IERC20(_token).safeTransferFrom(msg.sender, address(this), sum);
+            IERC20(_token).safeTransferFrom({ from: msg.sender, to: address(this), value: sum });
         }
     }
 
@@ -203,13 +214,14 @@ contract SplitsWarehouse is ERC6909X {
      */
     function withdraw(address _owner, address _token) external {
         if (msg.sender != _owner && tx.origin != _owner) {
-            // nest to reduce gas in the happy-case (solidity/evm won't short circuit)
             if (withdrawConfig[_owner].paused) {
                 revert WithdrawalPaused(_owner);
             }
         }
 
+        // leave 1 to save gas.
         uint256 amount = balanceOf[_owner][_token.toUint256()] - 1;
+
         _withdraw({ _owner: _owner, _token: _token, _amount: amount, _withdrawer: msg.sender, _reward: 0 });
     }
 
@@ -230,14 +242,24 @@ contract SplitsWarehouse is ERC6909X {
         external
     {
         if (_tokens.length != _amounts.length) revert LengthMismatch();
+
         WithdrawConfig memory config = withdrawConfig[_owner];
+
         if (config.paused) revert WithdrawalPaused(_owner);
 
         uint256 reward;
         uint256 length = _tokens.length;
+
         for (uint256 i; i < length; ++i) {
             reward = _amounts[i] * config.incentive / PERCENTAGE_SCALE;
-            _withdraw(_owner, _tokens[i], _amounts[i], _withdrawer, reward);
+
+            _withdraw({
+                _owner: _owner,
+                _token: _tokens[i],
+                _amount: _amounts[i],
+                _withdrawer: _withdrawer,
+                _reward: reward
+            });
         }
     }
 
@@ -251,18 +273,22 @@ contract SplitsWarehouse is ERC6909X {
         if (_receivers.length != _amounts.length) revert LengthMismatch();
 
         uint256 sum;
-        uint256 tokenId = _token.toUint256();
         uint256 amount;
         address receiver;
+
+        uint256 tokenId = _token.toUint256();
         uint256 length = _receivers.length;
+
         for (uint256 i; i < length; ++i) {
             receiver = _receivers[i];
             amount = _amounts[i];
 
             balanceOf[receiver][tokenId] += amount;
-            emit Transfer(msg.sender, msg.sender, receiver, tokenId, amount);
+            emit Transfer({ caller: msg.sender, sender: msg.sender, receiver: receiver, id: tokenId, amount: amount });
+
             sum += amount;
         }
+
         balanceOf[msg.sender][tokenId] -= sum;
     }
 
@@ -272,7 +298,7 @@ contract SplitsWarehouse is ERC6909X {
      */
     function setWithdrawConfig(WithdrawConfig calldata _config) external {
         withdrawConfig[msg.sender] = _config;
-        emit WithdrawConfigUpdated(msg.sender, _config);
+        emit WithdrawConfigUpdated({ owner: msg.sender, config: _config });
     }
 
     /* -------------------------------------------------------------------------- */
@@ -288,17 +314,21 @@ contract SplitsWarehouse is ERC6909X {
     )
         internal
     {
-        _burn(_owner, _token.toUint256(), _amount);
+        _burn({ _sender: _owner, _id: _token.toUint256(), _amount: _amount });
 
         uint256 amountToOwner = _amount - _reward;
+
         if (_token == NATIVE_TOKEN) {
             payable(_owner).sendValue(amountToOwner);
+
             if (_reward != 0) payable(_withdrawer).sendValue(_reward);
         } else {
-            IERC20(_token).safeTransfer(_owner, amountToOwner);
-            if (_reward != 0) IERC20(_token).safeTransfer(_withdrawer, _reward);
+            IERC20(_token).safeTransfer({ to: _owner, value: amountToOwner });
+
+            if (_reward != 0) IERC20(_token).safeTransfer({ to: _withdrawer, value: _reward });
         }
 
-        emit Withdraw(_owner, _token, _withdrawer, amountToOwner, _reward);
+        // solhint-disable-next-line
+        emit Withdraw({ owner: _owner, token: _token, withdrawer: _withdrawer, amount: amountToOwner, reward: _reward });
     }
 }

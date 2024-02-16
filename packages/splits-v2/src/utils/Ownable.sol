@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 /// @title Ownable Implementation
-/// @author 0xSplits
+/// @author Splits
 /// @notice Ownable clone-implementation
 abstract contract Ownable {
     /* -------------------------------------------------------------------------- */
@@ -28,7 +28,7 @@ abstract contract Ownable {
     /* -------------------------------------------------------------------------- */
 
     function __initOwnable(address _owner) internal virtual {
-        emit OwnershipTransferred(address(0), _owner);
+        emit OwnershipTransferred({ oldOwner: address(0), newOwner: _owner });
         owner = _owner;
     }
 
@@ -47,6 +47,6 @@ abstract contract Ownable {
 
     function transferOwnership(address _owner) public virtual onlyOwner {
         owner = _owner;
-        emit OwnershipTransferred(msg.sender, _owner);
+        emit OwnershipTransferred({ oldOwner: msg.sender, newOwner: _owner });
     }
 }

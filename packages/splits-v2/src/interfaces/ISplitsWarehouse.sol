@@ -6,9 +6,9 @@ import { IERC6909 } from "./IERC6909.sol";
 interface ISplitsWarehouse is IERC6909 {
     function NATIVE_TOKEN() external view returns (address);
 
-    function deposit(address _owner, address _token, uint256 _amount) external payable;
+    function deposit(address owner, address token, uint256 amount) external payable;
 
-    function batchTransfer(address[] memory _recipients, address _token, uint256[] memory _amounts) external;
+    function batchTransfer(address[] memory recipients, address token, uint256[] memory amounts) external;
 
-    function withdraw(address _owner, address _token) external;
+    function withdraw(address owner, address token) external;
 }

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.23;
 
-// TODO: do we want to use our clone or the minimal standard?
 import { Clone } from "../libraries/Clone.sol";
 import { SplitV2Lib } from "../libraries/SplitV2.sol";
 import { SplitWalletV2 } from "./SplitWalletV2.sol";
@@ -9,7 +8,7 @@ import { SplitWalletV2 } from "./SplitWalletV2.sol";
 /**
  * @title SplitFactoryV2
  * @author Splits
- * @notice Minimal smart wallet clone-factory for v2 splitters
+ * @notice Minimal smart wallet clone-factory for v2 splitters.
  */
 contract SplitFactoryV2 {
     using Clone for address;
@@ -24,7 +23,7 @@ contract SplitFactoryV2 {
     /*                                   STORAGE                                  */
     /* -------------------------------------------------------------------------- */
 
-    /// @notice address of Split Wallet V2 implementation
+    /// @notice address of Split Wallet V2 implementation.
     address public immutable SPLIT_WALLET_IMPLEMENTATION;
 
     /* -------------------------------------------------------------------------- */
@@ -32,8 +31,8 @@ contract SplitFactoryV2 {
     /* -------------------------------------------------------------------------- */
 
     /**
-     * @notice Construct a new SplitFactoryV2
-     * @param _splitsWarehouse Address of Split Warehouse
+     * @notice Construct a new SplitFactoryV2.
+     * @param _splitsWarehouse Address of Split Warehouse.
      */
     constructor(address _splitsWarehouse) {
         SPLIT_WALLET_IMPLEMENTATION = address(new SplitWalletV2(_splitsWarehouse));
@@ -44,11 +43,11 @@ contract SplitFactoryV2 {
     /* -------------------------------------------------------------------------- */
 
     /**
-     * @notice Create a new split using create2
-     * @param _splitParams Params to create split with
-     * @param _owner Owner of created split
-     * @param _creator Creator of created split
-     * @param _salt Salt for create2
+     * @notice Create a new split using create2.
+     * @param _splitParams Params to create split with.
+     * @param _owner Owner of created split.
+     * @param _creator Creator of created split.
+     * @param _salt Salt for create2.
      */
     function createSplitDeterministic(
         SplitV2Lib.Split calldata _splitParams,
@@ -59,18 +58,20 @@ contract SplitFactoryV2 {
         external
         returns (address split)
     {
-        split = SPLIT_WALLET_IMPLEMENTATION.cloneDeterministic(_getSalt(_splitParams, _owner, _salt));
+        split = SPLIT_WALLET_IMPLEMENTATION.cloneDeterministic(
+            _getSalt({ _splitParams: _splitParams, _owner: _owner, _salt: _salt })
+        );
 
         SplitWalletV2(split).initialize(_splitParams, _owner);
 
-        emit SplitCreated(split, _splitParams, _owner, _creator);
+        emit SplitCreated({ split: split, splitParams: _splitParams, owner: _owner, creator: _creator });
     }
 
     /**
-     * @notice Create a new split using create
-     * @param _splitParams Params to create split with
-     * @param _owner Owner of created split
-     * @param _creator Creator of created split
+     * @notice Create a new split using create.
+     * @param _splitParams Params to create split with.
+     * @param _owner Owner of created split.
+     * @param _creator Creator of created split.
      */
     function createSplit(
         SplitV2Lib.Split calldata _splitParams,
@@ -84,14 +85,14 @@ contract SplitFactoryV2 {
 
         SplitWalletV2(split).initialize(_splitParams, _owner);
 
-        emit SplitCreated(split, _splitParams, _owner, _creator);
+        emit SplitCreated({ split: split, splitParams: _splitParams, owner: _owner, creator: _creator });
     }
 
     /**
-     * @notice Predict the address of a new split
-     * @param _splitParams Params to create split with
-     * @param _owner Owner of created split
-     * @param _salt Salt for create2
+     * @notice Predict the address of a new split.
+     * @param _splitParams Params to create split with.
+     * @param _owner Owner of created split.
+     * @param _salt Salt for create2.
      */
     function predictDeterministicAddress(
         SplitV2Lib.Split calldata _splitParams,
@@ -102,14 +103,14 @@ contract SplitFactoryV2 {
         view
         returns (address)
     {
-        return _predictDeterministicAddress(_splitParams, _owner, _salt);
+        return _predictDeterministicAddress({ _splitParams: _splitParams, _owner: _owner, _salt: _salt });
     }
 
     /**
-     * @notice Predict the address of a new split and check if it is deployed
-     * @param _splitParams Params to create split with
-     * @param _owner Owner of created split
-     * @param _salt Salt for create2
+     * @notice Predict the address of a new split and check if it is deployed.
+     * @param _splitParams Params to create split with.
+     * @param _owner Owner of created split.
+     * @param _salt Salt for create2.
      */
     function isDeployed(
         SplitV2Lib.Split calldata _splitParams,
@@ -120,7 +121,7 @@ contract SplitFactoryV2 {
         view
         returns (address split, bool exists)
     {
-        split = _predictDeterministicAddress(_splitParams, _owner, _salt);
+        split = _predictDeterministicAddress({ _splitParams: _splitParams, _owner: _owner, _salt: _salt });
         exists = split.code.length > 0;
     }
 
@@ -149,8 +150,9 @@ contract SplitFactoryV2 {
         view
         returns (address)
     {
-        return SPLIT_WALLET_IMPLEMENTATION.predictDeterministicAddress(
-            _getSalt(_splitParams, _owner, _salt), address(this)
-        );
+        return SPLIT_WALLET_IMPLEMENTATION.predictDeterministicAddress({
+            _salt: _getSalt({ _splitParams: _splitParams, _owner: _owner, _salt: _salt }),
+            _deployer: address(this)
+        });
     }
 }

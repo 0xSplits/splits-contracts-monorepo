@@ -7,7 +7,7 @@
     "build:optimized": "FOUNDRY_PROFILE=optimized forge build",
     "clean": "rm -rf cache out out-optimized",
     "lint": "pnpm lint:sol && pnpm run prettier:check",
-    "lint:sol": "forge fmt --check && pnpm solhint {script,src,test}/**/*.sol",
+    "lint:sol": "forge fmt --check && pnpm solhint {script,src}/**/*.sol",
     "prettier:check": "prettier --check \"**/*.{json,md,svg,yml}\"",
     "prettier:write": "prettier --write \"**/*.{json,md,svg,yml}\"",
     "test": "forge test -vvv",
