@@ -16,7 +16,7 @@ abstract contract UnorderedNonces {
     /*                                   EVENTS                                   */
     /* -------------------------------------------------------------------------- */
 
-    event NonceInvalidation(address indexed owner, uint256 word, uint256 bitMap);
+    event NonceInvalidation(address indexed owner, uint256 indexed nonce);
 
     /* -------------------------------------------------------------------------- */
     /*                                   STORAGE                                  */
@@ -34,15 +34,30 @@ abstract contract UnorderedNonces {
     /* -------------------------------------------------------------------------- */
 
     /**
-     * @notice Invalidates the bits specified in mask for the bitmap at the word position.
-     * @dev The word is maxed at type(uint248).max.
-     * @param _word A number to index the nonceBitmap at.
-     * @param _mask A bitmap masked against msg.sender's current bitmap at the word position.
+     * @notice Invalidates the nonce for the msg.sender.
+     * @dev if the nonce is already invalidated, the function will succeed.
+     * @param _nonce nonce to invalidate.
      */
-    function invalidateNonces(uint256 _word, uint256 _mask) external {
-        nonceBitMap[msg.sender][_word] |= _mask;
+    function invalidateNonce(uint256 _nonce) external {
+        (uint256 word, uint256 bit) = calculateWordAndBit(_nonce);
 
-        emit NonceInvalidation({ owner: msg.sender, word: _word, bitMap: _mask });
+        // flip the bit in the bitmap by taking a bitwise OR.
+        // if the bit is already flipped, the result will be the same.
+        nonceBitMap[msg.sender][word] |= bit;
+
+        emit NonceInvalidation(msg.sender, _nonce);
+    }
+
+    /**
+     * @notice Check if a nonce can be used for a given address.
+     * @param _from address to check.
+     * @param _nonce nonce to check.
+     * @return isValid returns true if the nonce is unused, false otherwise.
+     */
+    function isValidNonce(address _from, uint256 _nonce) external view returns (bool) {
+        (uint256 word, uint256 bit) = calculateWordAndBit(_nonce);
+
+        return nonceBitMap[_from][word] & bit == 0;
     }
 
     /* -------------------------------------------------------------------------- */
@@ -50,19 +65,22 @@ abstract contract UnorderedNonces {
     /* -------------------------------------------------------------------------- */
 
     function useNonce(address _from, uint256 _nonce) internal {
-        // word is nonce divided by 256.
-        uint256 word = uint256(_nonce) >> 8;
-
-        // bitMap is nonce modulo 256.
-        uint256 bitMap = uint8(_nonce);
-
-        // bit is 1 shifted left by the bitMap.
-        uint256 bit = 1 << bitMap;
+        (uint256 word, uint256 bit) = calculateWordAndBit(_nonce);
 
         // flip the bit in the bitmap by taking a bitwise XOR.
         uint256 flipped = nonceBitMap[_from][word] ^= bit;
 
         // check if the bit was already flipped.
         if (flipped & bit == 0) revert InvalidNonce();
+
+        emit NonceInvalidation(_from, _nonce);
+    }
+
+    function calculateWordAndBit(uint256 _nonce) internal pure returns (uint256 word, uint256 bit) {
+        // word is nonce divided by 256.
+        word = uint256(_nonce) >> 8;
+
+        // bit is 1 shifted left by the nonce modulo 256.
+        bit = 1 << uint8(_nonce);
     }
 }

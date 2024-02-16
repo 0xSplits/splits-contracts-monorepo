@@ -228,9 +228,9 @@ contract ERC6909X is ERC6909, EIP712, UnorderedNonces, IERC6909X {
         if (ack != IERC6909XCallback.onTemporaryApprove.selector) revert InvalidAck();
 
         if (_operator) {
-            isOperator[_owner][_spender] = prevIsOperator;
+            _setOperator({ _owner: _owner, _operator: _spender, _approved: prevIsOperator });
         } else {
-            allowance[_owner][_spender][_id] = prevAllowance;
+            _approve({ _owner: _owner, _spender: _spender, _id: _id, _amount: prevAllowance });
         }
     }
 
@@ -247,10 +247,12 @@ contract ERC6909X is ERC6909, EIP712, UnorderedNonces, IERC6909X {
         if (_operator) {
             if (_id != 0 || _amount != 0) revert InvalidPermitParams();
             prevIsOperator = isOperator[_owner][_spender];
-            isOperator[_owner][_spender] = true;
+
+            _setOperator({ _owner: _owner, _operator: _spender, _approved: true });
         } else {
             prevAllowance = allowance[_owner][_spender][_id];
-            allowance[_owner][_spender][_id] = _amount;
+
+            _approve({ _owner: _owner, _spender: _spender, _id: _id, _amount: _amount });
         }
     }
 

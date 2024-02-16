@@ -243,6 +243,9 @@ contract ERC6909Test is BaseTest {
         public
     {
         Account memory _owner = ALICE;
+
+        assertEq(erc6909.isValidNonce(_owner.addr, _nonce), true);
+
         if (_isOperator) {
             _id = 0;
             _amount = 0;
@@ -262,6 +265,7 @@ contract ERC6909Test is BaseTest {
 
         assertEq(erc6909.isOperator(_owner.addr, target), false);
         assertEq(erc6909.allowance(_owner.addr, target, _id), 0);
+        assertEq(erc6909.isValidNonce(_owner.addr, _nonce), false);
     }
 
     function testFuzz_temporaryApproveAndCallBySig_Revert_whenExpired(
@@ -346,9 +350,8 @@ contract ERC6909Test is BaseTest {
             true, _owner.addr, _owner.key, target, _isOperator, _id, _amount, target, "", _nonce, deadline
         );
 
-        (uint256 word, uint256 bit) = getMask(_nonce);
         vm.prank(_owner.addr);
-        erc6909.invalidateNonces(word, bit);
+        erc6909.invalidateNonce(_nonce);
 
         vm.expectRevert(InvalidNonce.selector);
         erc6909.temporaryApproveAndCallBySig(
@@ -380,6 +383,9 @@ contract ERC6909Test is BaseTest {
         public
     {
         Account memory _owner = ALICE;
+
+        assertEq(erc6909.isValidNonce(_owner.addr, _nonce), true);
+
         if (_isOperator) {
             _id = 0;
             _value = 0;
@@ -398,6 +404,8 @@ contract ERC6909Test is BaseTest {
         } else {
             assertEq(erc6909.allowance(_owner.addr, _spender, _id), _value);
         }
+
+        assertEq(erc6909.isValidNonce(_owner.addr, _nonce), false);
     }
 
     function testFuzz_approveBySig_Revert_whenExpired(
@@ -467,10 +475,8 @@ contract ERC6909Test is BaseTest {
             false, _owner.addr, _owner.key, _spender, isOperator, _id, _value, address(0), "", _nonce, deadline
         );
 
-        (uint256 word, uint256 bit) = getMask(_nonce);
-
         vm.prank(_owner.addr);
-        erc6909.invalidateNonces(word, bit);
+        erc6909.invalidateNonce(_nonce);
 
         vm.expectRevert(InvalidNonce.selector);
         erc6909.approveBySig(_owner.addr, _spender, isOperator, _id, _value, _nonce, deadline, signature);
@@ -498,6 +504,31 @@ contract ERC6909Test is BaseTest {
 
         vm.expectRevert(InvalidPermitParams.selector);
         erc6909.approveBySig(_owner.addr, _spender, isOperator, _id, _value, _nonce, deadline, signature);
+    }
+
+    function testFuzz_invalidateNonce(uint256 _nonce) public {
+        Account memory _owner = ALICE;
+
+        assertEq(erc6909.isValidNonce(_owner.addr, _nonce), true);
+
+        vm.prank(_owner.addr);
+        erc6909.invalidateNonce(_nonce);
+
+        assertEq(erc6909.isValidNonce(_owner.addr, _nonce), false);
+    }
+
+    function testFuzz_invalidateNonce_whenNonceIsInvalid(uint256 _nonce) public {
+        Account memory _owner = ALICE;
+
+        vm.prank(_owner.addr);
+        erc6909.invalidateNonce(_nonce);
+
+        assertEq(erc6909.isValidNonce(_owner.addr, _nonce), false);
+
+        vm.prank(_owner.addr);
+        erc6909.invalidateNonce(_nonce);
+
+        assertEq(erc6909.isValidNonce(_owner.addr, _nonce), false);
     }
 
     function getPermitSignature(
