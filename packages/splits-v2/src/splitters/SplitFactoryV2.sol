@@ -70,10 +70,10 @@ contract SplitFactoryV2 is Nonces {
     }
 
     /**
-     * @notice Create a new split using create2 with sender's nonce as salt
-     * @param _splitParams Params to create split with
-     * @param _owner Owner of created split
-     * @param _creator Creator of created split
+     * @notice Create a new split using create2 with params and owner as salt.
+     * @param _splitParams Params to create split with.
+     * @param _owner Owner of created split.
+     * @param _creator Creator of created split.
      */
     function createSplit(
         SplitV2Lib.Split calldata _splitParams,
@@ -83,7 +83,12 @@ contract SplitFactoryV2 is Nonces {
         external
         returns (address split)
     {
-        split = SPLIT_WALLET_IMPLEMENTATION.cloneDeterministic(keccak256(abi.encode(_useNonce(tx.origin))));
+        bytes32 hash = keccak256(abi.encode(_splitParams, _owner));
+
+        split = Clone.cloneDeterministic({
+            _implementation: SPLIT_WALLET_IMPLEMENTATION,
+            _salt: keccak256(bytes.concat(hash, abi.encode(useNonce(hash))))
+        });
 
         SplitWalletV2(split).initialize(_splitParams, _owner);
 
@@ -91,10 +96,10 @@ contract SplitFactoryV2 is Nonces {
     }
 
     /**
-     * @notice Predict the address of a new split.
-     * @param _splitParams Params to create split with.
-     * @param _owner Owner of created split.
-     * @param _salt Salt for create2.
+     * @notice Predict the address of a new split based on split params, owner, and salt.
+     * @param _splitParams Params to create split with
+     * @param _owner Owner of created split
+     * @param _salt Salt for create2
      */
     function predictDeterministicAddress(
         SplitV2Lib.Split calldata _splitParams,
@@ -109,13 +114,22 @@ contract SplitFactoryV2 is Nonces {
     }
 
     /**
-     * @notice Predict the address of a new split using nonce of user as salt.
-     * @param _user User to predict address for.
+     * @notice Predict the address of a new split based on the nonce of the hash of the params and owner.
+     * @param _splitParams Params to create split with.
+     * @param _owner Owner of created split.
      */
-    function predictDeterministicAddress(address _user) external view returns (address) {
+    function predictDeterministicAddress(
+        SplitV2Lib.Split calldata _splitParams,
+        address _owner
+    )
+        external
+        view
+        returns (address)
+    {
+        bytes32 hash = keccak256(abi.encode(_splitParams, _owner));
         return Clone.predictDeterministicAddress({
             _implementation: SPLIT_WALLET_IMPLEMENTATION,
-            _salt: keccak256(abi.encode(nonces(_user))),
+            _salt: keccak256(bytes.concat(hash, abi.encode(nonces(hash)))),
             _deployer: address(this)
         });
     }
