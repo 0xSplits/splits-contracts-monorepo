@@ -232,11 +232,10 @@ contract ERC6909Test is BaseTest {
         assertEq(supported, true);
     }
 
-    // TODO: Update the test to use the new interface with unordered nonces
-    // function test_supportsInterface_IERC6909X() public {
-    //     bool supported = erc6909.supportsInterface(0xeb858add);
-    //     assertEq(supported, true);
-    // }
+    function test_supportsInterface_IERC6909X() public {
+        bool supported = erc6909.supportsInterface(0x4a31d207);
+        assertEq(supported, true);
+    }
 
     function testFuzz_temporaryApproveAndCall(address _owner, bool _isOperator, uint256 _id, uint256 _amount) public {
         if (_isOperator) {
