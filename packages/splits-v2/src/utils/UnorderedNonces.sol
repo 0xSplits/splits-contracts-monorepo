@@ -36,28 +36,28 @@ abstract contract UnorderedNonces {
     /**
      * @notice Invalidates the nonce for the msg.sender.
      * @dev if the nonce is already invalidated, the function will succeed.
-     * @param nonce nonce to invalidate.
+     * @param _nonce nonce to invalidate.
      */
-    function invalidateNonce(uint256 nonce) external {
-        (uint256 word, uint256 bit) = calculateWordAndBit(nonce);
+    function invalidateNonce(uint256 _nonce) external {
+        (uint256 word, uint256 bit) = calculateWordAndBit(_nonce);
 
         // flip the bit in the bitmap by taking a bitwise OR.
         // if the bit is already flipped, the result will be the same.
         nonceBitMap[msg.sender][word] |= bit;
 
-        emit NonceInvalidation(msg.sender, nonce);
+        emit NonceInvalidation(msg.sender, _nonce);
     }
 
     /**
      * @notice Check if a nonce can be used for a given address.
-     * @param from address to check.
-     * @param nonce nonce to check.
-     * @return true returns true if the nonce is unused, false otherwise.
+     * @param _from address to check.
+     * @param _nonce nonce to check.
+     * @return isValid returns true if the nonce is unused, false otherwise.
      */
-    function isValidNonce(address from, uint256 nonce) external view returns (bool) {
-        (uint256 word, uint256 bit) = calculateWordAndBit(nonce);
+    function isValidNonce(address _from, uint256 _nonce) external view returns (bool) {
+        (uint256 word, uint256 bit) = calculateWordAndBit(_nonce);
 
-        return nonceBitMap[from][word] & bit == 0;
+        return nonceBitMap[_from][word] & bit == 0;
     }
 
     /* -------------------------------------------------------------------------- */
@@ -73,14 +73,14 @@ abstract contract UnorderedNonces {
         // check if the bit was already flipped.
         if (flipped & bit == 0) revert InvalidNonce();
 
-        emit NonceInvalidation(from, nonce);
+        emit NonceInvalidation(_from, _nonce);
     }
 
-    function calculateWordAndBit(uint256 nonce) internal pure returns (uint256 word, uint256 bit) {
+    function calculateWordAndBit(uint256 _nonce) internal pure returns (uint256 word, uint256 bit) {
         // word is nonce divided by 256.
-        word = uint256(nonce) >> 8;
+        word = uint256(_nonce) >> 8;
 
         // bit is 1 shifted left by the nonce modulo 256.
-        bit = 1 << uint8(nonce);
+        bit = 1 << uint8(_nonce);
     }
 }
