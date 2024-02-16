@@ -70,7 +70,8 @@ contract SplitFactoryV2 is Nonces {
     }
 
     /**
-     * @notice Create a new split using create2 with params and owner as salt.
+     * @notice Create a new split with params and owner.
+     * @dev Uses a hash-based incrementing nonce over params and owner.
      * @param _splitParams Params to create split with.
      * @param _owner Owner of created split.
      * @param _creator Creator of created split.
