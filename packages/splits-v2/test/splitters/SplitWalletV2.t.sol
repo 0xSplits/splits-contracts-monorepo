@@ -54,8 +54,15 @@ contract SplitWalletV2Test is BaseTest {
         assertEq(wallet.splitHash(), split.getHashMem());
     }
 
-    function testFuzz_initialize_Revert_whenNotFactory(SplitV2Lib.Split memory _split, address _owner) public {
-        vm.prank(address(0));
+    function testFuzz_initialize_Revert_whenNotFactory(
+        SplitV2Lib.Split memory _split,
+        address _owner,
+        address _sender
+    )
+        public
+    {
+        vm.assume(_sender != address(this));
+        vm.prank(_sender);
         vm.expectRevert(SplitWalletV2.UnauthorizedInitializer.selector);
         wallet.initialize(_split, _owner);
     }
@@ -64,14 +71,15 @@ contract SplitWalletV2Test is BaseTest {
         SplitReceiver[] memory _receivers,
         uint16 _distributionIncentive,
         bool _distributeByPush,
-        address _owner
+        address _owner,
+        uint8 _length
     )
         public
     {
-        vm.assume(_receivers.length > 1);
+        vm.assume(_receivers.length > 1 && _length != _receivers.length);
         SplitV2Lib.Split memory split = createSplitParams(_receivers, _distributionIncentive, _distributeByPush);
 
-        address[] memory receivers = new address[](split.recipients.length - 1);
+        address[] memory receivers = new address[](_length);
         split.recipients = receivers;
 
         vm.expectRevert(SplitV2Lib.InvalidSplit_LengthMismatch.selector);
@@ -82,13 +90,16 @@ contract SplitWalletV2Test is BaseTest {
         SplitReceiver[] memory _receivers,
         uint16 _distributionIncentive,
         bool _distributeByPush,
-        address _owner
+        address _owner,
+        uint256 _totalAllocation
     )
         public
     {
         SplitV2Lib.Split memory split = createSplitParams(_receivers, _distributionIncentive, _distributeByPush);
 
-        split.totalAllocation = split.totalAllocation + 1;
+        vm.assume(_totalAllocation != split.totalAllocation);
+
+        split.totalAllocation = _totalAllocation;
 
         vm.expectRevert(SplitV2Lib.InvalidSplit_TotalAllocationMismatch.selector);
         wallet.initialize(split, _owner);
@@ -133,15 +144,16 @@ contract SplitWalletV2Test is BaseTest {
         SplitReceiver[] memory _receivers,
         uint16 _distributionIncentive,
         bool _distributeByPush,
-        address _owner
+        address _owner,
+        uint8 _length
     )
         public
     {
-        vm.assume(_receivers.length > 1);
+        vm.assume(_receivers.length > 1 && _length != _receivers.length);
         testFuzz_initialize(_receivers, _distributionIncentive, _distributeByPush, _owner);
         SplitV2Lib.Split memory split = createSplitParams(_receivers, _distributionIncentive, _distributeByPush);
 
-        address[] memory receivers = new address[](split.recipients.length - 1);
+        address[] memory receivers = new address[](_length);
         split.recipients = receivers;
 
         vm.prank(_owner);
@@ -153,14 +165,17 @@ contract SplitWalletV2Test is BaseTest {
         SplitReceiver[] memory _receivers,
         uint16 _distributionIncentive,
         bool _distributeByPush,
-        address _owner
+        address _owner,
+        uint256 _totalAllocation
     )
         public
     {
         testFuzz_initialize(_receivers, _distributionIncentive, _distributeByPush, _owner);
         SplitV2Lib.Split memory split = createSplitParams(_receivers, _distributionIncentive, _distributeByPush);
 
-        split.totalAllocation = split.totalAllocation + 1;
+        vm.assume(_totalAllocation != split.totalAllocation);
+
+        split.totalAllocation = _totalAllocation;
 
         vm.prank(_owner);
         vm.expectRevert(SplitV2Lib.InvalidSplit_TotalAllocationMismatch.selector);
@@ -197,24 +212,67 @@ contract SplitWalletV2Test is BaseTest {
         SplitReceiver[] memory _receivers,
         uint16 _distributionIncentive,
         bool _distributeByPush,
-        bool _useSimpleDistribute
+        bool _useSimpleDistribute,
+        SplitReceiver[] memory _receivers2,
+        uint16 _distributionIncentiv2,
+        bool _distributeByPush2
     )
         public
     {
         SplitV2Lib.Split memory split = createSplitParams(_receivers, _distributionIncentive, _distributeByPush);
         wallet.initialize(split, ALICE.addr);
 
-        if (_distributionIncentive == type(uint16).max) {
-            split.distributionIncentive -= 1;
-        } else {
-            split.distributionIncentive += 1;
-        }
+        SplitV2Lib.Split memory split2 = createSplitParams(_receivers2, _distributionIncentiv2, _distributeByPush2);
+
+        vm.assume(split.getHashMem() != split2.getHashMem());
 
         vm.expectRevert(SplitWalletV2.InvalidSplit.selector);
         if (_useSimpleDistribute) {
-            wallet.distribute(split, address(usdc), ALICE.addr);
+            wallet.distribute(split2, address(usdc), ALICE.addr);
         } else {
-            wallet.distribute(split, address(usdc), 0, 0, ALICE.addr);
+            wallet.distribute(split2, address(usdc), 0, 0, ALICE.addr);
+        }
+    }
+
+    function testFuzz_distribute_Revert_whenAmountGreaterThanBalance(
+        SplitReceiver[] memory _receivers,
+        uint16 _distributionIncentive,
+        bool _distributeByPush,
+        bool _native,
+        uint96 _splitAmount,
+        uint96 _warehouseAmount,
+        uint256 _distributeAmount
+    )
+        public
+    {
+        vm.assume(_distributeAmount > uint256(_splitAmount) + _warehouseAmount && _distributeAmount > type(uint96).max);
+        SplitV2Lib.Split memory split = createSplitParams(_receivers, _distributionIncentive, _distributeByPush);
+        address token;
+        if (_native) token = native;
+        else token = address(usdc);
+
+        wallet.initialize(split, ALICE.addr);
+
+        dealSplit(address(wallet), token, _splitAmount, _warehouseAmount);
+
+        vm.assume(split.totalAllocation > 0);
+
+        uint256 totalAmount = uint256(_warehouseAmount) + uint256(_splitAmount);
+        if (_distributeByPush) {
+            if (_warehouseAmount > 0) {
+                totalAmount -= 1;
+            }
+
+            vm.expectRevert();
+            wallet.distribute(split, token, _distributeAmount, _warehouseAmount, ALICE.addr);
+        } else {
+            if (_splitAmount > 0) {
+                totalAmount -= 1;
+                _splitAmount -= 1;
+            }
+
+            vm.expectRevert();
+            wallet.distribute(split, token, _distributeAmount, _splitAmount, ALICE.addr);
         }
     }
 
