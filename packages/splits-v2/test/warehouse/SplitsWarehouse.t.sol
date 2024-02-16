@@ -254,6 +254,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
         assertEq(warehouse.balanceOf(_owner, tokenToId(token)), 1);
         assertEq(ERC20(token).balanceOf(address(warehouse)), 1);
+        assertEq(ERC20(token).balanceOf(_owner), _amount - 1);
     }
 
     function testFuzz_withdrawOwner_whenNative(address _owner, uint256 _amount) public {
@@ -270,6 +271,7 @@ contract SplitsWarehouseTest is BaseTest, Fuzzer {
 
         assertEq(warehouse.balanceOf(_owner, tokenToId(native)), 1);
         assertEq(address(warehouse).balance, 1);
+        assertEq(address(_owner).balance, _amount - 1);
     }
 
     function test_withdrawOwner_Revert_whenOwnerReenters() public {

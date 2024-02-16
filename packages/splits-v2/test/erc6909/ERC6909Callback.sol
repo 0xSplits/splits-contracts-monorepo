@@ -19,8 +19,11 @@ contract ERC6909Callback is IERC6909XCallback {
         override
         returns (bytes4)
     {
-        require(SplitsWarehouse(msg.sender).allowance(owner, address(this), id) == amount);
-        require(SplitsWarehouse(msg.sender).isOperator(owner, address(this)) == isOperator);
+        if (isOperator) {
+            require(SplitsWarehouse(msg.sender).isOperator(owner, address(this)));
+        } else {
+            require(SplitsWarehouse(msg.sender).allowance(owner, address(this), id) == amount);
+        }
         return CALLBACK_SELECTOR;
     }
 }

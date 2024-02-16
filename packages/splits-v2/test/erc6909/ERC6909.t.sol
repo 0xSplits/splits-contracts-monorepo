@@ -59,15 +59,30 @@ contract ERC6909Test is BaseTest {
     /*                                TRANSFER_TEST                               */
     /* -------------------------------------------------------------------------- */
 
-    function testFuzz_transfer(address _from, address _to, uint256 _id, uint256 _amount) public {
-        vm.assume(_from != _to);
+    function testFuzz_transfer(
+        address _from,
+        address _to,
+        address _third,
+        uint256 _id,
+        uint256 _amount,
+        uint256 _thirdAmount
+    )
+        public
+    {
+        vm.assume(_from != _third && _to != _third);
         testFuzz_mint(_from, _id, _amount);
+        testFuzz_mint(_third, _id, _thirdAmount);
 
         vm.prank(_from);
         erc6909.transfer(_to, _id, _amount);
 
-        assertEq(erc6909.balanceOf(_from, _id), 0);
+        if (_from != _to) {
+            assertEq(erc6909.balanceOf(_from, _id), 0);
+        }
         assertEq(erc6909.balanceOf(_to, _id), _amount);
+
+        // assert that the third account balance is unchanged
+        assertEq(erc6909.balanceOf(_third, _id), _thirdAmount);
     }
 
     function testFuzz_transfer_Revert_whenTransferAmountGreateThanBalance(
@@ -89,10 +104,22 @@ contract ERC6909Test is BaseTest {
     /*                             TRANSFER_FROM_TEST                             */
     /* -------------------------------------------------------------------------- */
 
-    function testFuzz_transferFrom(address _from, address _to, address _spender, uint256 _id, uint256 _amount) public {
-        vm.assume(_amount > 0 && _spender != _from && _from != _to);
+    function testFuzz_transferFrom(
+        address _from,
+        address _to,
+        address _third,
+        address _spender,
+        uint256 _id,
+        uint256 _amount,
+        uint256 _thirdAmount
+    )
+        public
+    {
+        vm.assume(_amount > 0 && _spender != _from);
+        vm.assume(_from != _third && _to != _third);
 
         testFuzz_mint(_from, _id, _amount);
+        testFuzz_mint(_third, _id, _thirdAmount);
 
         vm.prank(_from);
         erc6909.approve(_spender, _id, _amount);
@@ -100,8 +127,15 @@ contract ERC6909Test is BaseTest {
         vm.prank(_spender);
         erc6909.transferFrom(_from, _to, _id, _amount);
 
-        assertEq(erc6909.balanceOf(_from, _id), 0);
+        if (_from != _to) {
+            assertEq(erc6909.balanceOf(_from, _id), 0);
+        }
+        if (_amount != type(uint256).max) {
+            assertEq(erc6909.allowance(_from, _spender, _id), 0);
+        }
         assertEq(erc6909.balanceOf(_to, _id), _amount);
+        // assert that the third account balance is unchanged
+        assertEq(erc6909.balanceOf(_third, _id), _thirdAmount);
     }
 
     function testFuzz_transferFrom_Revert_whenTransferAmountGreateThanBalance(
@@ -238,7 +272,8 @@ contract ERC6909Test is BaseTest {
         bool _isOperator,
         uint256 _id,
         uint256 _amount,
-        uint256 _nonce
+        uint256 _nonce,
+        uint256 _initialApproval
     )
         public
     {
@@ -253,18 +288,24 @@ contract ERC6909Test is BaseTest {
 
         address target = address(callback);
 
-        uint48 deadline = type(uint48).max;
+        {
+            vm.startPrank(_owner.addr);
+            erc6909.approve(address(target), _id, _initialApproval);
+            vm.stopPrank();
+        }
 
-        bytes memory signature = getPermitSignature(
-            true, _owner.addr, _owner.key, target, _isOperator, _id, _amount, target, "", _nonce, deadline
-        );
+        {
+            bytes memory signature = getPermitSignature(
+                true, _owner.addr, _owner.key, target, _isOperator, _id, _amount, target, "", _nonce, type(uint48).max
+            );
 
-        erc6909.temporaryApproveAndCallBySig(
-            _owner.addr, target, _isOperator, _id, _amount, target, "", _nonce, deadline, signature
-        );
+            erc6909.temporaryApproveAndCallBySig(
+                _owner.addr, target, _isOperator, _id, _amount, target, "", _nonce, type(uint48).max, signature
+            );
+        }
 
         assertEq(erc6909.isOperator(_owner.addr, target), false);
-        assertEq(erc6909.allowance(_owner.addr, target, _id), 0);
+        assertEq(erc6909.allowance(_owner.addr, target, _id), _initialApproval);
         assertEq(erc6909.isValidNonce(_owner.addr, _nonce), false);
     }
 
@@ -371,6 +412,31 @@ contract ERC6909Test is BaseTest {
 
         vm.expectRevert(InvalidPermitParams.selector);
         erc6909.temporaryApproveAndCallBySig(_owner.addr, target, true, 1, 1, target, "", 0, deadline, signature);
+    }
+
+    function test_temporaryApproveAndCallBySig_Revert_whenUsingApproveBySigSignature(
+        address _spender,
+        uint256 _id,
+        bool _isOperator,
+        uint256 _value,
+        uint256 _nonce
+    )
+        public
+    {
+        Account memory _owner = ALICE;
+
+        address target = address(callback);
+
+        uint48 deadline = type(uint48).max;
+
+        bytes memory signature = getPermitSignature(
+            false, _owner.addr, _owner.key, _spender, _isOperator, _id, _value, address(0), "", _nonce, deadline
+        );
+
+        vm.expectRevert(InvalidSigner.selector);
+        erc6909.temporaryApproveAndCallBySig(
+            _owner.addr, _spender, _isOperator, _id, _value, target, "", _nonce, deadline, signature
+        );
     }
 
     function testFuzz_approveBySig(
@@ -504,6 +570,42 @@ contract ERC6909Test is BaseTest {
 
         vm.expectRevert(InvalidPermitParams.selector);
         erc6909.approveBySig(_owner.addr, _spender, isOperator, _id, _value, _nonce, deadline, signature);
+    }
+
+    function testFuzz_approveBySign_Revert_whenUsingTemoporaryApprovaAndCallSig(
+        bool _isOperator,
+        uint256 _id,
+        uint256 _amount,
+        uint256 _nonce,
+        uint256 _initialApproval
+    )
+        public
+    {
+        Account memory _owner = ALICE;
+
+        assertEq(erc6909.isValidNonce(_owner.addr, _nonce), true);
+
+        if (_isOperator) {
+            _id = 0;
+            _amount = 0;
+        }
+
+        address target = address(callback);
+
+        {
+            vm.startPrank(_owner.addr);
+            erc6909.approve(address(target), _id, _initialApproval);
+            vm.stopPrank();
+        }
+
+        {
+            bytes memory signature = getPermitSignature(
+                true, _owner.addr, _owner.key, target, _isOperator, _id, _amount, target, "", _nonce, type(uint48).max
+            );
+
+            vm.expectRevert(InvalidSigner.selector);
+            erc6909.approveBySig(_owner.addr, target, _isOperator, _id, _amount, _nonce, type(uint48).max, signature);
+        }
     }
 
     function testFuzz_invalidateNonce(uint256 _nonce) public {
