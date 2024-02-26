@@ -3,12 +3,15 @@ pragma solidity ^0.8.23;
 
 import { Pausable } from "./Pausable.sol";
 
+import { ERC1155Holder } from "@openzeppelin/contracts/token/erc1155/utils/ERC1155Holder.sol";
+import { ERC721Holder } from "@openzeppelin/contracts/token/erc721/utils/ERC721Holder.sol";
+
 /**
  * @title Wallet Implementation
  * @author Splits
  * @notice Minimal smart wallet clone-implementation.
  */
-abstract contract Wallet is Pausable {
+abstract contract Wallet is Pausable, ERC721Holder, ERC1155Holder {
     /* -------------------------------------------------------------------------- */
     /*                                   ERRORS                                   */
     /* -------------------------------------------------------------------------- */

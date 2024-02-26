@@ -12,7 +12,7 @@ import { SplitWalletV2 } from "./SplitWalletV2.sol";
  * @author Splits
  * @notice Minimal smart wallet clone-factory for v2 splitters.
  */
-contract SplitFactoryV2 is Nonces {
+abstract contract SplitFactoryV2 is Nonces {
     using Clone for address;
 
     /* -------------------------------------------------------------------------- */
@@ -27,18 +27,6 @@ contract SplitFactoryV2 is Nonces {
 
     /// @notice address of Split Wallet V2 implementation.
     address public immutable SPLIT_WALLET_IMPLEMENTATION;
-
-    /* -------------------------------------------------------------------------- */
-    /*                                 CONSTRUCTOR                                */
-    /* -------------------------------------------------------------------------- */
-
-    /**
-     * @notice Construct a new SplitFactoryV2.
-     * @param _splitsWarehouse Address of Split Warehouse.
-     */
-    constructor(address _splitsWarehouse) {
-        SPLIT_WALLET_IMPLEMENTATION = address(new SplitWalletV2(_splitsWarehouse));
-    }
 
     /* -------------------------------------------------------------------------- */
     /*                             EXTERNAL FUNCTIONS                             */

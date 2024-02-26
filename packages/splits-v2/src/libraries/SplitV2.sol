@@ -20,14 +20,12 @@ library SplitV2Lib {
      * @param allocations The allocations of the split.
      * @param totalAllocation The total allocation of the split.
      * @param distributionIncentive The incentive for distribution.
-     * @param distributeByPush Whether the split balance should be pushed to recipients.
      */
     struct Split {
         address[] recipients;
         uint256[] allocations;
         uint256 totalAllocation;
         uint16 distributionIncentive;
-        bool distributeByPush;
     }
 
     /* -------------------------------------------------------------------------- */
