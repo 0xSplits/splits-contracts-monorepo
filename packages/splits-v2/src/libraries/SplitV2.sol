@@ -19,7 +19,7 @@ library SplitV2Lib {
      * @param recipients The recipients of the split.
      * @param allocations The allocations of the split.
      * @param totalAllocation The total allocation of the split.
-     * @param distributionIncentive The incentive for distribution.
+     * @param distributionIncentive The incentive for distribution. Limits max incentive to 6.5%.
      */
     struct Split {
         address[] recipients;

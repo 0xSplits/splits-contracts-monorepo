@@ -55,15 +55,18 @@ abstract contract Wallet is Pausable, ERC721Holder, ERC1155Holder {
     function execCalls(Call[] calldata _calls)
         external
         payable
-        onlyOwner
         returns (uint256 blockNumber, bytes[] memory returnData)
     {
+        address caller = msg.sender;
         blockNumber = block.number;
         uint256 length = _calls.length;
         returnData = new bytes[](length);
 
         bool success;
         for (uint256 i; i < length; ++i) {
+            // prevent user from executing calls after transferring ownership.
+            if (caller != owner) revert Unauthorized();
+
             Call calldata calli = _calls[i];
 
             if (calli.to.code.length == 0) {

@@ -48,9 +48,10 @@ abstract contract SplitFactoryV2 is Nonces {
         external
         returns (address split)
     {
-        split = SPLIT_WALLET_IMPLEMENTATION.cloneDeterministic(
-            _getSalt({ _splitParams: _splitParams, _owner: _owner, _salt: _salt })
-        );
+        split = Clone.cloneDeterministic({
+            _implementation: SPLIT_WALLET_IMPLEMENTATION,
+            _salt: _getSalt({ _splitParams: _splitParams, _owner: _owner, _salt: _salt })
+        });
 
         SplitWalletV2(split).initialize(_splitParams, _owner);
 

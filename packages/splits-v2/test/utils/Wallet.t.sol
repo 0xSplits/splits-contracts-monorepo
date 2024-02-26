@@ -71,9 +71,24 @@ contract WalletTest is BaseTest {
         assertEq(wallet.owner(), BOB.addr);
     }
 
+    function test_execCalls_Revert_afterTransferOwnership() public {
+        Wallet.Call memory call = Wallet.Call({
+            to: address(wallet),
+            value: 0,
+            data: abi.encodeWithSelector(Ownable.transferOwnership.selector, BOB.addr)
+        });
+
+        Wallet.Call[] memory calls = new Wallet.Call[](2);
+        calls[0] = call;
+
+        vm.prank(wallet.owner());
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        wallet.execCalls{ value: 0 }(calls);
+    }
+
     function test_execCalls_Revert_Unauthorized() public {
         vm.expectRevert(Ownable.Unauthorized.selector);
-        wallet.execCalls(new Wallet.Call[](0));
+        wallet.execCalls(new Wallet.Call[](1));
     }
 
     function test_execCalls_Revert_InvalidCall() public {
