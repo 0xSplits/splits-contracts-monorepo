@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.23;
 
-import { PullSplitFactory } from "../src/splitters/pull/PullsplitFactory.sol";
+import { PullSplitFactory } from "../src/splitters/pull/PullSplitFactory.sol";
 import { PushSplitFactory } from "../src/splitters/push/PushSplitFactory.sol";
 
 import { BaseScript } from "./Base.s.sol";
