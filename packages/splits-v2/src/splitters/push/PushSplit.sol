@@ -52,21 +52,14 @@ contract PushSplit is SplitWalletV2 {
 
         (uint256 splitBalance, uint256 warehouseBalance) = getSplitBalance(_token);
 
-        if (warehouseBalance > 1) {
-            withdrawFromWarehouse(_token);
-            unchecked {
-                warehouseBalance -= 1;
-            }
-        } else if (warehouseBalance > 0) {
-            unchecked {
-                warehouseBalance -= 1;
-            }
-        }
+        if (warehouseBalance > 1) withdrawFromWarehouse(_token);
 
-        if (splitBalance > 0) {
-            unchecked {
-                splitBalance -= 1;
-            }
+        // @solidity memory-safe-assembly
+        assembly {
+            // splitBalance -= uint(splitBalance > 0);
+            splitBalance := sub(splitBalance, iszero(iszero(splitBalance)))
+            // warehouseBalance -= uint(warehouseBalance > 0);
+            warehouseBalance := sub(warehouseBalance, iszero(iszero(warehouseBalance)))
         }
 
         _distribute({

@@ -52,22 +52,15 @@ contract PullSplit is SplitWalletV2 {
 
         (uint256 splitBalance, uint256 warehouseBalance) = getSplitBalance(_token);
 
-        if (splitBalance > 1) {
-            unchecked {
-                splitBalance -= 1;
-            }
-            depositToWarehouse(_token, splitBalance);
-        } else if (splitBalance > 0) {
-            unchecked {
-                splitBalance -= 1;
-            }
+        // @solidity memory-safe-assembly
+        assembly {
+            // splitBalance -= uint(splitBalance > 0);
+            splitBalance := sub(splitBalance, iszero(iszero(splitBalance)))
+            // warehouseBalance -= uint(warehouseBalance > 0);
+            warehouseBalance := sub(warehouseBalance, iszero(iszero(warehouseBalance)))
         }
 
-        if (warehouseBalance > 0) {
-            unchecked {
-                warehouseBalance -= 1;
-            }
-        }
+        if (splitBalance > 0) depositToWarehouse(_token, splitBalance);
 
         _distribute({
             _split: _split,

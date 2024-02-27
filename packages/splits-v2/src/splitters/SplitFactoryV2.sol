@@ -13,8 +13,6 @@ import { SplitWalletV2 } from "./SplitWalletV2.sol";
  * @notice Minimal smart wallet clone-factory for v2 splitters.
  */
 abstract contract SplitFactoryV2 is Nonces {
-    using Clone for address;
-
     /* -------------------------------------------------------------------------- */
     /*                                   EVENTS                                   */
     /* -------------------------------------------------------------------------- */
@@ -168,7 +166,8 @@ abstract contract SplitFactoryV2 is Nonces {
         view
         returns (address)
     {
-        return SPLIT_WALLET_IMPLEMENTATION.predictDeterministicAddress({
+        return Clone.predictDeterministicAddress({
+            _implementation: SPLIT_WALLET_IMPLEMENTATION,
             _salt: _getSalt({ _splitParams: _splitParams, _owner: _owner, _salt: _salt }),
             _deployer: address(this)
         });
