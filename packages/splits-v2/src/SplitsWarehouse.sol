@@ -3,7 +3,6 @@
 pragma solidity ^0.8.23;
 
 import { Cast } from "./libraries/Cast.sol";
-import { Math } from "./libraries/Math.sol";
 
 import { ERC6909X } from "./tokens/ERC6909X.sol";
 import { IERC20Metadata as IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -20,7 +19,6 @@ import { ShortString, ShortStrings } from "@openzeppelin/contracts/utils/ShortSt
 contract SplitsWarehouse is ERC6909X {
     using Cast for uint256;
     using Cast for address;
-    using Math for uint256[];
     using SafeERC20 for IERC20;
     using Address for address payable;
     using ShortStrings for string;

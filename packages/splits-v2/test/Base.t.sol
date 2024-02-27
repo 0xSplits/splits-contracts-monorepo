@@ -5,8 +5,11 @@ import { SplitsWarehouse } from "../src/SplitsWarehouse.sol";
 import { Cast } from "../src/libraries/Cast.sol";
 
 import { SplitV2Lib } from "../src/libraries/SplitV2.sol";
-import { SplitFactoryV2 } from "../src/splitters/SplitFactoryV2.sol";
-import { SplitWalletV2 } from "../src/splitters/SplitWalletV2.sol";
+
+import { PullSplit } from "../src/splitters/pull/PullSplit.sol";
+import { PullSplitFactory } from "../src/splitters/pull/PullSplitFactory.sol";
+import { PushSplit } from "../src/splitters/push/PushSplit.sol";
+import { PushSplitFactory } from "../src/splitters/push/PushSplitFactory.sol";
 
 import { ERC20 } from "./utils/ERC20.sol";
 import { WarehouseReentrantReceiver } from "./utils/ReentrantReceiver.sol";
@@ -55,7 +58,8 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
     /*                                  SPLITTERS                                 */
     /* -------------------------------------------------------------------------- */
 
-    SplitFactoryV2 splitFactory;
+    PullSplitFactory pullFactory;
+    PushSplitFactory pushFactory;
 
     /* -------------------------------------------------------------------------- */
     /*                                   STRUCTS                                  */
@@ -86,15 +90,18 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
         native = warehouse.NATIVE_TOKEN();
 
         // Setup split factory
-        splitFactory = new SplitFactoryV2(address(warehouse));
+        pullFactory = new PullSplitFactory(address(warehouse));
+        pushFactory = new PushSplitFactory(address(warehouse));
 
         assumeAddresses.push(address(warehouse));
         assumeAddresses.push(address(usdc));
         assumeAddresses.push(address(weth));
         assumeAddresses.push(address(weth9));
         assumeAddresses.push(address(native));
-        assumeAddresses.push(address(splitFactory));
-        assumeAddresses.push(splitFactory.SPLIT_WALLET_IMPLEMENTATION());
+        assumeAddresses.push(address(pullFactory));
+        assumeAddresses.push(address(pushFactory));
+        assumeAddresses.push(pullFactory.SPLIT_WALLET_IMPLEMENTATION());
+        assumeAddresses.push(pushFactory.SPLIT_WALLET_IMPLEMENTATION());
     }
 
     function createUser(string memory name) internal returns (Account memory account) {
@@ -119,8 +126,7 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
 
     function createSplitParams(
         SplitReceiver[] memory _receivers,
-        uint16 _distributionIncentive,
-        bool _distributeByPush
+        uint16 _distributionIncentive
     )
         internal
         pure
@@ -138,7 +144,7 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
             recipients[i] = _receivers[i].receiver;
         }
 
-        return SplitV2Lib.Split(recipients, allocations, totalAllocation, _distributionIncentive, _distributeByPush);
+        return SplitV2Lib.Split(recipients, allocations, totalAllocation, _distributionIncentive);
     }
 
     function predictCreateAddress(address addr, uint256 nonce) internal pure returns (address) {
@@ -153,10 +159,32 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
         address _creator
     )
         internal
-        returns (address split)
+        returns (address split, SplitV2Lib.Split memory params)
     {
-        split = splitFactory.createSplit(
-            createSplitParams(_receivers, _distributionIncentive, _distributeByPush), _owner, _creator
-        );
+        params = createSplitParams(_receivers, _distributionIncentive);
+        if (_distributeByPush) {
+            split = pushFactory.createSplit(params, _owner, _creator);
+        } else {
+            split = pullFactory.createSplit(params, _owner, _creator);
+        }
+    }
+
+    function dealSplit(address _split, address _token, uint256 _splitAmount, uint256 _warehouseAmount) internal {
+        if (_token == native) deal(_split, _splitAmount);
+        else deal(_token, _split, _splitAmount);
+
+        address depositor = createUser("depositor").addr;
+        if (_token == native) deal(depositor, _warehouseAmount);
+        else deal(_token, depositor, _warehouseAmount);
+
+        vm.startPrank(depositor);
+
+        if (_token == native) {
+            warehouse.deposit{ value: _warehouseAmount }(_split, _token, _warehouseAmount);
+        } else {
+            ERC20(_token).approve(address(warehouse), _warehouseAmount);
+            warehouse.deposit(_split, _token, _warehouseAmount);
+        }
+        vm.stopPrank();
     }
 }

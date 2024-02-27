@@ -12,9 +12,7 @@ import { SplitWalletV2 } from "./SplitWalletV2.sol";
  * @author Splits
  * @notice Minimal smart wallet clone-factory for v2 splitters.
  */
-contract SplitFactoryV2 is Nonces {
-    using Clone for address;
-
+abstract contract SplitFactoryV2 is Nonces {
     /* -------------------------------------------------------------------------- */
     /*                                   EVENTS                                   */
     /* -------------------------------------------------------------------------- */
@@ -27,18 +25,6 @@ contract SplitFactoryV2 is Nonces {
 
     /// @notice address of Split Wallet V2 implementation.
     address public immutable SPLIT_WALLET_IMPLEMENTATION;
-
-    /* -------------------------------------------------------------------------- */
-    /*                                 CONSTRUCTOR                                */
-    /* -------------------------------------------------------------------------- */
-
-    /**
-     * @notice Construct a new SplitFactoryV2.
-     * @param _splitsWarehouse Address of Split Warehouse.
-     */
-    constructor(address _splitsWarehouse) {
-        SPLIT_WALLET_IMPLEMENTATION = address(new SplitWalletV2(_splitsWarehouse));
-    }
 
     /* -------------------------------------------------------------------------- */
     /*                             EXTERNAL FUNCTIONS                             */
@@ -60,9 +46,10 @@ contract SplitFactoryV2 is Nonces {
         external
         returns (address split)
     {
-        split = SPLIT_WALLET_IMPLEMENTATION.cloneDeterministic(
-            _getSalt({ _splitParams: _splitParams, _owner: _owner, _salt: _salt })
-        );
+        split = Clone.cloneDeterministic({
+            _implementation: SPLIT_WALLET_IMPLEMENTATION,
+            _salt: _getSalt({ _splitParams: _splitParams, _owner: _owner, _salt: _salt })
+        });
 
         SplitWalletV2(split).initialize(_splitParams, _owner);
 
@@ -179,7 +166,8 @@ contract SplitFactoryV2 is Nonces {
         view
         returns (address)
     {
-        return SPLIT_WALLET_IMPLEMENTATION.predictDeterministicAddress({
+        return Clone.predictDeterministicAddress({
+            _implementation: SPLIT_WALLET_IMPLEMENTATION,
             _salt: _getSalt({ _splitParams: _splitParams, _owner: _owner, _salt: _salt }),
             _deployer: address(this)
         });

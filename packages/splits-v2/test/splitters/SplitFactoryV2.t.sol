@@ -23,12 +23,13 @@ contract SplitFactoryV2Test is BaseTest {
     )
         public
     {
-        SplitV2Lib.Split memory params = createSplitParams(_receivers, _distributionIncentive, _distributeByPush);
-        address predictedAddress = splitFactory.predictDeterministicAddress(params, _owner, _salt);
+        SplitV2Lib.Split memory params = createSplitParams(_receivers, _distributionIncentive);
+        address predictedAddress = predictDeterministicAddress(params, _owner, _salt, _distributeByPush);
 
         vm.expectEmit();
         emit SplitCreated(predictedAddress, params, _owner, _creator);
-        SplitWalletV2 split = SplitWalletV2(splitFactory.createSplitDeterministic(params, _owner, _creator, _salt));
+        SplitWalletV2 split =
+            SplitWalletV2(createSplitDeterministic(params, _owner, _creator, _salt, _distributeByPush));
 
         assertEq(predictedAddress, address(split));
         assertEq(split.owner(), _owner);
@@ -46,10 +47,10 @@ contract SplitFactoryV2Test is BaseTest {
     {
         testFuzz_create2Split(_receivers, _distributionIncentive, _distributeByPush, _owner, _creator, _salt);
 
-        SplitV2Lib.Split memory params = createSplitParams(_receivers, _distributionIncentive, _distributeByPush);
+        SplitV2Lib.Split memory params = createSplitParams(_receivers, _distributionIncentive);
 
         vm.expectRevert();
-        splitFactory.createSplitDeterministic(params, _owner, _creator, _salt);
+        createSplitDeterministic(params, _owner, _creator, _salt, _distributeByPush);
     }
 
     function testFuzz_createSplitWithoutSalt(
@@ -61,11 +62,11 @@ contract SplitFactoryV2Test is BaseTest {
     )
         public
     {
-        SplitV2Lib.Split memory params = createSplitParams(_receivers, _distributionIncentive, _distributeByPush);
+        SplitV2Lib.Split memory params = createSplitParams(_receivers, _distributionIncentive);
 
-        address predictedAddress = splitFactory.predictDeterministicAddress(params, _owner);
+        address predictedAddress = predictDeterministicAddress(params, _owner, _distributeByPush);
 
-        SplitWalletV2 split = SplitWalletV2(splitFactory.createSplit(params, _owner, _creator));
+        SplitWalletV2 split = SplitWalletV2(createSplit(params, _owner, _creator, _distributeByPush));
 
         assertEq(split.owner(), _owner);
         assertEq(address(split), predictedAddress);
@@ -82,10 +83,10 @@ contract SplitFactoryV2Test is BaseTest {
     {
         testFuzz_createSplitWithoutSalt(_receivers, _distributionIncentive, _distributeByPush, _owner, _creator);
 
-        SplitV2Lib.Split memory params = createSplitParams(_receivers, _distributionIncentive, _distributeByPush);
-        address predictedAddress = splitFactory.predictDeterministicAddress(params, _owner);
+        SplitV2Lib.Split memory params = createSplitParams(_receivers, _distributionIncentive);
+        address predictedAddress = predictDeterministicAddress(params, _owner, _distributeByPush);
 
-        SplitWalletV2 split = SplitWalletV2(splitFactory.createSplit(params, _owner, _owner));
+        SplitWalletV2 split = SplitWalletV2(createSplit(params, _owner, _owner, _distributeByPush));
 
         assertEq(split.owner(), _owner);
         assertEq(address(split), predictedAddress);
@@ -101,16 +102,99 @@ contract SplitFactoryV2Test is BaseTest {
     )
         public
     {
-        SplitV2Lib.Split memory params = createSplitParams(_receivers, _distributionIncentive, _distributeByPush);
+        SplitV2Lib.Split memory params = createSplitParams(_receivers, _distributionIncentive);
 
-        (address predictedAddress, bool isDeployed) = splitFactory.isDeployed(params, _owner, _salt);
+        (address predictedAddress, bool isDeployed_) = isDeployed(params, _owner, _salt, _distributeByPush);
 
-        assertEq(isDeployed, false);
+        assertEq(isDeployed_, false);
 
         testFuzz_create2Split(_receivers, _distributionIncentive, _distributeByPush, _owner, _creator, _salt);
 
-        (predictedAddress, isDeployed) = splitFactory.isDeployed(params, _owner, _salt);
+        (predictedAddress, isDeployed_) = isDeployed(params, _owner, _salt, _distributeByPush);
 
-        assertEq(isDeployed, true);
+        assertEq(isDeployed_, true);
+    }
+
+    function predictDeterministicAddress(
+        SplitV2Lib.Split memory params,
+        address _owner,
+        bytes32 _salt,
+        bool _push
+    )
+        private
+        view
+        returns (address)
+    {
+        if (_push) {
+            return pushFactory.predictDeterministicAddress(params, _owner, _salt);
+        } else {
+            return pullFactory.predictDeterministicAddress(params, _owner, _salt);
+        }
+    }
+
+    function predictDeterministicAddress(
+        SplitV2Lib.Split memory params,
+        address _owner,
+        bool _push
+    )
+        private
+        view
+        returns (address)
+    {
+        if (_push) {
+            return pushFactory.predictDeterministicAddress(params, _owner);
+        } else {
+            return pullFactory.predictDeterministicAddress(params, _owner);
+        }
+    }
+
+    function createSplit(
+        SplitV2Lib.Split memory params,
+        address _owner,
+        address _creator,
+        bool _push
+    )
+        private
+        returns (address)
+    {
+        if (_push) {
+            return pushFactory.createSplit(params, _owner, _creator);
+        } else {
+            return pullFactory.createSplit(params, _owner, _creator);
+        }
+    }
+
+    function createSplitDeterministic(
+        SplitV2Lib.Split memory params,
+        address _owner,
+        address _creator,
+        bytes32 _salt,
+        bool _push
+    )
+        private
+        returns (address)
+    {
+        if (_push) {
+            return pushFactory.createSplitDeterministic(params, _owner, _creator, _salt);
+        } else {
+            return pullFactory.createSplitDeterministic(params, _owner, _creator, _salt);
+        }
+    }
+
+    function isDeployed(
+        SplitV2Lib.Split memory params,
+        address _owner,
+        bytes32 _salt,
+        bool _push
+    )
+        private
+        view
+        returns (address, bool)
+    {
+        if (_push) {
+            return pushFactory.isDeployed(params, _owner, _salt);
+        } else {
+            return pullFactory.isDeployed(params, _owner, _salt);
+        }
     }
 }

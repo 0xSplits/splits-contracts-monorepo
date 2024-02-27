@@ -3,12 +3,15 @@ pragma solidity ^0.8.23;
 
 import { Pausable } from "./Pausable.sol";
 
+import { ERC1155Holder } from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+import { ERC721Holder } from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
+
 /**
  * @title Wallet Implementation
  * @author Splits
  * @notice Minimal smart wallet clone-implementation.
  */
-abstract contract Wallet is Pausable {
+abstract contract Wallet is Pausable, ERC721Holder, ERC1155Holder {
     /* -------------------------------------------------------------------------- */
     /*                                   ERRORS                                   */
     /* -------------------------------------------------------------------------- */
@@ -52,15 +55,18 @@ abstract contract Wallet is Pausable {
     function execCalls(Call[] calldata _calls)
         external
         payable
-        onlyOwner
         returns (uint256 blockNumber, bytes[] memory returnData)
     {
+        address caller = msg.sender;
         blockNumber = block.number;
         uint256 length = _calls.length;
         returnData = new bytes[](length);
 
         bool success;
         for (uint256 i; i < length; ++i) {
+            // prevent user from executing calls after transferring ownership.
+            if (caller != owner) revert Unauthorized();
+
             Call calldata calli = _calls[i];
 
             if (calli.to.code.length == 0) {
