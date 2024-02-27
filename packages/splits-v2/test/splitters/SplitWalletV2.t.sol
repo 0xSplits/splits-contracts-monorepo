@@ -225,7 +225,7 @@ contract SplitWalletV2Test is BaseTest {
         if (_useSimpleDistribute) {
             wallet.distribute(split, address(usdc), ALICE.addr);
         } else {
-            wallet.distribute(split, address(usdc), 0, 0, ALICE.addr);
+            wallet.distribute(split, address(usdc), 0, false, ALICE.addr);
         }
     }
 
@@ -251,7 +251,7 @@ contract SplitWalletV2Test is BaseTest {
         if (_useSimpleDistribute) {
             wallet.distribute(split2, address(usdc), ALICE.addr);
         } else {
-            wallet.distribute(split2, address(usdc), 0, 0, ALICE.addr);
+            wallet.distribute(split2, address(usdc), 0, false, ALICE.addr);
         }
     }
 
@@ -287,7 +287,7 @@ contract SplitWalletV2Test is BaseTest {
             }
 
             vm.expectRevert();
-            wallet.distribute(split, token, _distributeAmount, _warehouseAmount, ALICE.addr);
+            wallet.distribute(split, token, _distributeAmount, _warehouseAmount > 1, ALICE.addr);
         } else {
             if (_splitAmount > 0) {
                 totalAmount -= 1;
@@ -295,7 +295,7 @@ contract SplitWalletV2Test is BaseTest {
             }
 
             vm.expectRevert();
-            wallet.distribute(split, token, _distributeAmount, _splitAmount, ALICE.addr);
+            wallet.distribute(split, token, _distributeAmount, _splitAmount > 1, ALICE.addr);
         }
     }
 
@@ -332,13 +332,13 @@ contract SplitWalletV2Test is BaseTest {
                 if (_warehouseAmount > 0) {
                     totalAmount -= 1;
                 }
-                wallet.distribute(split, token, totalAmount, _warehouseAmount, ALICE.addr);
+                wallet.distribute(split, token, totalAmount, _warehouseAmount > 1, ALICE.addr);
             } else {
                 if (_splitAmount > 0) {
                     totalAmount -= 1;
                     _splitAmount -= 1;
                 }
-                wallet.distribute(split, token, totalAmount, _splitAmount, ALICE.addr);
+                wallet.distribute(split, token, totalAmount, _splitAmount > 1, ALICE.addr);
             }
         }
         vm.stopPrank();
@@ -377,13 +377,13 @@ contract SplitWalletV2Test is BaseTest {
                 if (_warehouseAmount > 0) {
                     totalAmount -= 1;
                 }
-                wallet.distribute(split, token, totalAmount, _warehouseAmount, ALICE.addr);
+                wallet.distribute(split, token, totalAmount, _warehouseAmount > 1, ALICE.addr);
             } else {
                 if (_splitAmount > 0) {
                     totalAmount -= 1;
                     _splitAmount -= 1;
                 }
-                wallet.distribute(split, token, totalAmount, _splitAmount, ALICE.addr);
+                wallet.distribute(split, token, totalAmount, _splitAmount > 1, ALICE.addr);
             }
         }
 
@@ -417,7 +417,7 @@ contract SplitWalletV2Test is BaseTest {
             if (_warehouseAmount > 0) {
                 totalAmount -= 1;
             }
-            wallet.distribute(split, native, totalAmount, _warehouseAmount, ALICE.addr);
+            wallet.distribute(split, native, totalAmount, _warehouseAmount > 1, ALICE.addr);
         }
         assertDistribute(split, native, _warehouseAmount, _splitAmount, ALICE.addr, true);
     }

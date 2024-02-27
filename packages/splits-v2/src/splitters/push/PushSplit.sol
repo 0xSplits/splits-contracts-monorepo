@@ -77,14 +77,14 @@ contract PushSplit is SplitWalletV2 {
      * @param _split The split struct containing the split data that gets distributed.
      * @param _token The token to distribute.
      * @param _distributeAmount The amount of tokens to distribute.
-     * @param _warehouseTransferAmount The amount of tokens to transfer from the warehouse.
+     * @param _performWarehouseTransfer if true, withdraws all but 1 amount of tokens from the warehouse.
      * @param _distributor The distributor of the split.
      */
     function distribute(
         SplitV2Lib.Split calldata _split,
         address _token,
         uint256 _distributeAmount,
-        uint256 _warehouseTransferAmount,
+        bool _performWarehouseTransfer,
         address _distributor
     )
         external
@@ -93,7 +93,7 @@ contract PushSplit is SplitWalletV2 {
     {
         if (splitHash != _split.getHash()) revert InvalidSplit();
 
-        if (_warehouseTransferAmount != 0) withdrawFromWarehouse(_token);
+        if (_performWarehouseTransfer) withdrawFromWarehouse(_token);
 
         _distribute({ _split: _split, _token: _token, _amount: _distributeAmount, _distributor: _distributor });
     }

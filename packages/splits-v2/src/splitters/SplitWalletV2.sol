@@ -88,7 +88,7 @@ abstract contract SplitWalletV2 is Wallet {
         SplitV2Lib.Split calldata _split,
         address _token,
         uint256 _distributeAmount,
-        uint256 _warehouseTransferAmount,
+        bool _performWarehouseTransfer,
         address _distributor
     )
         external
