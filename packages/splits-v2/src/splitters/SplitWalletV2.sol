@@ -5,6 +5,7 @@ import { ISplitsWarehouse } from "../interfaces/ISplitsWarehouse.sol";
 
 import { Cast } from "../libraries/Cast.sol";
 import { SplitV2Lib } from "../libraries/SplitV2.sol";
+import { ERC1271 } from "../utils/ERC1271.sol";
 import { Wallet } from "../utils/Wallet.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -15,7 +16,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @notice Base splitter contract.
  * @dev `SplitProxy` handles `receive()` itself to avoid the gas cost with `DELEGATECALL`.
  */
-abstract contract SplitWalletV2 is Wallet {
+abstract contract SplitWalletV2 is Wallet, ERC1271 {
     using SplitV2Lib for SplitV2Lib.Split;
     using Cast for address;
 
@@ -57,7 +58,7 @@ abstract contract SplitWalletV2 is Wallet {
     /*                          CONSTRUCTOR & INITIALIZER                         */
     /* -------------------------------------------------------------------------- */
 
-    constructor(address _splitWarehouse) {
+    constructor(address _splitWarehouse) ERC1271("splitWallet", "2") {
         SPLITS_WAREHOUSE = ISplitsWarehouse(_splitWarehouse);
         NATIVE_TOKEN = SPLITS_WAREHOUSE.NATIVE_TOKEN();
         FACTORY = msg.sender;
@@ -118,5 +119,13 @@ abstract contract SplitWalletV2 is Wallet {
         splitHash = _split.getHash();
 
         emit SplitUpdated(_split);
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*                             INTERNAL FUNCTIONS                             */
+    /* -------------------------------------------------------------------------- */
+
+    function getSigner() internal view override returns (address) {
+        return owner;
     }
 }

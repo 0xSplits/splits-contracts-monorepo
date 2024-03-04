@@ -20,7 +20,6 @@ contract ERC6909Test is BaseTest {
     error InvalidNonce();
 
     ERC6909 public erc6909;
-    ERC6909XUtils public permitUtils;
     ERC6909Callback public callback;
 
     function setUp() public override {
@@ -630,61 +629,6 @@ contract ERC6909Test is BaseTest {
         erc6909.invalidateNonce(_nonce);
 
         assertEq(erc6909.isValidNonce(_owner.addr, _nonce), false);
-    }
-
-    function getPermitSignature(
-        bool _temporary,
-        address _owner,
-        uint256 _key,
-        address _spender,
-        bool _isOperator,
-        uint256 _id,
-        uint256 _value,
-        address _target,
-        bytes memory _data,
-        uint256 _nonce,
-        uint48 _deadline
-    )
-        public
-        view
-        returns (bytes memory signature)
-    {
-        bytes32 digest =
-            getDigest(_temporary, _owner, _spender, _isOperator, _id, _value, _target, _data, _nonce, _deadline);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(_key, digest);
-        signature = abi.encodePacked(r, s, v);
-    }
-
-    function getDigest(
-        bool _temporary,
-        address _owner,
-        address _spender,
-        bool _isOperator,
-        uint256 _id,
-        uint256 _value,
-        address _target,
-        bytes memory _data,
-        uint256 _nonce,
-        uint48 _deadline
-    )
-        public
-        view
-        returns (bytes32 digest)
-    {
-        ERC6909XUtils.ERC6909XApproveAndCall memory permit = ERC6909XUtils.ERC6909XApproveAndCall({
-            temporary: _temporary,
-            owner: _owner,
-            spender: _spender,
-            isOperator: _isOperator,
-            id: _id,
-            amount: _value,
-            target: _target,
-            data: _data,
-            nonce: _nonce,
-            deadline: _deadline
-        });
-
-        digest = permitUtils.getTypedDataHash(permit);
     }
 
     function onTemporaryApprove(
