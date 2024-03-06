@@ -52,4 +52,4 @@ Shout out to the following projects for inspiration and guidance:
 - [Solmate](https://github.com/transmissions11/solmate)
 - [PaulRBerg's Foundry Template](https://github.com/PaulRBerg/foundry-template)
 - [Uniswap's Permit2](https://github.com/Uniswap/permit2)
-- [Coinbase Smart Wallet](https://github.com/coinbase/smart-wallet/tree/main)
+- [Coinbase Smart Wallet](https://github.com/coinbase/smart-wallet)
