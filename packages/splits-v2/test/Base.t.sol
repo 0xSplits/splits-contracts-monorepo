@@ -92,6 +92,8 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
         // Setup native token
         native = warehouse.NATIVE_TOKEN();
 
+        permitUtils = new ERC6909XUtils(warehouse.DOMAIN_SEPARATOR());
+
         // Setup split factory
         pullFactory = new PullSplitFactory(address(warehouse));
         pushFactory = new PushSplitFactory(address(warehouse));
@@ -105,8 +107,7 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
         assumeAddresses.push(address(pushFactory));
         assumeAddresses.push(pullFactory.SPLIT_WALLET_IMPLEMENTATION());
         assumeAddresses.push(pushFactory.SPLIT_WALLET_IMPLEMENTATION());
-
-        permitUtils = new ERC6909XUtils(warehouse.DOMAIN_SEPARATOR());
+        assumeAddresses.push(address(permitUtils));
     }
 
     function createUser(string memory name) internal returns (Account memory account) {
