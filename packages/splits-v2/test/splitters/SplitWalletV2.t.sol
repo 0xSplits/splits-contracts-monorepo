@@ -487,4 +487,133 @@ contract SplitWalletV2Test is BaseTest {
             assertGte(warehouse.balanceOf(_distributor, tokenToId(_token)), reward);
         }
     }
+
+    // Signature tests
+    function testFuzz_signature(
+        SplitReceiver[] memory _receivers,
+        uint16 _distributionIncentive,
+        bool _distributeByPush,
+        address _spender,
+        uint256 _id,
+        bool _isOperator,
+        uint256 _value,
+        uint256 _nonce
+    )
+        public
+    {
+        Account memory _owner = ALICE;
+
+        // intialize split
+        SplitV2Lib.Split memory split = createSplitParams(_receivers, _distributionIncentive);
+        wallet = _distributeByPush ? pushSplit : pullSplit;
+        wallet.initialize(split, _owner.addr);
+
+        // check if wallet nonce is valid
+        assertEq(warehouse.isValidNonce(address(wallet), _nonce), true);
+
+        if (_isOperator) {
+            _id = 0;
+            _value = 0;
+        }
+
+        uint48 deadline = type(uint48).max;
+
+        // get hash for erc6909x approve by sig data
+        bytes32 approveHash =
+            getDigest(false, address(wallet), _spender, _isOperator, _id, _value, address(0), "", _nonce, deadline);
+
+        // sign hashed data with wallet owner
+        bytes memory signature = getWalletSignature(wallet.replaySafeHash(approveHash), _owner.key);
+
+        warehouse.approveBySig(address(wallet), _spender, _isOperator, _id, _value, _nonce, deadline, signature);
+
+        assertEq(warehouse.isOperator(address(wallet), _spender), _isOperator);
+        assertEq(warehouse.allowance(address(wallet), _spender, _id), _value);
+    }
+
+    function testFuzz_signature_Revert_whenReplayAttack(
+        SplitReceiver[] memory _receivers,
+        uint16 _distributionIncentive,
+        address _spender,
+        uint256 _id,
+        bool _isOperator,
+        uint256 _value,
+        uint256 _nonce
+    )
+        public
+    {
+        // intialize split
+        SplitV2Lib.Split memory split = createSplitParams(_receivers, _distributionIncentive);
+        pushSplit.initialize(split, ALICE.addr);
+        pullSplit.initialize(split, ALICE.addr);
+
+        if (_isOperator) {
+            _id = 0;
+            _value = 0;
+        }
+
+        uint48 deadline = type(uint48).max;
+
+        // get hash for erc6909x approve by sig data
+        bytes32 approveHash =
+            getDigest(false, address(pushSplit), _spender, _isOperator, _id, _value, address(0), "", _nonce, deadline);
+
+        // sign hashed data with wallet owner
+        bytes memory signature = getWalletSignature(pushSplit.replaySafeHash(approveHash), ALICE.key);
+        {
+            warehouse.approveBySig(address(pushSplit), _spender, _isOperator, _id, _value, _nonce, deadline, signature);
+
+            assertEq(warehouse.isOperator(address(pushSplit), _spender), _isOperator);
+            assertEq(warehouse.allowance(address(pushSplit), _spender, _id), _value);
+        }
+
+        approveHash =
+            getDigest(false, address(pullSplit), _spender, _isOperator, _id, _value, address(0), "", _nonce, deadline);
+
+        vm.expectRevert();
+        warehouse.approveBySig(address(pullSplit), _spender, _isOperator, _id, _value, _nonce, deadline, signature);
+    }
+
+    function testFuzz_signature_Revert_whenNoOwner(
+        SplitReceiver[] memory _receivers,
+        uint16 _distributionIncentive,
+        bool _distributeByPush,
+        address _spender,
+        uint256 _id,
+        bool _isOperator,
+        uint256 _value,
+        uint256 _nonce
+    )
+        public
+    {
+        // intialize split
+        SplitV2Lib.Split memory split = createSplitParams(_receivers, _distributionIncentive);
+        wallet = _distributeByPush ? pushSplit : pullSplit;
+        wallet.initialize(split, address(0));
+
+        // check if wallet nonce is valid
+        assertEq(warehouse.isValidNonce(address(wallet), _nonce), true);
+
+        if (_isOperator) {
+            _id = 0;
+            _value = 0;
+        }
+
+        uint48 deadline = type(uint48).max;
+
+        // get hash for erc6909x approve by sig data
+        bytes32 approveHash =
+            getDigest(false, address(wallet), _spender, _isOperator, _id, _value, address(0), "", _nonce, deadline);
+
+        // sign hashed data with wallet owner
+        bytes memory signature = getWalletSignature(wallet.replaySafeHash(approveHash), ALICE.key);
+
+        vm.expectRevert();
+        warehouse.approveBySig(address(wallet), _spender, _isOperator, _id, _value, _nonce, deadline, signature);
+    }
+
+    function getWalletSignature(bytes32 _hash, uint256 _key) public pure returns (bytes memory signature) {
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(_key, _hash);
+        signature = abi.encodePacked(r, s, v);
+    }
 }

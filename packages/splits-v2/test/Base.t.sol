@@ -12,6 +12,7 @@ import { PushSplit } from "../src/splitters/push/PushSplit.sol";
 import { PushSplitFactory } from "../src/splitters/push/PushSplitFactory.sol";
 
 import { ERC20 } from "./utils/ERC20.sol";
+import { ERC6909XUtils } from "./utils/ERC6909XUtils.sol";
 import { WarehouseReentrantReceiver } from "./utils/ReentrantReceiver.sol";
 import { WETH9 } from "./utils/WETH9.sol";
 import { PRBTest } from "@prb/test/PRBTest.sol";
@@ -30,6 +31,8 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
     /* -------------------------------------------------------------------------- */
 
     SplitsWarehouse warehouse;
+
+    ERC6909XUtils public permitUtils;
 
     string constant WAREHOUSE_NAME = "Splits Warehouse";
     string constant GAS_TOKEN_NAME = "Splits Wrapped Ether";
@@ -89,6 +92,8 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
         // Setup native token
         native = warehouse.NATIVE_TOKEN();
 
+        permitUtils = new ERC6909XUtils(warehouse.DOMAIN_SEPARATOR());
+
         // Setup split factory
         pullFactory = new PullSplitFactory(address(warehouse));
         pushFactory = new PushSplitFactory(address(warehouse));
@@ -102,6 +107,7 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
         assumeAddresses.push(address(pushFactory));
         assumeAddresses.push(pullFactory.SPLIT_WALLET_IMPLEMENTATION());
         assumeAddresses.push(pushFactory.SPLIT_WALLET_IMPLEMENTATION());
+        assumeAddresses.push(address(permitUtils));
     }
 
     function createUser(string memory name) internal returns (Account memory account) {
@@ -186,5 +192,60 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
             warehouse.deposit(_split, _token, _warehouseAmount);
         }
         vm.stopPrank();
+    }
+
+    function getPermitSignature(
+        bool _temporary,
+        address _owner,
+        uint256 _key,
+        address _spender,
+        bool _isOperator,
+        uint256 _id,
+        uint256 _value,
+        address _target,
+        bytes memory _data,
+        uint256 _nonce,
+        uint48 _deadline
+    )
+        public
+        view
+        returns (bytes memory signature)
+    {
+        bytes32 digest =
+            getDigest(_temporary, _owner, _spender, _isOperator, _id, _value, _target, _data, _nonce, _deadline);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(_key, digest);
+        signature = abi.encodePacked(r, s, v);
+    }
+
+    function getDigest(
+        bool _temporary,
+        address _owner,
+        address _spender,
+        bool _isOperator,
+        uint256 _id,
+        uint256 _value,
+        address _target,
+        bytes memory _data,
+        uint256 _nonce,
+        uint48 _deadline
+    )
+        public
+        view
+        returns (bytes32 digest)
+    {
+        ERC6909XUtils.ERC6909XApproveAndCall memory permit = ERC6909XUtils.ERC6909XApproveAndCall({
+            temporary: _temporary,
+            owner: _owner,
+            spender: _spender,
+            isOperator: _isOperator,
+            id: _id,
+            amount: _value,
+            target: _target,
+            data: _data,
+            nonce: _nonce,
+            deadline: _deadline
+        });
+
+        digest = permitUtils.getTypedDataHash(permit);
     }
 }
