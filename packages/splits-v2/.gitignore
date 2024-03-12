@@ -16,3 +16,5 @@ yarn.lock
 !broadcast
 broadcast/*
 broadcast/*/31337/
+
+*.verify.json
