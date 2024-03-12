@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// license?
 pragma solidity ^0.8.23;
 
 import { Cast } from "./libraries/Cast.sol";

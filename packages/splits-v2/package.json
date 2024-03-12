@@ -15,7 +15,7 @@
     "test:coverage": "forge coverage",
     "test:coverage:report": "forge coverage --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage",
     "deploy:SplitsWarehouse:test": "export DRY_RUN=true && source .env && FOUNDRY_PROFILE=optimized forge script script/SplitsWarehouse.s.sol:SplitsWarehouseScript --account SPLITS_V2_DEPLOYER -vvvvv --rpc-url ",
-    "deploy:SplitsWarehouse": "export DRY_RUN=false && source .env && FOUNDRY_PROFILE=optimized forge script script/SplitsWarehouse.s.sol:SplitsWarehouseScript --account SPLITS_V2_DEPLOYER --broadcast --verify --verifier sourcify -vvvvv --rpc-url ",
+    "deploy:SplitsWarehouse": "export DRY_RUN=false && source .env && FOUNDRY_PROFILE=optimized forge script script/SplitsWarehouse.s.sol:SplitsWarehouseScript --account SPLITS_V2_DEPLOYER --broadcast --verify -vvvvv --rpc-url ",
     "deploy:SplitFactoryV2:test": "export DRY_RUN=true && source .env && FOUNDRY_PROFILE=optimized forge script script/SplitFactoryV2.s.sol:SplitFactoryV2Script --account SPLITS_V2_DEPLOYER -vvvvv --rpc-url ",
     "deploy:SplitFactoryV2": "export DRY_RUN=false && source .env && FOUNDRY_PROFILE=optimized forge script script/SplitFactoryV2.s.sol:SplitFactoryV2Script --account SPLITS_V2_DEPLOYER --broadcast --verify --verifier sourcify -vvvvv --rpc-url "
   },

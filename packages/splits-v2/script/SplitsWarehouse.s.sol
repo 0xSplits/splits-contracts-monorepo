@@ -14,12 +14,11 @@ contract SplitsWarehouseScript is BaseScript {
 
         bytes memory args = abi.encode(name, symbol);
 
-        uint256 privateKey = vm.envUint("PRIVATE_KEY");
-        address deployer = vm.addr(privateKey);
+        address deployer = vm.envAddress("DEPLOYER");
 
         bytes32 salt = computeSalt(deployer, bytes11(DEPLOYMENT_SALT));
 
-        vm.startBroadcast(privateKey);
+        vm.startBroadcast();
         address warehouse = create3(salt, abi.encodePacked(type(SplitsWarehouse).creationCode, args));
         vm.stopBroadcast();
         updateDeployment(warehouse, "SplitsWarehouse");
