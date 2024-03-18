@@ -36,9 +36,10 @@ The following contracts were in scope:
 - src/utils/Pausable.sol
 - src/utils/UnorderedNonces.sol
 - src/utils/Wallet.sol
+- src/utils/ERC1271.sol
 - src/SplitsWarehouse.sol
 
-After completion of the fixes, [PR #24](https://github.com/0xSplits/splits-contracts-monorepo/pull/24) was reviewed.
+After completion of the fixes, [PR #24 (Fixes)](https://github.com/0xSplits/splits-contracts-monorepo/pull/24) and [PR #25 (ERC1271)](https://github.com/0xSplits/splits-contracts-monorepo/pull/25) were reviewed. The final commit reviewed was [740abb43a8961379cbe53cd2fd28287f28a47556](https://github.com/0xSplits/splits-contracts-monorepo/commit/740abb43a8961379cbe53cd2fd28287f28a47556).
 
 # Summary of Findings
 

@@ -34,8 +34,8 @@ contract BaseScript is Script {
     }
 
     function computeSalt(address deployer, bytes11 _salt) internal pure returns (bytes32) {
-        // keccak256(abi.encodePacked(deployer, hex"01", _salt))
-        return bytes32(abi.encodePacked(deployer, hex"01", _salt));
+        // keccak256(abi.encodePacked(deployer, hex"00", _salt))
+        return bytes32(abi.encodePacked(deployer, hex"00", _salt));
     }
 
     function updateDeployment(address _contract, string memory _name) internal {

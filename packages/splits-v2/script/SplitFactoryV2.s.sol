@@ -15,13 +15,12 @@ contract SplitFactoryV2Script is BaseScript {
 
         bytes memory args = abi.encode(warehouse);
 
-        uint256 privateKey = vm.envUint("PRIVATE_KEY");
-        address deployer = vm.addr(privateKey);
+        address deployer = vm.envAddress("DEPLOYER");
 
         bytes32 pull_salt = computeSalt(deployer, bytes11(PULL_DEPLOYMENT_SALT));
         bytes32 push_salt = computeSalt(deployer, bytes11(PUSH_DEPLOYMENT_SALT));
 
-        vm.startBroadcast(privateKey);
+        vm.startBroadcast();
         address pull_factory = create3(pull_salt, abi.encodePacked(type(PullSplitFactory).creationCode, args));
         address push_factory = create3(push_salt, abi.encodePacked(type(PushSplitFactory).creationCode, args));
         vm.stopBroadcast();
