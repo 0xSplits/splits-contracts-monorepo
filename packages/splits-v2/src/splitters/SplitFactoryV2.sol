@@ -32,6 +32,8 @@ abstract contract SplitFactoryV2 is Nonces {
 
     /**
      * @notice Create a new split using create2.
+     * @dev if integrating, please make sure you understand how to handle greifing
+     * properly to avoid potential issues with frontrunning. See docs for more information.
      * @param _splitParams Params to create split with.
      * @param _owner Owner of created split.
      * @param _creator Creator of created split.
@@ -59,6 +61,8 @@ abstract contract SplitFactoryV2 is Nonces {
     /**
      * @notice Create a new split with params and owner.
      * @dev Uses a hash-based incrementing nonce over params and owner.
+     * @dev designed to be used with integrating contracts to avoid salt management and needing to handle the potential
+     * for griefing via front-running. See docs for more information.
      * @param _splitParams Params to create split with.
      * @param _owner Owner of created split.
      * @param _creator Creator of created split.

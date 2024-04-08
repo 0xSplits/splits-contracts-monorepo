@@ -72,7 +72,8 @@ Update forge remapping to:
 
 `splits-v2/=lib/splits-contracts-monorepo/packages/splits-v2/src`
 
-If you are running into issues due to our use of named parameters with external dependencies such as Solady and OpenZeppelin please use this [branch](https://github.com/0xSplits/splits-contracts-monorepo/tree/unnamed).
+If you are running into issues due to our use of named parameters with external dependencies such as Solady and
+OpenZeppelin please use this [branch](https://github.com/0xSplits/splits-contracts-monorepo/tree/unnamed).
 
 You can install it with foundry using:
 
