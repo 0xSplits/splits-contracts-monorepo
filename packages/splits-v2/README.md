@@ -61,3 +61,19 @@ For a test run, use the following command:
 For a test run, use the following command:
 
 `pnpm deploy:SplitFactoryV2:test`
+
+## Developers/Integrators
+
+### Foundry
+
+`forge install 0xSplits/splits-contracts-monorepo`
+
+Update forge remapping to:
+
+`splits-v2/=lib/splits-contracts-monorepo/packages/splits-v2/src`
+
+If you are running into issues due to our use of named parameters with external dependencies such as Solady and OpenZeppelin please use this [branch](https://github.com/0xSplits/splits-contracts-monorepo/tree/unnamed).
+
+You can install it with foundry using:
+
+`forge install 0xSplits/splits-contracts-monorepo@unnamed`
