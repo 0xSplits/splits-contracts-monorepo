@@ -110,7 +110,7 @@ contract PullSplit is SplitWalletV2 {
         } else {
             try SPLITS_WAREHOUSE.deposit({ receiver: address(this), token: _token, amount: _amount }) { }
             catch {
-                IERC20(_token).approve({ spender: address(SPLITS_WAREHOUSE), amount: type(uint256).max });
+                IERC20(_token).approve(address(SPLITS_WAREHOUSE), type(uint256).max);
                 SPLITS_WAREHOUSE.deposit({ receiver: address(this), token: _token, amount: _amount });
             }
         }

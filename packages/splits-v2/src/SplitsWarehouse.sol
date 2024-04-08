@@ -162,7 +162,7 @@ contract SplitsWarehouse is ERC6909X {
         if (_token == NATIVE_TOKEN) {
             if (_amount != msg.value) revert InvalidAmount();
         } else {
-            IERC20(_token).safeTransferFrom({ from: msg.sender, to: address(this), value: _amount });
+            IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
         }
 
         _mint({ _receiver: _receiver, _id: _token.toUint256(), _amount: _amount });
@@ -199,7 +199,7 @@ contract SplitsWarehouse is ERC6909X {
         if (_token == NATIVE_TOKEN) {
             if (sum != msg.value) revert InvalidAmount();
         } else {
-            IERC20(_token).safeTransferFrom({ from: msg.sender, to: address(this), value: sum });
+            IERC20(_token).safeTransferFrom(msg.sender, address(this), sum);
         }
     }
 
@@ -320,9 +320,9 @@ contract SplitsWarehouse is ERC6909X {
 
             if (_reward != 0) payable(_withdrawer).sendValue(_reward);
         } else {
-            IERC20(_token).safeTransfer({ to: _owner, value: amountToOwner });
+            IERC20(_token).safeTransfer(_owner, amountToOwner);
 
-            if (_reward != 0) IERC20(_token).safeTransfer({ to: _withdrawer, value: _reward });
+            if (_reward != 0) IERC20(_token).safeTransfer(_withdrawer, _reward);
         }
 
         // solhint-disable-next-line

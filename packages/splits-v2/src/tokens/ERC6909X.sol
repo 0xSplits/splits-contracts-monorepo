@@ -287,7 +287,7 @@ contract ERC6909X is ERC6909, EIP712, UnorderedNonces, IERC6909X {
             _deadline: _deadline
         });
 
-        if (!SignatureChecker.isValidSignatureNow({ signer: _owner, hash: messageHash, signature: _signature })) {
+        if (!SignatureChecker.isValidSignatureNow(_owner, messageHash, _signature)) {
             revert InvalidSigner();
         }
     }

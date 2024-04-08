@@ -46,13 +46,7 @@ abstract contract ERC1271 is EIP712 {
      * @notice Validates the signature with ERC1271 return, so that this account can also be used as a signer.
      */
     function isValidSignature(bytes32 hash, bytes calldata signature) public view virtual returns (bytes4 result) {
-        if (
-            SignatureChecker.isValidSignatureNow({
-                signer: getSigner(),
-                hash: replaySafeHash(hash),
-                signature: signature
-            })
-        ) {
+        if (SignatureChecker.isValidSignatureNow(getSigner(), replaySafeHash(hash), signature)) {
             // bytes4(keccak256("isValidSignature(bytes32,bytes)"))
             return 0x1626ba7e;
         }
