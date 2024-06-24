@@ -24,5 +24,9 @@
     "forge-std": "github:foundry-rs/forge-std#v1",
     "prettier": "^3.1.0"
   },
-  "dependencies": {}
+  "dependencies": {
+    "accountabstraction": "github:eth-infinitism/account-abstraction#8086e7ba0d80e6f7e5d36306b73793cbcaa4ced6",
+    "@openzeppelin/contracts": "^5.0.0",
+    "solady": "^0.0.156"
+  }
 }

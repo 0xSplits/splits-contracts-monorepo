@@ -1,2 +1,5 @@
 @prb/test/=node_modules/@prb/test/src
 forge-std/=node_modules/forge-std/src
+@openzeppelin/contracts/=node_modules/@openzeppelin/contracts/
+@account-abstraction/=node_modules/accountabstraction/contracts/
+solady/=node_modules/solady/src
