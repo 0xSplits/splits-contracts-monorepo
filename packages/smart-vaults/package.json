@@ -1,0 +1,28 @@
+{
+  "name": "smart-vaults",
+  "version": "1.0.0",
+  "description": "Splits smart vaults",
+  "scripts": {
+    "build": "forge build",
+    "build:optimized": "FOUNDRY_PROFILE=optimized forge build",
+    "clean": "rm -rf cache out out-optimized",
+    "lint": "pnpm lint:sol && pnpm run prettier:check",
+    "lint:sol": "forge fmt --check && pnpm solhint {script,src}/**/*.sol",
+    "prettier:check": "prettier --check \"**/*.{json,md,svg,yml}\"",
+    "prettier:write": "prettier --write \"**/*.{json,md,svg,yml}\"",
+    "test": "forge test -vvv",
+    "test:optimized": "pnpm run build:optimized && FOUNDRY_PROFILE=test-optimized forge test -vvv",
+    "test:coverage": "forge coverage",
+    "test:coverage:report": "forge coverage --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage"
+  },
+  "keywords": [],
+  "author": "@splits",
+  "license": "ISC",
+  "private": true,
+  "devDependencies": {
+    "@prb/test": "^0.6.4",
+    "forge-std": "github:foundry-rs/forge-std#v1",
+    "prettier": "^3.1.0"
+  },
+  "dependencies": {}
+}
