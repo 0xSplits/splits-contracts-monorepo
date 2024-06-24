@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.23;
 
-import "@account-abstraction/core/BaseAccount.sol";
-import "@account-abstraction/core/Helpers.sol";
-import "@account-abstraction/samples/callback/TokenCallbackHandler.sol";
-import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import { BaseAccount, IEntryPoint, PackedUserOperation } from "@account-abstraction/core/BaseAccount.sol";
+import { SIG_VALIDATION_FAILED, SIG_VALIDATION_SUCCESS } from "@account-abstraction/core/Helpers.sol";
+import { TokenCallbackHandler } from "@account-abstraction/samples/callback/TokenCallbackHandler.sol";
+import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 /**
  * @dev Forked from
@@ -22,7 +22,7 @@ contract SmartVault is BaseAccount, TokenCallbackHandler, UUPSUpgradeable, Initi
     address public root;
 
     /// @notice Entry point supported by the smart account.
-    IEntryPoint private immutable _entryPoint;
+    IEntryPoint private immutable ENTRY_POINT;
 
     /* -------------------------------------------------------------------------- */
     /*                                   ERRORS                                   */
@@ -66,8 +66,8 @@ contract SmartVault is BaseAccount, TokenCallbackHandler, UUPSUpgradeable, Initi
     /*                                 CONSTRUCTOR                                */
     /* -------------------------------------------------------------------------- */
 
-    constructor(IEntryPoint anEntryPoint) {
-        _entryPoint = anEntryPoint;
+    constructor(address _entryPoint) {
+        ENTRY_POINT = IEntryPoint(_entryPoint);
         _disableInitializers();
     }
 
@@ -80,7 +80,7 @@ contract SmartVault is BaseAccount, TokenCallbackHandler, UUPSUpgradeable, Initi
 
     /// @inheritdoc BaseAccount
     function entryPoint() public view virtual override returns (IEntryPoint) {
-        return _entryPoint;
+        return ENTRY_POINT;
     }
 
     /**
@@ -170,8 +170,8 @@ contract SmartVault is BaseAccount, TokenCallbackHandler, UUPSUpgradeable, Initi
         (newImplementation);
     }
 
-    function _initialize(address _owner) internal virtual {
-        root = root;
-        emit SmartVaultInitialized(_entryPoint, _owner);
+    function _initialize(address _root) internal virtual {
+        root = _root;
+        emit SmartVaultInitialized(ENTRY_POINT, _root);
     }
 }
