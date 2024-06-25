@@ -1,177 +1,304 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import { BaseAccount, IEntryPoint, PackedUserOperation } from "@account-abstraction/core/BaseAccount.sol";
-import { SIG_VALIDATION_FAILED, SIG_VALIDATION_SUCCESS } from "@account-abstraction/core/Helpers.sol";
-import { TokenCallbackHandler } from "@account-abstraction/samples/callback/TokenCallbackHandler.sol";
-import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import { UUPSUpgradeable } from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
-import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import { ERC1271 } from "./ERC1271.sol";
+import { MultiOwnable } from "./MultiOwnable.sol";
+import { RootOwner } from "./RootOwner.sol";
+
+import { WebAuthn } from "@web-authn/WebAuthn.sol";
+import { Receiver } from "solady/accounts/Receiver.sol";
+import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
+import { UUPSUpgradeable } from "solady/utils/UUPSUpgradeable.sol";
 
 /**
- * @dev Forked from
- * https://github.com/eth-infinitism/account-abstraction/blob/develop/contracts/samples/SimpleAccount.sol
+ * @title Splits Smart Wallet
+ *
+ * @notice Based on Coinbase's Smart Wallet (https://github.com/coinbase/smart-wallet)
+ * @author Splits
  */
-contract SmartVault is BaseAccount, TokenCallbackHandler, UUPSUpgradeable, Initializable {
+contract SmartVault is MultiOwnable, RootOwner, ERC1271, UUPSUpgradeable, Receiver {
     /* -------------------------------------------------------------------------- */
-    /*                                   STORAGE                                  */
+    /*                                   STRUCTS                                  */
     /* -------------------------------------------------------------------------- */
 
-    /// @notice Primary owner of the smart vault.
-    address public root;
+    /// @dev The packed ERC4337 user operation (userOp) struct.
+    struct PackedUserOperation {
+        address sender;
+        uint256 nonce;
+        bytes initCode; // Factory address and `factoryData` (or empty).
+        bytes callData;
+        bytes32 accountGasLimits; // `verificationGas` (16 bytes) and `callGas` (16 bytes).
+        uint256 preVerificationGas;
+        bytes32 gasFees; // `maxPriorityFee` (16 bytes) and `maxFeePerGas` (16 bytes).
+        bytes paymasterAndData; // Paymaster fields (or empty).
+        bytes signature;
+    }
 
-    /// @notice Entry point supported by the smart account.
-    IEntryPoint private immutable ENTRY_POINT;
+    /**
+     * @notice A wrapper struct used for signature validation so that callers
+     *         can identify the owner that signed.
+     */
+    struct SignatureWrapper {
+        /// @dev The index of the owner that signed, see `MultiOwnable.ownerAtIndex`
+        uint256 ownerIndex;
+        /**
+         * @dev If `MultiOwnable.ownerAtIndex` is an Ethereum address, this should be `abi.encodePacked(r, s, v)`
+         *      If `MultiOwnable.ownerAtIndex` is a public key, this should be `abi.encode(WebAuthnAuth)`.
+         */
+        bytes signatureData;
+    }
+
+    /// @notice Represents a call to make.
+    struct Call {
+        /// @dev The address to call.
+        address target;
+        /// @dev The value to send when making the call.
+        uint256 value;
+        /// @dev The data of the call.
+        bytes data;
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*                                  CONSTANTS                                 */
+    /* -------------------------------------------------------------------------- */
+
+    address public immutable factory;
 
     /* -------------------------------------------------------------------------- */
     /*                                   ERRORS                                   */
     /* -------------------------------------------------------------------------- */
 
-    error OnlyRoot();
-    error OnlyRootOrEntryPoint();
+    /// @notice Thrown when `initialize` is called but the account is already initialized.
+    error Initialized();
 
-    /* -------------------------------------------------------------------------- */
-    /*                                   EVENTS                                   */
-    /* -------------------------------------------------------------------------- */
+    /// @notice Thrown when caller is not entry point.
+    error OnlyEntryPoint();
 
-    event SmartVaultInitialized(IEntryPoint indexed entryPoint, address indexed owner);
+    /// @notice Thrown when caller is not factory.
+    error OnlyFactory();
+
+    /// @notice Thrown when caller is not address(this).
+    error OnlyAccount();
 
     /* -------------------------------------------------------------------------- */
     /*                                  MODIFIERS                                 */
     /* -------------------------------------------------------------------------- */
 
-    modifier onlyRoot() {
-        if (root != msg.sender) revert OnlyRoot();
+    /// @notice Reverts if the caller is not the EntryPoint.
+    modifier onlyEntryPoint() virtual {
+        if (msg.sender != entryPoint()) {
+            revert OnlyEntryPoint();
+        }
         _;
     }
 
-    modifier onlyRootOrEntryPoint() {
-        if (msg.sender != address(entryPoint()) && msg.sender != root) revert OnlyRootOrEntryPoint();
+    /// @notice Reverts if the caller is neither the EntryPoint, the root, nor the account itself when root is zero.
+    modifier onlyEntryPointOrRoot() virtual {
+        if (msg.sender != entryPoint()) {
+            checkRoot();
+        }
         _;
     }
 
-    /* -------------------------------------------------------------------------- */
-    /*                                   STRUCTS                                  */
-    /* -------------------------------------------------------------------------- */
+    /**
+     * @notice Sends to the EntryPoint (i.e. `msg.sender`) the missing funds for this transaction.
+     *
+     * @dev Subclass MAY override this modifier for better funds management (e.g. send to the
+     *      EntryPoint more than the minimum required, so that in future transactions it will not
+     *      be required to send again).
+     *
+     * @param missingAccountFunds The minimum value this modifier should send the EntryPoint which
+     *                            MAY be zero, in case there is enough deposit, or the userOp has a
+     *                            paymaster.
+     */
+    modifier payPrefund(uint256 missingAccountFunds) virtual {
+        _;
 
-    /// @dev Call struct for the `executeBatch` function.
-    struct Call {
-        address target;
-        uint256 value;
-        bytes data;
+        assembly ("memory-safe") {
+            if missingAccountFunds {
+                // Ignore failure (it's EntryPoint's job to verify, not the account's).
+                pop(call(gas(), caller(), missingAccountFunds, codesize(), 0x00, codesize(), 0x00))
+            }
+        }
     }
 
     /* -------------------------------------------------------------------------- */
     /*                                 CONSTRUCTOR                                */
     /* -------------------------------------------------------------------------- */
 
-    constructor(address _entryPoint) {
-        ENTRY_POINT = IEntryPoint(_entryPoint);
-        _disableInitializers();
+    constructor(address _factory) ERC1271("splitSmartVault", "1") {
+        factory = _factory;
     }
 
     /* -------------------------------------------------------------------------- */
-    /*                          EXTERNAL/PUBLIC FUNCTIONS                         */
+    /*                             EXTERNAL FUNCTIONS                             */
     /* -------------------------------------------------------------------------- */
 
-    // solhint-disable-next-line no-empty-blocks
-    receive() external payable { }
+    /**
+     * @notice Initializes the account with the `owners`.
+     *
+     * @dev Reverts if caller is not factory.
+     *
+     * @param _root Root owner of the smart account.
+     * @param _owners Array of initial owners for this account. Each item should be
+     *               an ABI encoded Ethereum address, i.e. 32 bytes with 12 leading 0 bytes,
+     *               or a 64 byte public key.
+     */
+    function initialize(address _root, bytes[] calldata _owners, uint8 _threshold) external payable {
+        if (msg.sender != factory) revert OnlyFactory();
 
-    /// @inheritdoc BaseAccount
-    function entryPoint() public view virtual override returns (IEntryPoint) {
-        return ENTRY_POINT;
+        initializeOwners(_owners, _threshold);
+        initializeRoot(_root);
     }
 
     /**
-     * @dev The _entryPoint member is immutable, to reduce gas consumption.  To upgrade EntryPoint,
-     * a new implementation of SmartVault must be deployed with the new EntryPoint address, then upgrading
-     * the implementation by calling `upgradeTo()`
-     * @param _owner the owner (signer) of this account
+     * Validate user's signature and nonce
+     * the entryPoint will make the call to the recipient only if this validation call returns successfully.
+     * signature failure should be reported by returning SIG_VALIDATION_FAILED (1).
+     * This allows making a "simulation call" without a valid signature
+     * Other failures (e.g. nonce mismatch, or invalid signature format) should still revert to signal failure.
+     *
+     * @dev Must validate caller is the entryPoint.
+     *      Must validate the signature and nonce
+     * @param userOp              - The operation that is about to be executed.
+     * @param userOpHash          - Hash of the user's request data. can be used as the basis for signature.
+     * @param missingAccountFunds - Missing funds on the account's deposit in the entrypoint.
+     *                              This is the minimum amount to transfer to the sender(entryPoint) to be
+     *                              able to make the call. The excess is left as a deposit in the entrypoint
+     *                              for future calls. Can be withdrawn anytime using "entryPoint.withdrawTo()".
+     *                              In case there is a paymaster in the request (or the current deposit is high
+     *                              enough), this value will be zero.
+     * @return validationData       - Packaged ValidationData structure. use `_packValidationData` and
+     *                              `_unpackValidationData` to encode and decode.
+     *                              <20-byte> sigAuthorizer - 0 for valid signature, 1 to mark signature failure,
+     *                                 otherwise, an address of an "authorizer" contract.
+     *                              <6-byte> validUntil - Last timestamp this operation is valid. 0 for "indefinite"
+     *                              <6-byte> validAfter - First timestamp this operation is valid
+     *                                                    If an account doesn't use time-range, it is enough to
+     *                                                    return SIG_VALIDATION_FAILED value (1) for signature failure.
+     *                              Note that the validation code cannot use block.timestamp (or block.number) directly.
      */
-    function initialize(address _owner) public virtual initializer {
-        _initialize(_owner);
+    function validateUserOp(
+        PackedUserOperation calldata userOp,
+        bytes32 userOpHash,
+        uint256 missingAccountFunds
+    )
+        external
+        onlyEntryPoint
+        payPrefund(missingAccountFunds)
+        returns (uint256 validationData)
+    {
+        if (_isValidSignature(userOpHash, userOp.signature)) return 0;
+
+        return 1;
     }
 
     /**
-     * execute a transaction (called directly from owner, or by entryPoint)
-     * @param target target address to call
-     * @param value the value to pass in this call
-     * @param data the calldata to pass in this call
+     * @notice Executes the given call from this account.
+     *
+     * @dev Can only be called by the Entrypoint or an owner of this account (including itself).
+     *
+     * @param target The address to call.
+     * @param value  The value to send with the call.
+     * @param data   The data of the call.
      */
-    function execute(address target, uint256 value, bytes calldata data) external onlyRootOrEntryPoint {
+    function execute(address target, uint256 value, bytes calldata data) external payable onlyEntryPointOrRoot {
         _call(target, value, data);
     }
 
     /**
-     * execute a sequence of transactions
-     * @param calls an array of calls to execute from this account
+     * @notice Executes batch of `Call`s.
+     *
+     * @dev Can only be called by the Entrypoint or an owner of this account (including itself).
+     *
+     * @param calls The list of `Call`s to execute.
      */
-    function executeBatch(Call[] calldata calls) external onlyRootOrEntryPoint {
+    function executeBatch(Call[] calldata calls) external payable onlyEntryPointOrRoot {
         for (uint256 i; i < calls.length; i++) {
             _call(calls[i].target, calls[i].value, calls[i].data);
         }
     }
 
-    /**
-     * check current account deposit in the entryPoint
-     */
-    function getDeposit() public view returns (uint256) {
-        return entryPoint().balanceOf(address(this));
+    /// @notice Returns the address of the EntryPoint v0.7.
+    function entryPoint() public view virtual returns (address) {
+        return 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
     }
 
     /**
-     * deposit more funds for this account in the entryPoint
+     * @notice Returns the implementation of the ERC1967 proxy.
+     *
+     * @return implementation_ The address of implementation contract.
      */
-    function addDeposit() public payable {
-        entryPoint().depositTo{ value: msg.value }(address(this));
-    }
-
-    /**
-     * withdraw value from the account's deposit
-     * @param withdrawAddress target to send to
-     * @param amount to withdraw
-     */
-    function withdrawDepositTo(address payable withdrawAddress, uint256 amount) public onlyRoot {
-        entryPoint().withdrawTo(withdrawAddress, amount);
+    function implementation() public view returns (address implementation_) {
+        assembly {
+            implementation_ := sload(_ERC1967_IMPLEMENTATION_SLOT)
+        }
     }
 
     /* -------------------------------------------------------------------------- */
     /*                             INTERNAL FUNCTIONS                             */
     /* -------------------------------------------------------------------------- */
 
-    /// implement template method of BaseAccount
-    function _validateSignature(
-        PackedUserOperation calldata userOp,
-        bytes32 userOpHash
-    )
-        internal
-        virtual
-        override
-        returns (uint256 validationData)
-    {
-        bytes32 hash = MessageHashUtils.toEthSignedMessageHash(userOpHash);
-        if (root != ECDSA.recover(hash, userOp.signature)) {
-            return SIG_VALIDATION_FAILED;
-        }
-        return SIG_VALIDATION_SUCCESS;
-    }
-
     function _call(address target, uint256 value, bytes memory data) internal {
         (bool success, bytes memory result) = target.call{ value: value }(data);
         if (!success) {
-            assembly {
+            assembly ("memory-safe") {
                 revert(add(result, 32), mload(result))
             }
         }
     }
 
-    function _authorizeUpgrade(address newImplementation) internal view override onlyRoot {
-        (newImplementation);
+    function _isValidSignature(bytes32 hash, bytes calldata signature) internal view virtual override returns (bool) {
+        SignatureWrapper[] memory sigWrappers = abi.decode(signature, (SignatureWrapper[]));
+        uint256 numberOfSignatures = sigWrappers.length;
+
+        uint8 threshold_ = threshold();
+        if (numberOfSignatures < threshold_) revert();
+
+        uint256 numberOfOwners = nextOwnerIndex();
+        bool[] memory alreadySigned = new bool[](numberOfOwners);
+
+        bytes memory signer;
+        for (uint256 i; i < numberOfSignatures; i++) {
+            signer = ownerAtIndex(sigWrappers[i].ownerIndex);
+            bool isValid;
+
+            if (alreadySigned[sigWrappers[i].ownerIndex]) revert();
+
+            if (signer.length == 32) {
+                if (uint256(bytes32(signer)) > type(uint160).max) {
+                    revert InvalidEthereumAddressOwner(signer);
+                }
+
+                address owner;
+                assembly ("memory-safe") {
+                    owner := mload(add(signer, 32))
+                }
+
+                isValid = SignatureCheckerLib.isValidSignatureNow(owner, hash, sigWrappers[i].signatureData);
+            } else if (signer.length == 64) {
+                (uint256 x, uint256 y) = abi.decode(signer, (uint256, uint256));
+
+                WebAuthn.WebAuthnAuth memory auth = abi.decode(sigWrappers[i].signatureData, (WebAuthn.WebAuthnAuth));
+
+                isValid =
+                    WebAuthn.verify({ challenge: abi.encode(hash), requireUV: false, webAuthnAuth: auth, x: x, y: y });
+            } else {
+                revert InvalidOwnerBytesLength(signer);
+            }
+
+            if (isValid) {
+                alreadySigned[sigWrappers[i].ownerIndex] = true;
+            } else {
+                return false;
+            }
+        }
+        return true;
     }
 
-    function _initialize(address _root) internal virtual {
-        root = _root;
-        emit SmartVaultInitialized(ENTRY_POINT, _root);
+    function _authorizeUpgrade(address) internal view virtual override(UUPSUpgradeable) onlyRoot { }
+
+    function authorizeUpdate() internal view override(MultiOwnable) {
+        if (msg.sender != address(this)) revert OnlyAccount();
     }
 }

@@ -25,8 +25,9 @@
     "prettier": "^3.1.0"
   },
   "dependencies": {
-    "accountabstraction": "github:eth-infinitism/account-abstraction#8086e7ba0d80e6f7e5d36306b73793cbcaa4ced6",
-    "@openzeppelin/contracts": "^5.0.0",
-    "solady": "^0.0.156"
+    "@openzeppelin/contracts": "github:openzeppelin/openzeppelin-contracts#5705e8208bc92cd82c7bcdfeac8dbc7377767d96",
+    "solady": "^0.0.156",
+    "web-authn": "github:base-org/webauthn-sol#619f20ab0f074fef41066ee4ab24849a913263b2",
+    "FreshCryptoLib": "github:rdubois-crypto/FreshCryptoLib#76f3f135b7b27d2aa519f265b56bfc49a2573ab5"
   }
 }

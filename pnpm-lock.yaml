@@ -15,6 +15,31 @@ importers:
         specifier: ^1.12.2
         version: 1.12.2
 
+  packages/smart-vaults:
+    dependencies:
+      '@openzeppelin/contracts':
+        specifier: github:openzeppelin/openzeppelin-contracts#5705e8208bc92cd82c7bcdfeac8dbc7377767d96
+        version: github.com/openzeppelin/openzeppelin-contracts/5705e8208bc92cd82c7bcdfeac8dbc7377767d96
+      FreshCryptoLib:
+        specifier: github:rdubois-crypto/FreshCryptoLib#76f3f135b7b27d2aa519f265b56bfc49a2573ab5
+        version: github.com/rdubois-crypto/FreshCryptoLib/76f3f135b7b27d2aa519f265b56bfc49a2573ab5
+      solady:
+        specifier: ^0.0.156
+        version: 0.0.156
+      web-authn:
+        specifier: github:base-org/webauthn-sol#619f20ab0f074fef41066ee4ab24849a913263b2
+        version: github.com/base-org/webauthn-sol/619f20ab0f074fef41066ee4ab24849a913263b2
+    devDependencies:
+      '@prb/test':
+        specifier: ^0.6.4
+        version: 0.6.4
+      forge-std:
+        specifier: github:foundry-rs/forge-std#v1
+        version: github.com/foundry-rs/forge-std/978ac6fadb62f5f0b723c996f64be52eddba6801
+      prettier:
+        specifier: ^3.1.0
+        version: 3.1.0
+
   packages/splits-v2:
     dependencies:
       '@openzeppelin/contracts':
@@ -865,8 +890,32 @@ packages:
     resolution: {integrity: sha512-3wdGidZyq5PB084XLES5TpOSRA3wjXAlIWMhum2kRcv/41Sn2emQ0dycQW4uZXLejwKvg6EsvbdlVL+FYEct7A==}
     dev: false
 
+  github.com/base-org/webauthn-sol/619f20ab0f074fef41066ee4ab24849a913263b2:
+    resolution: {tarball: https://codeload.github.com/base-org/webauthn-sol/tar.gz/619f20ab0f074fef41066ee4ab24849a913263b2}
+    name: webauthn-sol#619f20ab0f074fef41066ee4ab24849a913263b2
+    version: 0.0.0
+    dev: false
+
   github.com/foundry-rs/forge-std/155d547c449afa8715f538d69454b83944117811:
     resolution: {tarball: https://codeload.github.com/foundry-rs/forge-std/tar.gz/155d547c449afa8715f538d69454b83944117811}
     name: forge-std
     version: 1.7.4
     dev: true
+
+  github.com/foundry-rs/forge-std/978ac6fadb62f5f0b723c996f64be52eddba6801:
+    resolution: {tarball: https://codeload.github.com/foundry-rs/forge-std/tar.gz/978ac6fadb62f5f0b723c996f64be52eddba6801}
+    name: forge-std
+    version: 1.8.2
+    dev: true
+
+  github.com/openzeppelin/openzeppelin-contracts/5705e8208bc92cd82c7bcdfeac8dbc7377767d96:
+    resolution: {tarball: https://codeload.github.com/openzeppelin/openzeppelin-contracts/tar.gz/5705e8208bc92cd82c7bcdfeac8dbc7377767d96}
+    name: openzeppelin-solidity
+    version: 5.0.2
+    dev: false
+
+  github.com/rdubois-crypto/FreshCryptoLib/76f3f135b7b27d2aa519f265b56bfc49a2573ab5:
+    resolution: {tarball: https://codeload.github.com/rdubois-crypto/FreshCryptoLib/tar.gz/76f3f135b7b27d2aa519f265b56bfc49a2573ab5}
+    name: FreshCryptoLib#76f3f135b7b27d2aa519f265b56bfc49a2573ab5
+    version: 0.0.0
+    dev: false

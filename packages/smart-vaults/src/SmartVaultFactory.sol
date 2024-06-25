@@ -1,29 +1,32 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import { Create2 } from "@openzeppelin/contracts/utils/Create2.sol";
-
 import { SmartVault } from "./SmartVault.sol";
+import { LibClone } from "solady/utils/LibClone.sol";
 
 /**
- * @dev forked from
- * https://github.com/eth-infinitism/account-abstraction/blob/develop/contracts/samples/SimpleAccountFactory.sol
+ * @title Smart Vault Factory
+ *
+ * @notice based on Coinbase's Smart Wallet Factory.
+ * @author Splits
  */
 contract SmartVaultFactory {
     /* -------------------------------------------------------------------------- */
-    /*                                   STORAGE                                  */
+    /*                                  CONSTANTS                                 */
     /* -------------------------------------------------------------------------- */
 
-    /// @notice smart vault implementation
-    SmartVault public immutable accountImplementation;
+    /// @notice Address of the ERC-4337 implementation used as implementation for new accounts.
+    address public immutable implementation;
+
+    /// @notice Thrown when trying to create a new `SmartVault` account without any owner.
+    error OwnerRequired();
 
     /* -------------------------------------------------------------------------- */
     /*                                 CONSTRUCTOR                                */
     /* -------------------------------------------------------------------------- */
 
-    constructor(address _entryPoint) {
-        accountImplementation = new SmartVault(_entryPoint);
+    constructor() payable {
+        implementation = address(new SmartVault(address(this)));
     }
 
     /* -------------------------------------------------------------------------- */
@@ -31,39 +34,91 @@ contract SmartVaultFactory {
     /* -------------------------------------------------------------------------- */
 
     /**
-     * create an account, and return its address.
-     * returns the address even if the account is already deployed.
-     * Note that during UserOperation execution, this method is called only if the account is not deployed.
-     * This method returns an existing account address so that entryPoint.getSenderAddress() would work even after
-     * account creation
+     * @notice Returns the deterministic address for a Splits Smart Vault created with `root`, `owners` and `nonce`
+     *         deploys and initializes contract if it has not yet been created.
+     *
+     * @dev Deployed as a ERC-1967 proxy that's implementation is `this.implementation`.
+     *
+     * @param root Root owner of the smart vault.
+     * @param owners Array of initial owners. Each item should be an ABI encoded address or 64 byte public key.
+     * @param threshold Number of approvals needed for a valid user op/hash.
+     * @param nonce  The nonce of the account, a caller defined value which allows multiple accounts
+     *               with the same `owners` to exist at different addresses.
+     *
+     * @return account The address of the ERC-1967 proxy created with inputs `owners`, `nonce`, and
+     *                 `this.implementation`.
      */
-    function createAccount(address _root, bytes32 _salt) public returns (SmartVault ret) {
-        address addr = getAddress(_root, _salt);
-        uint256 codeSize = addr.code.length;
-        if (codeSize > 0) {
-            return SmartVault(payable(addr));
+    function createAccount(
+        address root,
+        bytes[] calldata owners,
+        uint8 threshold,
+        uint256 nonce
+    )
+        external
+        payable
+        virtual
+        returns (SmartVault account)
+    {
+        if (owners.length == 0) {
+            revert OwnerRequired();
         }
-        ret = SmartVault(
-            payable(
-                new ERC1967Proxy{ salt: _salt }(
-                    address(accountImplementation), abi.encodeCall(SmartVault.initialize, (_root))
-                )
-            )
+
+        (bool alreadyDeployed, address accountAddress) =
+            LibClone.createDeterministicERC1967(msg.value, implementation, _getSalt(root, owners, threshold, nonce));
+
+        account = SmartVault(payable(accountAddress));
+
+        if (!alreadyDeployed) {
+            account.initialize(root, owners, threshold);
+        }
+    }
+
+    /**
+     * @notice Returns the deterministic address of the account that would be created by `createAccount`.
+     *
+     * @param root Root owner of the smart vault.
+     * @param owners Array of initial owners. Each item should be an ABI encoded address or 64 byte public key.
+     * @param threshold Number of approvals needed for a valid user op/hash.
+     * @param nonce  The nonce provided to `createAccount()`.
+     *
+     * @return The predicted account deployment address.
+     */
+    function getAddress(
+        address root,
+        bytes[] calldata owners,
+        uint8 threshold,
+        uint256 nonce
+    )
+        external
+        view
+        returns (address)
+    {
+        return LibClone.predictDeterministicAddress(
+            initCodeHash(), _getSalt(root, owners, threshold, nonce), address(this)
         );
     }
 
     /**
-     * calculate the counterfactual address of this account as it would be returned by createAccount()
+     * @notice Returns the initialization code hash of the account:
+     *         a ERC1967 proxy that's implementation is `this.implementation`.
+     *
+     * @return The initialization code hash.
      */
-    function getAddress(address _root, bytes32 _salt) public view returns (address) {
-        return Create2.computeAddress(
-            _salt,
-            keccak256(
-                abi.encodePacked(
-                    type(ERC1967Proxy).creationCode,
-                    abi.encode(address(accountImplementation), abi.encodeCall(SmartVault.initialize, (_root)))
-                )
-            )
-        );
+    function initCodeHash() public view virtual returns (bytes32) {
+        return LibClone.initCodeHashERC1967(implementation);
+    }
+
+    /// @notice Returns the create2 salt for `LibClone.predictDeterministicAddress`
+    function _getSalt(
+        address root,
+        bytes[] calldata owners,
+        uint8 threshold,
+        uint256 nonce
+    )
+        internal
+        pure
+        returns (bytes32)
+    {
+        return keccak256(abi.encode(root, owners, threshold, nonce));
     }
 }
