@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import { ERC1271 } from "../utils/ERC1271.sol";
-import { MultiOwnable } from "../utils/MultiOwnable.sol";
+import { MultiSigner } from "../utils/MultiSigner.sol";
 import { RootOwner } from "../utils/RootOwner.sol";
 
 import { WebAuthn } from "@web-authn/WebAuthn.sol";
@@ -16,7 +16,7 @@ import { UUPSUpgradeable } from "solady/utils/UUPSUpgradeable.sol";
  * @notice Based on Coinbase's Smart Wallet (https://github.com/coinbase/smart-wallet)
  * @author Splits
  */
-contract SmartVault is MultiOwnable, RootOwner, ERC1271, UUPSUpgradeable, Receiver {
+contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receiver {
     /* -------------------------------------------------------------------------- */
     /*                                   STRUCTS                                  */
     /* -------------------------------------------------------------------------- */
@@ -39,11 +39,11 @@ contract SmartVault is MultiOwnable, RootOwner, ERC1271, UUPSUpgradeable, Receiv
      *         can identify the owner that signed.
      */
     struct SignatureWrapper {
-        /// @dev The index of the owner that signed, see `MultiOwnable.ownerAtIndex`
-        uint256 ownerIndex;
+        /// @dev The index of the signer that signed, see `MultiSigner.signerAtIndex`
+        uint8 signerIndex;
         /**
-         * @dev If `MultiOwnable.ownerAtIndex` is an Ethereum address, this should be `abi.encodePacked(r, s, v)`
-         *      If `MultiOwnable.ownerAtIndex` is a public key, this should be `abi.encode(WebAuthnAuth)`.
+         * @dev If `MultiOwnable.signerAtIndex` is an Ethereum address, this should be `abi.encodePacked(r, s, v)`
+         *      If `MultiOwnable.signerAtIndex` is a public key, this should be `abi.encode(WebAuthnAuth)`.
          */
         bytes signatureData;
     }
@@ -140,14 +140,14 @@ contract SmartVault is MultiOwnable, RootOwner, ERC1271, UUPSUpgradeable, Receiv
      * @dev Reverts if caller is not factory.
      *
      * @param _root Root owner of the smart account.
-     * @param _owners Array of initial owners for this account. Each item should be
+     * @param _signers Array of initial owners for this account. Each item should be
      *               an ABI encoded Ethereum address, i.e. 32 bytes with 12 leading 0 bytes,
      *               or a 64 byte public key.
      */
-    function initialize(address _root, bytes[] calldata _owners, uint8 _threshold) external payable {
+    function initialize(address _root, bytes[] calldata _signers, uint8 _threshold) external payable {
         if (msg.sender != factory) revert OnlyFactory();
 
-        initializeOwners(_owners, _threshold);
+        initializeSigners(_signers, _threshold);
         initializeRoot(_root);
     }
 
@@ -255,40 +255,30 @@ contract SmartVault is MultiOwnable, RootOwner, ERC1271, UUPSUpgradeable, Receiv
         uint8 threshold_ = threshold();
         if (numberOfSignatures < threshold_) revert();
 
-        uint256 numberOfOwners = nextOwnerIndex();
-        bool[] memory alreadySigned = new bool[](numberOfOwners);
-
+        uint256 alreadySigned;
+        uint256 mask;
         bytes memory signer;
+        uint8 signerIndex;
+        bool isValid;
         for (uint256 i; i < numberOfSignatures; i++) {
-            signer = ownerAtIndex(sigWrappers[i].ownerIndex);
-            bool isValid;
+            isValid = false;
+            signerIndex = sigWrappers[i].signerIndex;
+            signer = signerAtIndex(signerIndex);
 
-            if (alreadySigned[sigWrappers[i].ownerIndex]) revert();
+            mask = (1 << signerIndex);
+
+            if (alreadySigned & mask != 0) revert();
 
             if (signer.length == 32) {
-                if (uint256(bytes32(signer)) > type(uint160).max) {
-                    revert InvalidEthereumAddressOwner(signer);
-                }
-
-                address owner;
-                assembly ("memory-safe") {
-                    owner := mload(add(signer, 32))
-                }
-
-                isValid = SignatureCheckerLib.isValidSignatureNow(owner, hash, sigWrappers[i].signatureData);
+                isValid = _isValidSignatureEOA(hash, signer, sigWrappers[i].signatureData);
             } else if (signer.length == 64) {
-                (uint256 x, uint256 y) = abi.decode(signer, (uint256, uint256));
-
-                WebAuthn.WebAuthnAuth memory auth = abi.decode(sigWrappers[i].signatureData, (WebAuthn.WebAuthnAuth));
-
-                isValid =
-                    WebAuthn.verify({ challenge: abi.encode(hash), requireUV: false, webAuthnAuth: auth, x: x, y: y });
+                isValid = _isValidSignaturePasskey(hash, signer, sigWrappers[i].signatureData);
             } else {
-                revert InvalidOwnerBytesLength(signer);
+                revert InvalidSignerBytesLength(signer);
             }
 
             if (isValid) {
-                alreadySigned[sigWrappers[i].ownerIndex] = true;
+                alreadySigned |= mask;
             } else {
                 return false;
             }
@@ -296,9 +286,42 @@ contract SmartVault is MultiOwnable, RootOwner, ERC1271, UUPSUpgradeable, Receiv
         return true;
     }
 
+    function _isValidSignaturePasskey(
+        bytes32 hash,
+        bytes memory signer,
+        bytes memory signature
+    )
+        internal
+        view
+        returns (bool)
+    {
+        (uint256 x, uint256 y) = abi.decode(signer, (uint256, uint256));
+
+        WebAuthn.WebAuthnAuth memory auth = abi.decode(signature, (WebAuthn.WebAuthnAuth));
+
+        return WebAuthn.verify({ challenge: abi.encode(hash), requireUV: false, webAuthnAuth: auth, x: x, y: y });
+    }
+
+    function _isValidSignatureEOA(
+        bytes32 hash,
+        bytes memory signer,
+        bytes memory signature
+    )
+        internal
+        view
+        returns (bool)
+    {
+        address owner;
+        assembly ("memory-safe") {
+            owner := mload(add(signer, 32))
+        }
+
+        return SignatureCheckerLib.isValidSignatureNow(owner, hash, signature);
+    }
+
     function _authorizeUpgrade(address) internal view virtual override(UUPSUpgradeable) onlyRoot { }
 
-    function authorizeUpdate() internal view override(MultiOwnable) {
+    function authorizeUpdate() internal view override(MultiSigner) {
         if (msg.sender != address(this)) revert OnlyAccount();
     }
 }
