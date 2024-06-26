@@ -65,11 +65,7 @@ contract RootOwner {
         return StorageSlot.getAddressSlot(ROOT_OWNER_STORAGE_LOCATION).value;
     }
 
-    /* -------------------------------------------------------------------------- */
-    /*                              PRIVATE FUNCTIONS                             */
-    /* -------------------------------------------------------------------------- */
-
-    function setRoot(address _root) private {
+    function setRoot(address _root) internal {
         StorageSlot.getAddressSlot(ROOT_OWNER_STORAGE_LOCATION).value = _root;
     }
 }

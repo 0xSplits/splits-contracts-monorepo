@@ -6,3 +6,4 @@ solady/=node_modules/solady/src
 @web-authn/=node_modules/web-authn/src
 openzeppelin-contracts/=node_modules/@openzeppelin/contracts/
 FreshCryptoLib/=node_modules/FreshCryptoLib/solidity/src/
+src/=src/

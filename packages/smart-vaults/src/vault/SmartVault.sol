@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import { ERC1271 } from "./ERC1271.sol";
-import { MultiOwnable } from "./MultiOwnable.sol";
-import { RootOwner } from "./RootOwner.sol";
+import { ERC1271 } from "../utils/ERC1271.sol";
+import { MultiOwnable } from "../utils/MultiOwnable.sol";
+import { RootOwner } from "../utils/RootOwner.sol";
 
 import { WebAuthn } from "@web-authn/WebAuthn.sol";
 import { Receiver } from "solady/accounts/Receiver.sol";
