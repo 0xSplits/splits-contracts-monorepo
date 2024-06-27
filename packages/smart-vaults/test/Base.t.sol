@@ -1,13 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.23;
 
-import { PRBTest } from "@prb/test/PRBTest.sol";
-import { StdCheats } from "forge-std/StdCheats.sol";
-import { StdInvariant } from "forge-std/StdInvariant.sol";
-import { StdUtils } from "forge-std/StdUtils.sol";
+import { Test, console2, stdError } from "forge-std/Test.sol";
 import { SmartVaultFactory } from "src/vault/SmartVaultFactory.sol";
 
-contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
+contract BaseTest is Test {
     address[] internal assumeAddresses;
 
     /* -------------------------------------------------------------------------- */

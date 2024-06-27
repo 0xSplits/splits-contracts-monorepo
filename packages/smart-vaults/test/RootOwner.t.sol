@@ -31,11 +31,11 @@ contract RootOwnerTest is BaseTest {
         return proxy ? BOB.addr : ALICE.addr;
     }
 
-    function test_rootOwner_is_ALICE() public {
+    function test_rootOwner_is_ALICE() public view {
         assertEq(rootOwner.root(), ALICE.addr);
     }
 
-    function test_rootOwnerProxy_is_BOB() public {
+    function test_rootOwnerProxy_is_BOB() public view {
         assertEq(rootOwnerProxy.root(), BOB.addr);
     }
 

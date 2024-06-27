@@ -27,7 +27,7 @@ contract SmartVaultFactoryTest is BaseTest {
         signers.push(abi.encode(MIKE.x, MIKE.y));
     }
 
-    function test_implementation() public {
+    function test_implementation() public view {
         assertEq(SmartVault(payable(smartVaultFactory.implementation())).factory(), address(smartVaultFactory));
     }
 
