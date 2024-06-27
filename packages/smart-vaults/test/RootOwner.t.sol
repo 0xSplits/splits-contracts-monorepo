@@ -57,7 +57,7 @@ contract RootOwnerTest is BaseTest {
     }
 
     function testFuzz_transferRoot_RevertWhen_OwnerIsZero(bool proxy, address caller) public {
-        vm.assume(caller != address(0));
+        vm.assume(caller != address(0) && caller != address(getRootOwner(proxy)));
         getRootOwner(proxy).initialize(address(0));
         assertEq(getRootOwner(proxy).root(), address(0));
 

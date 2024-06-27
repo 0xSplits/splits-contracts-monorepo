@@ -66,7 +66,7 @@ contract MultiSignerTest is BaseTest {
 
     function test_initialize_signers_RevertWhen_signersGreaterThan() public {
         vm.expectRevert(InvalidNumberOfSigners.selector);
-        multiSigner.initialize(ALICE.addr, new bytes[](257), 1);
+        multiSigner.initialize(ALICE.addr, new bytes[](256), 1);
     }
 
     function test_initialize_signers_RevertWhen_thresholdIsGreaterThanSigners() public {
@@ -246,6 +246,19 @@ contract MultiSignerTest is BaseTest {
         initializeSigners();
         vm.startPrank(ALICE.addr);
         vm.expectRevert(abi.encodeWithSelector(InvalidEthereumAddressOwner.selector, abi.encode(address(this))));
+        multiSigner.addSigner(abi.encode((address(this))), 3);
+        vm.stopPrank();
+    }
+
+    function test_addSigner_RevertWhen_MaxSignersReached() public {
+        bytes[] memory signers_ = new bytes[](255);
+        for (uint256 i; i < signers_.length; i++) {
+            signers_[i] = abi.encode(address(uint160(i + 1)));
+        }
+        multiSigner.initialize(ALICE.addr, signers_, 1);
+
+        vm.startPrank(ALICE.addr);
+        vm.expectRevert();
         multiSigner.addSigner(abi.encode((address(this))), 3);
         vm.stopPrank();
     }

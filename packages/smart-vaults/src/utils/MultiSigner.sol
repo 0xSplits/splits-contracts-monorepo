@@ -214,7 +214,7 @@ abstract contract MultiSigner {
      * @param _threshold The number of signers needed for approval.
      */
     function initializeSigners(bytes[] calldata _signers, uint8 _threshold) internal virtual {
-        if (_signers.length > 256) revert InvalidNumberOfSigners();
+        if (_signers.length > 255) revert InvalidNumberOfSigners();
 
         uint8 numberOfSigners = uint8(_signers.length);
 
