@@ -5,6 +5,7 @@ import { PRBTest } from "@prb/test/PRBTest.sol";
 import { StdCheats } from "forge-std/StdCheats.sol";
 import { StdInvariant } from "forge-std/StdInvariant.sol";
 import { StdUtils } from "forge-std/StdUtils.sol";
+import { SmartVaultFactory } from "src/vault/SmartVaultFactory.sol";
 
 contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
     address[] internal assumeAddresses;
@@ -19,8 +20,10 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
     Account DAN;
 
     /* -------------------------------------------------------------------------- */
-    /*                                   TOKENS                                   */
+    /*                             SMART VAULT FACTORY                            */
     /* -------------------------------------------------------------------------- */
+
+    SmartVaultFactory smartVaultFactory;
 
     function setUp() public virtual {
         // Setup users
@@ -28,6 +31,8 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
         BOB = createUser("BOB");
         CAROL = createUser("CAROL");
         DAN = createUser("DAN");
+
+        smartVaultFactory = new SmartVaultFactory();
     }
 
     function createUser(string memory name) internal returns (Account memory account) {

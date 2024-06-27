@@ -80,6 +80,13 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
     /// @notice Thrown when caller is not address(this).
     error OnlyAccount();
 
+    /**
+     * @notice Thrown when a provided signer is neither 64 bytes long (for public key)
+     *         nor a ABI encoded address.
+     * @param signer The invalid signer.
+     */
+    error InvalidSignerBytesLength(bytes signer);
+
     /* -------------------------------------------------------------------------- */
     /*                                  MODIFIERS                                 */
     /* -------------------------------------------------------------------------- */

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+import { MultiSignerLib } from "../library/MultiSignerLib.sol";
+
 /// @notice Storage layout used by this contract.
 ///
 /// @custom:storage-location erc7201:splits.storage.MultiSigner
@@ -38,20 +40,6 @@ abstract contract MultiSigner {
     /* -------------------------------------------------------------------------- */
     /*                                   ERRORS                                   */
     /* -------------------------------------------------------------------------- */
-
-    /**
-     * @notice Thrown when a provided signer is neither 64 bytes long (for public key)
-     *         nor a ABI encoded address.
-     * @param signer The invalid signer.
-     */
-    error InvalidSignerBytesLength(bytes signer);
-
-    /**
-     * @notice Thrown if a provided signer is 32 bytes long but does not fit in an `address` type or if `signer` has
-     * code.
-     * @param signer The invalid signer.
-     */
-    error InvalidEthereumAddressOwner(bytes signer);
 
     /// @notice Thrown when threshold is greater than number of owners or when zero.
     error InvalidThreshold();
@@ -146,16 +134,7 @@ abstract contract MultiSigner {
         if ($.isSigner[_signer]) revert SignerAlreadyAdded(_signer);
         if ($.signers[_index].length > 0) revert SignerPresentAtIndex(_index);
 
-        if (_signer.length != 32 && _signer.length != 64) {
-            revert InvalidSignerBytesLength(_signer);
-        }
-
-        if (_signer.length == 32) {
-            if (uint256(bytes32(_signer)) > type(uint160).max) revert InvalidEthereumAddressOwner(_signer);
-            address eoa = address(uint160(uint256(bytes32(_signer))));
-
-            if (eoa.code.length > 0) revert InvalidEthereumAddressOwner(_signer);
-        }
+        MultiSignerLib.validateSigner(_signer);
 
         $.isSigner[_signer] = true;
         $.signers[_index] = _signer;
@@ -214,7 +193,7 @@ abstract contract MultiSigner {
      * @param _threshold The number of signers needed for approval.
      */
     function initializeSigners(bytes[] calldata _signers, uint8 _threshold) internal virtual {
-        if (_signers.length > 255) revert InvalidNumberOfSigners();
+        if (_signers.length > 255 || _signers.length == 0) revert InvalidNumberOfSigners();
 
         uint8 numberOfSigners = uint8(_signers.length);
 
@@ -223,22 +202,11 @@ abstract contract MultiSigner {
         MultiSignerStorage storage $ = getMultiSignerStorage();
 
         bytes memory signer;
-        address eoa;
+
         for (uint8 i; i < numberOfSigners; i++) {
             signer = _signers[i];
 
-            if (signer.length != 32 && signer.length != 64) {
-                revert InvalidSignerBytesLength(signer);
-            }
-
-            if (signer.length == 32) {
-                if (uint256(bytes32(signer)) > type(uint160).max) revert InvalidEthereumAddressOwner(signer);
-                assembly ("memory-safe") {
-                    eoa := mload(add(signer, 32))
-                }
-
-                if (eoa.code.length > 0) revert InvalidEthereumAddressOwner(signer);
-            }
+            MultiSignerLib.validateSigner(signer);
 
             $.isSigner[signer] = true;
             $.signers[i] = signer;

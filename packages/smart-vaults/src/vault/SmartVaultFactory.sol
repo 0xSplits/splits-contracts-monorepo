@@ -2,6 +2,8 @@
 pragma solidity ^0.8.23;
 
 import { SmartVault } from "./SmartVault.sol";
+
+import { MultiSignerLib } from "../library/MultiSignerLib.sol";
 import { LibClone } from "solady/utils/LibClone.sol";
 
 /**
@@ -18,8 +20,13 @@ contract SmartVaultFactory {
     /// @notice Address of the ERC-4337 implementation used as implementation for new accounts.
     address public immutable implementation;
 
-    /// @notice Thrown when trying to create a new `SmartVault` account without any owner.
-    error OwnerRequired();
+    /* -------------------------------------------------------------------------- */
+    /*                                   EVENTS                                   */
+    /* -------------------------------------------------------------------------- */
+
+    event SmartVaultCreated(
+        address indexed vault, address indexed root, bytes[] signers, uint8 threshold, uint256 nonce
+    );
 
     /* -------------------------------------------------------------------------- */
     /*                                 CONSTRUCTOR                                */
@@ -34,23 +41,23 @@ contract SmartVaultFactory {
     /* -------------------------------------------------------------------------- */
 
     /**
-     * @notice Returns the deterministic address for a Splits Smart Vault created with `root`, `owners` and `nonce`
-     *         deploys and initializes contract if it has not yet been created.
+     * @notice Returns the deterministic address for a Splits Smart Vault created with `root`, `signers`, 'threshold',
+     * `nonce` deploys and initializes contract if it has not yet been created.
      *
      * @dev Deployed as a ERC-1967 proxy that's implementation is `this.implementation`.
      *
      * @param root Root owner of the smart vault.
-     * @param owners Array of initial owners. Each item should be an ABI encoded address or 64 byte public key.
+     * @param signers Array of initial signers. Each item should be an ABI encoded address or 64 byte public key.
      * @param threshold Number of approvals needed for a valid user op/hash.
      * @param nonce  The nonce of the account, a caller defined value which allows multiple accounts
-     *               with the same `owners` to exist at different addresses.
+     *               with the same `signers` to exist at different addresses.
      *
      * @return account The address of the ERC-1967 proxy created with inputs `owners`, `nonce`, and
      *                 `this.implementation`.
      */
     function createAccount(
         address root,
-        bytes[] calldata owners,
+        bytes[] calldata signers,
         uint8 threshold,
         uint256 nonce
     )
@@ -59,25 +66,31 @@ contract SmartVaultFactory {
         virtual
         returns (SmartVault account)
     {
-        if (owners.length == 0) {
-            revert OwnerRequired();
-        }
-
         (bool alreadyDeployed, address accountAddress) =
-            LibClone.createDeterministicERC1967(msg.value, implementation, _getSalt(root, owners, threshold, nonce));
+            LibClone.createDeterministicERC1967(msg.value, implementation, _getSalt(root, signers, threshold, nonce));
 
         account = SmartVault(payable(accountAddress));
 
         if (!alreadyDeployed) {
-            account.initialize(root, owners, threshold);
+            account.initialize(root, signers, threshold);
+
+            emit SmartVaultCreated({
+                vault: accountAddress,
+                root: root,
+                signers: signers,
+                threshold: threshold,
+                nonce: nonce
+            });
         }
     }
 
     /**
      * @notice Returns the deterministic address of the account that would be created by `createAccount`.
      *
+     * @dev Reverts when the initial configuration of signers is invalid.
+     *
      * @param root Root owner of the smart vault.
-     * @param owners Array of initial owners. Each item should be an ABI encoded address or 64 byte public key.
+     * @param signers Array of initial signers. Each item should be an ABI encoded address or 64 byte public key.
      * @param threshold Number of approvals needed for a valid user op/hash.
      * @param nonce  The nonce provided to `createAccount()`.
      *
@@ -85,7 +98,7 @@ contract SmartVaultFactory {
      */
     function getAddress(
         address root,
-        bytes[] calldata owners,
+        bytes[] calldata signers,
         uint8 threshold,
         uint256 nonce
     )
@@ -93,8 +106,9 @@ contract SmartVaultFactory {
         view
         returns (address)
     {
+        MultiSignerLib.validateSigners(signers, threshold);
         return LibClone.predictDeterministicAddress(
-            initCodeHash(), _getSalt(root, owners, threshold, nonce), address(this)
+            initCodeHash(), _getSalt(root, signers, threshold, nonce), address(this)
         );
     }
 
@@ -111,7 +125,7 @@ contract SmartVaultFactory {
     /// @notice Returns the create2 salt for `LibClone.predictDeterministicAddress`
     function _getSalt(
         address root,
-        bytes[] calldata owners,
+        bytes[] calldata signers,
         uint8 threshold,
         uint256 nonce
     )
@@ -119,6 +133,6 @@ contract SmartVaultFactory {
         pure
         returns (bytes32)
     {
-        return keccak256(abi.encode(root, owners, threshold, nonce));
+        return keccak256(abi.encode(root, signers, threshold, nonce));
     }
 }

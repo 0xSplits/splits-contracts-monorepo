@@ -22,6 +22,16 @@ contract RootOwner {
         0xae7382cdf6e212cea7d670e6804587eb3fdf79e0355f50a38eaf58f88ba29e00;
 
     /* -------------------------------------------------------------------------- */
+    /*                                   EVENTS                                   */
+    /* -------------------------------------------------------------------------- */
+
+    /// @notice Emitted when root is initialized.
+    event RootInitialized(address indexed root);
+
+    /// @notice Emitted when root control is transferred.
+    event RootControlTransferred(address indexed _oldRoot, address indexed _newRoot);
+
+    /* -------------------------------------------------------------------------- */
     /*                                   ERRORS                                   */
     /* -------------------------------------------------------------------------- */
 
@@ -39,6 +49,20 @@ contract RootOwner {
     }
 
     /* -------------------------------------------------------------------------- */
+    /*                              PUBLIC FUNCTIONS                              */
+    /* -------------------------------------------------------------------------- */
+
+    function root() public view returns (address) {
+        return getRoot();
+    }
+
+    function transferRootControl(address _newRoot) public onlyRoot {
+        emit RootControlTransferred(getRoot(), _newRoot);
+
+        setRoot(_newRoot);
+    }
+
+    /* -------------------------------------------------------------------------- */
     /*                             INTERNAL FUNCTIONS                             */
     /* -------------------------------------------------------------------------- */
 
@@ -49,12 +73,14 @@ contract RootOwner {
      */
     function initializeRoot(address _root) internal virtual {
         setRoot(_root);
+
+        emit RootInitialized(_root);
     }
 
     /// @notice Checks if the sender is the root owner of this contract or the contract itself when root is zero.
     function checkRoot() internal view virtual {
-        address root = getRoot();
-        if (msg.sender == root || (root == address(0) && msg.sender == address(this))) {
+        address root_ = getRoot();
+        if (msg.sender == root_ || (root_ == address(0) && msg.sender == address(this))) {
             return;
         }
 

@@ -24,16 +24,9 @@ contract RootOwnerMock is RootOwner {
         initializeRoot(_root);
     }
 
-    function transferRoot() external onlyRoot {
-        emit Transfer();
-    }
-
-    function root() public view returns (address) {
-        return getRoot();
-    }
-
-    function transferRootOpen() external {
-        (bool success, bytes memory result) = address(this).call{ value: 0 }(abi.encode(this.transferRoot.selector));
+    function transferRootOpen(address _newRoot) external {
+        (bool success, bytes memory result) =
+            address(this).call{ value: 0 }(abi.encodeWithSelector(this.transferRootControl.selector, _newRoot));
         if (!success) {
             assembly ("memory-safe") {
                 revert(add(result, 32), mload(result))
