@@ -2,14 +2,17 @@
 pragma solidity ^0.8.23;
 
 import { BaseTest } from "./Base.t.sol";
-
 import "@web-authn/../test/Utils.sol";
 import "@web-authn/WebAuthn.sol";
+import { IAccount } from "src/interfaces/IAccount.sol";
+import { UserOperationLib } from "src/library/UserOperationLib.sol";
 import { SmartVault } from "src/vault/SmartVault.sol";
 
 import { console } from "forge-std/console.sol";
 
 contract SmartVaultTest is BaseTest {
+    using UserOperationLib for IAccount.PackedUserOperation;
+
     bytes[] signers;
 
     struct PublicKey {
@@ -39,7 +42,7 @@ contract SmartVaultTest is BaseTest {
     error OnlyRoot();
     error InvalidSignerBytesLength(bytes signer);
     error MissingSignatures(uint256 signaturesSupplied, uint8 threshold);
-    error DuplicateSigner(bytes signer, uint8 signerIndex);
+    error DuplicateSigner(uint8 signerIndex);
 
     function setUp() public override {
         super.setUp();
@@ -53,6 +56,14 @@ contract SmartVaultTest is BaseTest {
         signers.push(passkeyOwner);
 
         vault = smartVaultFactory.createAccount(root, signers, 1, 0);
+    }
+
+    function getUserOpHash(IAccount.PackedUserOperation calldata userOp) internal view returns (bytes32) {
+        return keccak256(abi.encode(userOp.hash(), ENTRY_POINT, block.chainid));
+    }
+
+    function getLightUserOpHash(IAccount.PackedUserOperation calldata userOp) internal view returns (bytes32) {
+        return keccak256(abi.encode(userOp.hashLight(), ENTRY_POINT, block.chainid));
     }
 
     /* -------------------------------------------------------------------------- */
@@ -73,7 +84,7 @@ contract SmartVaultTest is BaseTest {
     /* -------------------------------------------------------------------------- */
 
     function testFuzz_validateUserOp_RevertsWhen_callerNotEntryPoint(
-        SmartVault.PackedUserOperation memory userOp,
+        IAccount.PackedUserOperation memory userOp,
         bytes32 hash
     )
         public
@@ -83,60 +94,64 @@ contract SmartVaultTest is BaseTest {
     }
 
     function testFuzz_validateUserOp_singleEOA(
-        SmartVault.PackedUserOperation memory _userOp,
-        bytes32 _hash,
+        IAccount.PackedUserOperation calldata _userOp,
         uint256 _missingAccountsFund
     )
         public
     {
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, _hash);
+        bytes32 hash = getUserOpHash(_userOp);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, hash);
 
         vm.deal(address(vault), _missingAccountsFund);
 
         SmartVault.SignatureWrapper[] memory signatures = new SmartVault.SignatureWrapper[](1);
         signatures[0] = SmartVault.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
-        _userOp.signature = abi.encode(signatures);
+        IAccount.PackedUserOperation memory userOp = _userOp;
+        userOp.signature = abi.encode(signatures);
 
         vm.prank(ENTRY_POINT);
-        assertEq(vault.validateUserOp(_userOp, _hash, _missingAccountsFund), 0);
+        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
     }
 
     function testFuzz_validateUserOp_multipleEOA(
-        SmartVault.PackedUserOperation memory _userOp,
-        bytes32 _hash,
+        IAccount.PackedUserOperation calldata _userOp,
         uint256 _missingAccountsFund
     )
         public
     {
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, _hash);
-
         vm.deal(address(vault), _missingAccountsFund);
 
+        bytes32 hash = getUserOpHash(_userOp);
+        bytes32 lightHash = getLightUserOpHash(_userOp);
+
         SmartVault.SignatureWrapper[] memory signatures = new SmartVault.SignatureWrapper[](2);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, lightHash);
         signatures[0] = SmartVault.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
-        (v, r, s) = vm.sign(BOB.key, _hash);
+        (v, r, s) = vm.sign(BOB.key, hash);
         signatures[1] = SmartVault.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
 
-        _userOp.signature = abi.encode(signatures);
+        IAccount.PackedUserOperation memory userOp = _userOp;
+        userOp.signature = abi.encode(signatures);
 
         vm.prank(ENTRY_POINT);
-        assertEq(vault.validateUserOp(_userOp, _hash, _missingAccountsFund), 0);
+        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
     }
 
     function testFuzz_validateUserOp_singlePasskey(
-        SmartVault.PackedUserOperation memory _userOp,
-        bytes32 _hash,
+        IAccount.PackedUserOperation calldata _userOp,
         uint256 _missingAccountsFund
     )
         public
     {
-        WebAuthnInfo memory webAuthn = Utils.getWebAuthnStruct(_hash);
+        vm.deal(address(vault), _missingAccountsFund);
+
+        bytes32 hash = getUserOpHash(_userOp);
+        WebAuthnInfo memory webAuthn = Utils.getWebAuthnStruct(hash);
         (bytes32 r, bytes32 s) = vm.signP256(passkeyPrivateKey, webAuthn.messageHash);
         s = bytes32(Utils.normalizeS(uint256(s)));
-
-        vm.deal(address(vault), _missingAccountsFund);
 
         SmartVault.SignatureWrapper[] memory signatures = new SmartVault.SignatureWrapper[](1);
         signatures[0] = SmartVault.SignatureWrapper(
@@ -153,14 +168,15 @@ contract SmartVaultTest is BaseTest {
             )
         );
 
-        _userOp.signature = abi.encode(signatures);
+        IAccount.PackedUserOperation memory userOp = _userOp;
+        userOp.signature = abi.encode(signatures);
 
         vm.prank(ENTRY_POINT);
-        assertEq(vault.validateUserOp(_userOp, _hash, _missingAccountsFund), 0);
+        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
     }
 
     function testFuzz_validateUserOp_RevertsWhen_badSignature(
-        SmartVault.PackedUserOperation memory _userOp,
+        IAccount.PackedUserOperation memory _userOp,
         bytes32 _hash,
         uint256 _missingAccountsFund
     )
@@ -172,7 +188,7 @@ contract SmartVaultTest is BaseTest {
     }
 
     function testFuzz_validateUserOp_RevertsWhenEmptySignatures(
-        SmartVault.PackedUserOperation memory _userOp,
+        IAccount.PackedUserOperation memory _userOp,
         bytes32 _hash,
         uint256 _missingAccountsFund
     )
@@ -188,7 +204,7 @@ contract SmartVaultTest is BaseTest {
     }
 
     function testFuzz_validateUserOp_RevertsWhenNumberOfSignaturesLessThanThreshold(
-        SmartVault.PackedUserOperation memory _userOp,
+        IAccount.PackedUserOperation memory _userOp,
         bytes32 _hash,
         uint256 _missingAccountsFund
     )
@@ -211,46 +227,54 @@ contract SmartVaultTest is BaseTest {
     }
 
     function testFuzz_validateUserOp_RevertsWhenDuplicateSigner(
-        SmartVault.PackedUserOperation memory _userOp,
-        bytes32 _hash,
+        IAccount.PackedUserOperation calldata _userOp,
         uint256 _missingAccountsFund
     )
         public
     {
+        vm.deal(address(vault), _missingAccountsFund);
+
         vm.prank(ALICE.addr);
         vault.updateThreshold(2);
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, _hash);
-
         vm.deal(address(vault), _missingAccountsFund);
 
-        SmartVault.SignatureWrapper[] memory signatures = new SmartVault.SignatureWrapper[](2);
-        signatures[0] = SmartVault.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
-        signatures[1] = SmartVault.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
-        _userOp.signature = abi.encode(signatures);
+        bytes32 hash = getUserOpHash(_userOp);
+        bytes32 lightHash = getLightUserOpHash(_userOp);
 
-        vm.expectRevert(abi.encodeWithSelector(DuplicateSigner.selector, abi.encode(ALICE.addr), 0));
+        SmartVault.SignatureWrapper[] memory signatures = new SmartVault.SignatureWrapper[](2);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, lightHash);
+        signatures[0] = SmartVault.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        (v, r, s) = vm.sign(ALICE.key, hash);
+        signatures[1] = SmartVault.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        IAccount.PackedUserOperation memory userOp = _userOp;
+        userOp.signature = abi.encode(signatures);
+
+        vm.expectRevert(abi.encodeWithSelector(DuplicateSigner.selector, 0));
         vm.prank(ENTRY_POINT);
-        assertEq(vault.validateUserOp(_userOp, _hash, _missingAccountsFund), 0);
+        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
     }
 
     function testFuzz_validateUserOp_RevertsWhenBadEOASigner(
-        SmartVault.PackedUserOperation memory _userOp,
-        bytes32 _hash,
+        IAccount.PackedUserOperation calldata _userOp,
         uint256 _missingAccountsFund
     )
         public
     {
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(BOB.key, _hash);
+        bytes32 hash = getUserOpHash(_userOp);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(BOB.key, hash);
 
         vm.deal(address(vault), _missingAccountsFund);
 
         SmartVault.SignatureWrapper[] memory signatures = new SmartVault.SignatureWrapper[](1);
         signatures[0] = SmartVault.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
-        _userOp.signature = abi.encode(signatures);
+        IAccount.PackedUserOperation memory userOp = _userOp;
+        userOp.signature = abi.encode(signatures);
 
         vm.prank(ENTRY_POINT);
-        assertEq(vault.validateUserOp(_userOp, _hash, _missingAccountsFund), 1);
+        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 1);
     }
 
     /* -------------------------------------------------------------------------- */

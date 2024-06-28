@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+import { IAccount } from "../interfaces/IAccount.sol";
+import { UserOperationLib } from "../library/UserOperationLib.sol";
 import { ERC1271 } from "../utils/ERC1271.sol";
 import { MultiSigner } from "../utils/MultiSigner.sol";
 import { RootOwner } from "../utils/RootOwner.sol";
@@ -10,8 +12,6 @@ import { Receiver } from "solady/accounts/Receiver.sol";
 import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
 import { UUPSUpgradeable } from "solady/utils/UUPSUpgradeable.sol";
 
-import { console } from "forge-std/console.sol";
-
 /**
  * @title Splits Smart Wallet
  *
@@ -19,22 +19,10 @@ import { console } from "forge-std/console.sol";
  * @author Splits
  */
 contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receiver {
+    using UserOperationLib for IAccount.PackedUserOperation;
     /* -------------------------------------------------------------------------- */
     /*                                   STRUCTS                                  */
     /* -------------------------------------------------------------------------- */
-
-    /// @dev The packed ERC4337 user operation (userOp) struct.
-    struct PackedUserOperation {
-        address sender;
-        uint256 nonce;
-        bytes initCode; // Factory address and `factoryData` (or empty).
-        bytes callData;
-        bytes32 accountGasLimits; // `verificationGas` (16 bytes) and `callGas` (16 bytes).
-        uint256 preVerificationGas;
-        bytes32 gasFees; // `maxPriorityFee` (16 bytes) and `maxFeePerGas` (16 bytes).
-        bytes paymasterAndData; // Paymaster fields (or empty).
-        bytes signature;
-    }
 
     /**
      * @notice A wrapper struct used for signature validation so that callers
@@ -86,7 +74,7 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
     error MissingSignatures(uint256 signaturesSupplied, uint8 threshold);
 
     /// @notice Thrown when duplicate signer is encountered.
-    error DuplicateSigner(bytes signer, uint8 signerIndex);
+    error DuplicateSigner(uint8 signerIndex);
 
     /// @notice Thrown when contract creation has failed.
     error FailedContractCreation();
@@ -198,7 +186,7 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
      *                              Note that the validation code cannot use block.timestamp (or block.number) directly.
      */
     function validateUserOp(
-        PackedUserOperation calldata userOp,
+        IAccount.PackedUserOperation calldata userOp,
         bytes32 userOpHash,
         uint256 missingAccountFunds
     )
@@ -207,9 +195,47 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
         payPrefund(missingAccountFunds)
         returns (uint256 validationData)
     {
-        if (_isValidSignature(userOpHash, userOp.signature)) return 0;
+        SignatureWrapper[] memory sigWrappers = abi.decode(userOp.signature, (SignatureWrapper[]));
+        uint256 numberOfSignatures = sigWrappers.length;
 
-        return 1;
+        uint8 threshold_ = threshold();
+        if (numberOfSignatures < threshold_) revert MissingSignatures(numberOfSignatures, threshold_);
+
+        if (numberOfSignatures == 1) {
+            return _isValidSignature(userOpHash, sigWrappers[0].signerIndex, sigWrappers[0].signatureData) ? 0 : 1;
+        }
+
+        bytes32 lightUserOpHash = getLightUserOpHash(userOp);
+
+        uint256 alreadySigned;
+        uint256 mask;
+        uint8 signerIndex;
+        bool isValid;
+
+        for (uint256 i; i < numberOfSignatures - 1; i++) {
+            isValid = false;
+            signerIndex = sigWrappers[i].signerIndex;
+
+            mask = (1 << signerIndex);
+            if (alreadySigned & mask != 0) revert DuplicateSigner(signerIndex);
+
+            isValid = _isValidSignature(lightUserOpHash, signerIndex, sigWrappers[i].signatureData);
+
+            if (isValid) {
+                alreadySigned |= mask;
+            } else {
+                return 1;
+            }
+        }
+
+        signerIndex = sigWrappers[numberOfSignatures - 1].signerIndex;
+
+        mask = (1 << signerIndex);
+        if (alreadySigned & mask != 0) revert DuplicateSigner(signerIndex);
+
+        isValid = _isValidSignature(userOpHash, signerIndex, sigWrappers[numberOfSignatures - 1].signatureData);
+
+        return isValid ? 0 : 1;
     }
 
     /**
@@ -277,6 +303,13 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
     /*                             INTERNAL FUNCTIONS                             */
     /* -------------------------------------------------------------------------- */
 
+    /**
+     * @notice Get light user op hash for the giver userOp
+     */
+    function getLightUserOpHash(IAccount.PackedUserOperation calldata userOp) internal view returns (bytes32) {
+        return keccak256(abi.encode(userOp.hashLight(), entryPoint(), block.chainid));
+    }
+
     function _call(address target, uint256 value, bytes memory data) internal {
         (bool success, bytes memory result) = target.call{ value: value }(data);
         if (!success) {
@@ -286,6 +319,31 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
         }
     }
 
+    /**
+     * @notice validates if the signature provided by the signer at `signerIndex` is valid for the hash.
+     */
+    function _isValidSignature(
+        bytes32 hash,
+        uint8 signerIndex,
+        bytes memory signature
+    )
+        internal
+        view
+        returns (bool isValid)
+    {
+        bytes memory signer = signerAtIndex(signerIndex);
+
+        if (signer.length == 32) {
+            isValid = _isValidSignatureEOA(hash, signer, signature);
+        } else {
+            isValid = _isValidSignaturePasskey(hash, signer, signature);
+        }
+    }
+
+    /**
+     * @notice validates if the given hash was signed by the signers of this account.
+     * @dev used internally for erc1271 isValidSignature.
+     */
     function _isValidSignature(bytes32 hash, bytes calldata signature) internal view virtual override returns (bool) {
         SignatureWrapper[] memory sigWrappers = abi.decode(signature, (SignatureWrapper[]));
         uint256 numberOfSignatures = sigWrappers.length;
@@ -295,23 +353,15 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
 
         uint256 alreadySigned;
         uint256 mask;
-        bytes memory signer;
         uint8 signerIndex;
         bool isValid;
         for (uint256 i; i < numberOfSignatures; i++) {
             isValid = false;
             signerIndex = sigWrappers[i].signerIndex;
-            signer = signerAtIndex(signerIndex);
-
             mask = (1 << signerIndex);
+            if (alreadySigned & mask != 0) revert DuplicateSigner(signerIndex);
 
-            if (alreadySigned & mask != 0) revert DuplicateSigner(signer, signerIndex);
-
-            if (signer.length == 32) {
-                isValid = _isValidSignatureEOA(hash, signer, sigWrappers[i].signatureData);
-            } else {
-                isValid = _isValidSignaturePasskey(hash, signer, sigWrappers[i].signatureData);
-            }
+            isValid = _isValidSignature(hash, signerIndex, sigWrappers[i].signatureData);
 
             if (isValid) {
                 alreadySigned |= mask;
