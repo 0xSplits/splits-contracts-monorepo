@@ -1,11 +1,13 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.23;
 
 import { IAccount } from "../interfaces/IAccount.sol";
 
 /**
  * @title User operation Library
- * @author Splits
+ * @notice Forked from
+ * https://github.com/eth-infinitism/account-abstraction/blob/develop/contracts/core/UserOperationLib.sol
+ * @dev Light here refers to the piece of data not related to gas or gas price in the userOp.
  */
 library UserOperationLib {
     /**
@@ -70,6 +72,7 @@ library UserOperationLib {
         bytes32 gasFees = userOp.gasFees;
         bytes32 hashPaymasterAndData = calldataKeccak(userOp.paymasterAndData);
 
+        // solhint-disable
         return abi.encode(
             sender,
             nonce,
@@ -80,6 +83,7 @@ library UserOperationLib {
             gasFees,
             hashPaymasterAndData
         );
+        // solhint-enable
     }
 
     /**

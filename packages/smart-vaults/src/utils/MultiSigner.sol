@@ -1,26 +1,26 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.23;
 
 import { MultiSignerLib } from "../library/MultiSignerLib.sol";
 
 /// @notice Storage layout used by this contract.
-///
+/// @dev Can allow upto 256 signers.
 /// @custom:storage-location erc7201:splits.storage.MultiSigner
 struct MultiSignerStorage {
-    /// @dev signer threshold required to validate a message signed by this contract.
+    /// @dev Number of unique signatures required to validate a message signed by this contract.
     uint8 threshold;
     /// @dev number of signers
     uint8 signerCount;
     /// @dev signer bytes;
     mapping(uint8 => bytes) signers;
-    /// @dev is signer
+    /// @dev tracks if provided bytes is signer.
     mapping(bytes => bool) isSigner;
 }
 
 /**
  * @title Multi Signer
  * @author Splits
- * @notice Auth contract allowing multiple owners, each identified as bytes with a specified threshold.
+ * @notice Auth contract allowing multiple signers, each identified as bytes with a specified threshold.
  * @dev Base on Coinbase's Smart Wallet Multi Ownable (https://github.com/coinbase/smart-wallet)
  */
 abstract contract MultiSigner {
@@ -41,7 +41,7 @@ abstract contract MultiSigner {
     /*                                   ERRORS                                   */
     /* -------------------------------------------------------------------------- */
 
-    /// @notice Thrown when threshold is greater than number of owners or when zero.
+    /// @notice Thrown when threshold is greater than number of signers or when zero.
     error InvalidThreshold();
 
     /// @notice Thrown when number of signers is more than 256.
@@ -106,7 +106,7 @@ abstract contract MultiSigner {
         return getMultiSignerStorage().signers[index];
     }
 
-    /// @notice Returns the current number of owners
+    /// @notice Returns the current number of signers
     function signerCount() public view virtual returns (uint256) {
         return getMultiSignerStorage().signerCount;
     }
@@ -121,7 +121,7 @@ abstract contract MultiSigner {
     /* -------------------------------------------------------------------------- */
 
     /**
-     * @notice Adds a signer at the index.
+     * @notice Adds a `signer` at the `index`.
      *
      * @dev Reverts if `signer` is already registered.
      * @dev Reverts if `index` already has a signer.
@@ -146,7 +146,7 @@ abstract contract MultiSigner {
     /**
      * @notice Removes signer at the given `index`.
      *
-     * @param _index The index of the owner to be removed.
+     * @param _index The index of the signer to be removed.
      */
     function removeSigner(uint8 _index) public OnlyAuthorized {
         MultiSignerStorage storage $ = getMultiSignerStorage();
@@ -155,17 +155,17 @@ abstract contract MultiSigner {
 
         if (signerCount_ == $.threshold) revert InvalidThreshold();
 
-        bytes memory signer_ = $.signers[_index];
+        bytes memory signer = $.signers[_index];
 
-        delete $.isSigner[signer_];
+        delete $.isSigner[signer];
         delete $.signers[_index];
         $.signerCount -= 1;
 
-        emit RemoveSigner(_index, signer_);
+        emit RemoveSigner(_index, signer);
     }
 
     /**
-     * @notice Updates threshold of the owner set.
+     * @notice Updates threshold of the signer set.
      * @dev Reverts if 'threshold' is greater than owner count.
      * @dev Reverts if 'threshold' is 0.
      */
@@ -184,7 +184,7 @@ abstract contract MultiSigner {
 
     /**
      * @notice Initialize the signers of this contract.
-     * @dev Intended to be called contract is first deployed and never again.
+     * @dev Intended to be called when contract is first deployed and never again.
      * @dev Reverts if a provided owner is neither 64 bytes long (for public key) nor a valid address.
      * @dev Reverts if 'threshold' is less than number of signers.
      * @dev Reverts if 'threshold' is 0.

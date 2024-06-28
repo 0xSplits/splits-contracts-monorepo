@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.23;
 
 /**
@@ -6,10 +6,6 @@ pragma solidity ^0.8.23;
  * @author Splits
  */
 library MultiSignerLib {
-    /* -------------------------------------------------------------------------- */
-    /*                                   ERRORS                                   */
-    /* -------------------------------------------------------------------------- */
-
     /**
      * @notice Thrown when a provided signer is neither 64 bytes long (for public key)
      *         nor a ABI encoded address.
@@ -30,6 +26,13 @@ library MultiSignerLib {
     /// @notice Thrown when number of signers is more than 256.
     error InvalidNumberOfSigners();
 
+    /**
+     * @notice Validates the list of `signers` and `threshold`.
+     * @dev Throws error when number of signers is zero or greather than 255.
+     * @dev Throws error if `threshold` is zero or greather than number of signers.
+     * @param _signers abi encoded list of signers (passkey/eoa).
+     * @param _threshold minimum number of signers required for approval.
+     */
     function validateSigners(bytes[] calldata _signers, uint8 _threshold) internal view {
         if (_signers.length > 255 || _signers.length == 0) revert InvalidNumberOfSigners();
 
@@ -46,6 +49,11 @@ library MultiSignerLib {
         }
     }
 
+    /**
+     * @notice Validates the signer.
+     * @dev Throws error when length of signer is neither 32 or 64.
+     * @dev Throws error if signer is invalid address or if address has code.
+     */
     function validateSigner(bytes memory _signer) internal view {
         if (_signer.length != 32 && _signer.length != 64) {
             revert InvalidSignerBytesLength(_signer);
