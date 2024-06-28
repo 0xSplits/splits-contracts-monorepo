@@ -309,4 +309,25 @@ contract SmartVaultTest is BaseTest {
         vm.prank(ENTRY_POINT);
         vault.executeBatch(calls);
     }
+
+    /* -------------------------------------------------------------------------- */
+    /*                                   CREATE                                   */
+    /* -------------------------------------------------------------------------- */
+
+    function test_deployCreate() public {
+        vm.prank(ENTRY_POINT);
+        vault.execute(
+            address(vault),
+            0,
+            abi.encodeWithSelector(
+                SmartVault.deployCreate.selector, abi.encodePacked(type(SmartVault).creationCode, abi.encode(root))
+            )
+        );
+    }
+
+    function test_deployCreate_RevertsWhen_callerNotAccount() public {
+        vm.expectRevert(OnlyAccount.selector);
+        vm.prank(ENTRY_POINT);
+        vault.deployCreate(abi.encodePacked(type(SmartVault).creationCode, abi.encode(root)));
+    }
 }

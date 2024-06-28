@@ -88,6 +88,9 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
     /// @notice Thrown when duplicate signer is encountered.
     error DuplicateSigner(bytes signer, uint8 signerIndex);
 
+    /// @notice Thrown when contract creation has failed.
+    error FailedContractCreation();
+
     /* -------------------------------------------------------------------------- */
     /*                                  MODIFIERS                                 */
     /* -------------------------------------------------------------------------- */
@@ -104,6 +107,14 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
     modifier onlyEntryPointOrRoot() virtual {
         if (msg.sender != entryPoint()) {
             checkRoot();
+        }
+        _;
+    }
+
+    /// @notice Reverts when caller is not this account.
+    modifier onlyAccount() virtual {
+        if (msg.sender != address(this)) {
+            revert OnlyAccount();
         }
         _;
     }
@@ -240,6 +251,25 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
     function implementation() public view returns (address implementation_) {
         assembly {
             implementation_ := sload(_ERC1967_IMPLEMENTATION_SLOT)
+        }
+    }
+
+    /**
+     * @notice Forked from CreateX.
+     * @dev Deploys a new contract via calling the `CREATE` opcode and using the creation
+     * bytecode `initCode` and `msg.value` as inputs. In order to save deployment costs,
+     * we do not sanity check the `initCode` length. Note that if `msg.value` is non-zero,
+     * `initCode` must have a `payable` constructor.
+     * @param initCode The creation bytecode.
+     * @return newContract The 20-byte address where the contract was deployed.
+     */
+    function deployCreate(bytes memory initCode) public payable onlyAccount returns (address newContract) {
+        assembly ("memory-safe") {
+            newContract := create(callvalue(), add(initCode, 0x20), mload(initCode))
+        }
+
+        if (newContract == address(0) || newContract.code.length == 0) {
+            revert FailedContractCreation();
         }
     }
 
