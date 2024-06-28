@@ -7,6 +7,8 @@ import "@web-authn/../test/Utils.sol";
 import "@web-authn/WebAuthn.sol";
 import { SmartVault } from "src/vault/SmartVault.sol";
 
+import { console } from "forge-std/console.sol";
+
 contract SmartVaultTest is BaseTest {
     bytes[] signers;
 
@@ -17,7 +19,7 @@ contract SmartVaultTest is BaseTest {
 
     PublicKey MIKE;
 
-    address root = ALICE.addr;
+    address root;
 
     SmartVault vault;
 
@@ -34,10 +36,15 @@ contract SmartVaultTest is BaseTest {
     error OnlyEntryPoint();
     error OnlyFactory();
     error OnlyAccount();
+    error OnlyRoot();
     error InvalidSignerBytesLength(bytes signer);
+    error MissingSignatures(uint256 signaturesSupplied, uint8 threshold);
+    error DuplicateSigner(bytes signer, uint8 signerIndex);
 
     function setUp() public override {
         super.setUp();
+
+        root = ALICE.addr;
 
         MIKE = PublicKey({ x: 1, y: 2 });
 
@@ -48,6 +55,10 @@ contract SmartVaultTest is BaseTest {
         vault = smartVaultFactory.createAccount(root, signers, 1, 0);
     }
 
+    /* -------------------------------------------------------------------------- */
+    /*                                 INITIALIZE                                 */
+    /* -------------------------------------------------------------------------- */
+
     function test_initialize_RevertsWhen_notFactory() public {
         vm.expectRevert(abi.encodeWithSelector(OnlyFactory.selector));
         vault.initialize(root, signers, 1);
@@ -56,6 +67,10 @@ contract SmartVaultTest is BaseTest {
     function test_entryPoint() public view {
         assertEq(vault.entryPoint(), ENTRY_POINT);
     }
+
+    /* -------------------------------------------------------------------------- */
+    /*                               VALIDATE USEROP                              */
+    /* -------------------------------------------------------------------------- */
 
     function testFuzz_validateUserOp_RevertsWhen_callerNotEntryPoint(
         SmartVault.PackedUserOperation memory userOp,
@@ -142,5 +157,156 @@ contract SmartVaultTest is BaseTest {
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(_userOp, _hash, _missingAccountsFund), 0);
+    }
+
+    function testFuzz_validateUserOp_RevertsWhen_badSignature(
+        SmartVault.PackedUserOperation memory _userOp,
+        bytes32 _hash,
+        uint256 _missingAccountsFund
+    )
+        public
+    {
+        vm.expectRevert();
+        vm.prank(ENTRY_POINT);
+        assertEq(vault.validateUserOp(_userOp, _hash, _missingAccountsFund), 0);
+    }
+
+    function testFuzz_validateUserOp_RevertsWhenEmptySignatures(
+        SmartVault.PackedUserOperation memory _userOp,
+        bytes32 _hash,
+        uint256 _missingAccountsFund
+    )
+        public
+    {
+        SmartVault.SignatureWrapper[] memory signatures = new SmartVault.SignatureWrapper[](0);
+
+        _userOp.signature = abi.encode(signatures);
+
+        vm.expectRevert(abi.encodeWithSelector(MissingSignatures.selector, 0, 1));
+        vm.prank(ENTRY_POINT);
+        assertEq(vault.validateUserOp(_userOp, _hash, _missingAccountsFund), 0);
+    }
+
+    function testFuzz_validateUserOp_RevertsWhenNumberOfSignaturesLessThanThreshold(
+        SmartVault.PackedUserOperation memory _userOp,
+        bytes32 _hash,
+        uint256 _missingAccountsFund
+    )
+        public
+    {
+        vm.prank(ALICE.addr);
+        vault.updateThreshold(2);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, _hash);
+
+        vm.deal(address(vault), _missingAccountsFund);
+
+        SmartVault.SignatureWrapper[] memory signatures = new SmartVault.SignatureWrapper[](1);
+        signatures[0] = SmartVault.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+        _userOp.signature = abi.encode(signatures);
+
+        vm.expectRevert(abi.encodeWithSelector(MissingSignatures.selector, 1, 2));
+        vm.prank(ENTRY_POINT);
+        assertEq(vault.validateUserOp(_userOp, _hash, _missingAccountsFund), 0);
+    }
+
+    function testFuzz_validateUserOp_RevertsWhenDuplicateSigner(
+        SmartVault.PackedUserOperation memory _userOp,
+        bytes32 _hash,
+        uint256 _missingAccountsFund
+    )
+        public
+    {
+        vm.prank(ALICE.addr);
+        vault.updateThreshold(2);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, _hash);
+
+        vm.deal(address(vault), _missingAccountsFund);
+
+        SmartVault.SignatureWrapper[] memory signatures = new SmartVault.SignatureWrapper[](2);
+        signatures[0] = SmartVault.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+        signatures[1] = SmartVault.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+        _userOp.signature = abi.encode(signatures);
+
+        vm.expectRevert(abi.encodeWithSelector(DuplicateSigner.selector, abi.encode(ALICE.addr), 0));
+        vm.prank(ENTRY_POINT);
+        assertEq(vault.validateUserOp(_userOp, _hash, _missingAccountsFund), 0);
+    }
+
+    function testFuzz_validateUserOp_RevertsWhenBadEOASigner(
+        SmartVault.PackedUserOperation memory _userOp,
+        bytes32 _hash,
+        uint256 _missingAccountsFund
+    )
+        public
+    {
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(BOB.key, _hash);
+
+        vm.deal(address(vault), _missingAccountsFund);
+
+        SmartVault.SignatureWrapper[] memory signatures = new SmartVault.SignatureWrapper[](1);
+        signatures[0] = SmartVault.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+        _userOp.signature = abi.encode(signatures);
+
+        vm.prank(ENTRY_POINT);
+        assertEq(vault.validateUserOp(_userOp, _hash, _missingAccountsFund), 1);
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*                                   EXECUTE                                  */
+    /* -------------------------------------------------------------------------- */
+
+    function testFuzz_execute(address target, uint256 value, bool _root) public {
+        vm.assume(target.code.length == 0);
+        assumeNotPrecompile(target);
+        vm.deal(address(vault), value);
+
+        vm.prank(_root ? root : ENTRY_POINT);
+        vault.execute(target, value, "0x");
+    }
+
+    function testFuzz_execute_revertsWhenNotRootOrEntryPoint(address target, uint256 value, bytes memory data) public {
+        vm.expectRevert(abi.encodeWithSelector(OnlyRoot.selector));
+        vault.execute(target, value, data);
+    }
+
+    function testFuzz_execute_revertsWhenBadCall(address target, uint256 value, bytes memory data) public {
+        vm.assume(target.code.length == 0 && value > 0);
+        vm.expectRevert();
+        vm.prank(ENTRY_POINT);
+        vault.execute(target, value, data);
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*                                EXECUTE BATCH                               */
+    /* -------------------------------------------------------------------------- */
+
+    function testFuzz_executeBatch(address target, uint256 value, bool _root) public {
+        vm.assume(target.code.length == 0);
+        assumeNotPrecompile(target);
+        vm.deal(address(vault), value);
+
+        SmartVault.Call[] memory calls = new SmartVault.Call[](1);
+        calls[0] = SmartVault.Call(target, value, "0x");
+
+        vm.prank(_root ? root : ENTRY_POINT);
+        vault.executeBatch(calls);
+    }
+
+    function test_executeBatch_revertsWhenNotRootOrEntryPoint() public {
+        vm.expectRevert(abi.encodeWithSelector(OnlyRoot.selector));
+        vault.executeBatch(new SmartVault.Call[](0));
+    }
+
+    function testFuzz_executeBatch_revertsWhenBadCall(address target, uint256 value, bytes memory data) public {
+        vm.assume(target.code.length == 0 && value > 0);
+        vm.expectRevert();
+
+        SmartVault.Call[] memory calls = new SmartVault.Call[](1);
+        calls[0] = SmartVault.Call(target, value, data);
+
+        vm.prank(ENTRY_POINT);
+        vault.executeBatch(calls);
     }
 }

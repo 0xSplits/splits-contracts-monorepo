@@ -10,6 +10,8 @@ import { Receiver } from "solady/accounts/Receiver.sol";
 import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
 import { UUPSUpgradeable } from "solady/utils/UUPSUpgradeable.sol";
 
+import { console } from "forge-std/console.sol";
+
 /**
  * @title Splits Smart Wallet
  *
@@ -80,12 +82,11 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
     /// @notice Thrown when caller is not address(this).
     error OnlyAccount();
 
-    /**
-     * @notice Thrown when a provided signer is neither 64 bytes long (for public key)
-     *         nor a ABI encoded address.
-     * @param signer The invalid signer.
-     */
-    error InvalidSignerBytesLength(bytes signer);
+    /// @notice Thrown when number of signatures is less than threshold.
+    error MissingSignatures(uint256 signaturesSupplied, uint8 threshold);
+
+    /// @notice Thrown when duplicate signer is encountered.
+    error DuplicateSigner(bytes signer, uint8 signerIndex);
 
     /* -------------------------------------------------------------------------- */
     /*                                  MODIFIERS                                 */
@@ -260,7 +261,7 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
         uint256 numberOfSignatures = sigWrappers.length;
 
         uint8 threshold_ = threshold();
-        if (numberOfSignatures < threshold_) revert();
+        if (numberOfSignatures < threshold_) revert MissingSignatures(numberOfSignatures, threshold_);
 
         uint256 alreadySigned;
         uint256 mask;
@@ -274,14 +275,12 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
 
             mask = (1 << signerIndex);
 
-            if (alreadySigned & mask != 0) revert();
+            if (alreadySigned & mask != 0) revert DuplicateSigner(signer, signerIndex);
 
             if (signer.length == 32) {
                 isValid = _isValidSignatureEOA(hash, signer, sigWrappers[i].signatureData);
-            } else if (signer.length == 64) {
-                isValid = _isValidSignaturePasskey(hash, signer, sigWrappers[i].signatureData);
             } else {
-                revert InvalidSignerBytesLength(signer);
+                isValid = _isValidSignaturePasskey(hash, signer, sigWrappers[i].signatureData);
             }
 
             if (isValid) {
@@ -329,6 +328,6 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
     function _authorizeUpgrade(address) internal view virtual override(UUPSUpgradeable) onlyRoot { }
 
     function authorizeUpdate() internal view override(MultiSigner) {
-        if (msg.sender != address(this)) revert OnlyAccount();
+        if (msg.sender != address(this) && msg.sender != root()) revert OnlyAccount();
     }
 }
