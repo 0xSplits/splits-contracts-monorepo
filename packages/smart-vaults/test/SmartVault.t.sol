@@ -6,6 +6,8 @@ import "@web-authn/../test/Utils.sol";
 import "@web-authn/WebAuthn.sol";
 import { IAccount } from "src/interfaces/IAccount.sol";
 import { UserOperationLib } from "src/library/UserOperationLib.sol";
+
+import { MultiSigner } from "src/utils/MultiSigner.sol";
 import { SmartVault } from "src/vault/SmartVault.sol";
 
 import { console } from "forge-std/console.sol";
@@ -107,8 +109,10 @@ contract SmartVaultTest is BaseTest {
         SmartVault.SignatureWrapper[] memory signatures = new SmartVault.SignatureWrapper[](1);
         signatures[0] = SmartVault.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
+        SmartVault.Signature memory signature = SmartVault.Signature(SmartVault.SigType.normal, abi.encode(signatures));
+
         IAccount.PackedUserOperation memory userOp = _userOp;
-        userOp.signature = abi.encode(signatures);
+        userOp.signature = abi.encode(signature);
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
@@ -133,8 +137,10 @@ contract SmartVaultTest is BaseTest {
         (v, r, s) = vm.sign(BOB.key, hash);
         signatures[1] = SmartVault.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
 
+        SmartVault.Signature memory signature = SmartVault.Signature(SmartVault.SigType.normal, abi.encode(signatures));
+
         IAccount.PackedUserOperation memory userOp = _userOp;
-        userOp.signature = abi.encode(signatures);
+        userOp.signature = abi.encode(signature);
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
@@ -168,8 +174,10 @@ contract SmartVaultTest is BaseTest {
             )
         );
 
+        SmartVault.Signature memory signature = SmartVault.Signature(SmartVault.SigType.normal, abi.encode(signatures));
+
         IAccount.PackedUserOperation memory userOp = _userOp;
-        userOp.signature = abi.encode(signatures);
+        userOp.signature = abi.encode(signature);
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
@@ -196,7 +204,9 @@ contract SmartVaultTest is BaseTest {
     {
         SmartVault.SignatureWrapper[] memory signatures = new SmartVault.SignatureWrapper[](0);
 
-        _userOp.signature = abi.encode(signatures);
+        SmartVault.Signature memory signature = SmartVault.Signature(SmartVault.SigType.normal, abi.encode(signatures));
+
+        _userOp.signature = abi.encode(signature);
 
         vm.expectRevert(abi.encodeWithSelector(MissingSignatures.selector, 0, 1));
         vm.prank(ENTRY_POINT);
@@ -219,7 +229,8 @@ contract SmartVaultTest is BaseTest {
 
         SmartVault.SignatureWrapper[] memory signatures = new SmartVault.SignatureWrapper[](1);
         signatures[0] = SmartVault.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
-        _userOp.signature = abi.encode(signatures);
+        SmartVault.Signature memory signature = SmartVault.Signature(SmartVault.SigType.normal, abi.encode(signatures));
+        _userOp.signature = abi.encode(signature);
 
         vm.expectRevert(abi.encodeWithSelector(MissingSignatures.selector, 1, 2));
         vm.prank(ENTRY_POINT);
@@ -249,8 +260,10 @@ contract SmartVaultTest is BaseTest {
         (v, r, s) = vm.sign(ALICE.key, hash);
         signatures[1] = SmartVault.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
+        SmartVault.Signature memory signature = SmartVault.Signature(SmartVault.SigType.normal, abi.encode(signatures));
+
         IAccount.PackedUserOperation memory userOp = _userOp;
-        userOp.signature = abi.encode(signatures);
+        userOp.signature = abi.encode(signature);
 
         vm.expectRevert(abi.encodeWithSelector(DuplicateSigner.selector, 0));
         vm.prank(ENTRY_POINT);
@@ -270,11 +283,55 @@ contract SmartVaultTest is BaseTest {
 
         SmartVault.SignatureWrapper[] memory signatures = new SmartVault.SignatureWrapper[](1);
         signatures[0] = SmartVault.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+        SmartVault.Signature memory signature = SmartVault.Signature(SmartVault.SigType.normal, abi.encode(signatures));
+
         IAccount.PackedUserOperation memory userOp = _userOp;
-        userOp.signature = abi.encode(signatures);
+        userOp.signature = abi.encode(signature);
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 1);
+    }
+
+    function testFuzz_validateUserOp_chainedSignature(
+        IAccount.PackedUserOperation calldata _userOp,
+        uint256 _missingAccountsFund
+    )
+        public
+    {
+        bytes memory addCarol = abi.encodeWithSelector(MultiSigner.addSigner.selector, abi.encode(CAROL.addr), 3);
+
+        bytes[] memory transformations = new bytes[](1);
+        transformations[0] = addCarol;
+
+        bytes32 hash = keccak256(abi.encode(address(vault), transformations));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, hash);
+
+        SmartVault.SignatureWrapper[] memory signatures = new SmartVault.SignatureWrapper[](1);
+        signatures[0] = SmartVault.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        bytes memory transformationsSignature = abi.encode(signatures);
+        SmartVault.TransformationsSignature memory ts =
+            SmartVault.TransformationsSignature(transformations, transformationsSignature);
+
+        SmartVault.TransformationsSignature[] memory tss = new SmartVault.TransformationsSignature[](1);
+        tss[0] = ts;
+
+        hash = getUserOpHash(_userOp);
+        (v, r, s) = vm.sign(CAROL.key, hash);
+        signatures[0] = SmartVault.SignatureWrapper(uint8(3), abi.encodePacked(r, s, v));
+
+        SmartVault.ChainedSignature memory chainedSignature = SmartVault.ChainedSignature(tss, abi.encode(signatures));
+
+        SmartVault.Signature memory signature =
+            SmartVault.Signature(SmartVault.SigType.chained, abi.encode(chainedSignature));
+
+        vm.deal(address(vault), _missingAccountsFund);
+
+        IAccount.PackedUserOperation memory userOp = _userOp;
+        userOp.signature = abi.encode(signature);
+
+        vm.prank(ENTRY_POINT);
+        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
     }
 
     /* -------------------------------------------------------------------------- */

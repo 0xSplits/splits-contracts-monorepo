@@ -24,6 +24,26 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
     /*                                   STRUCTS                                  */
     /* -------------------------------------------------------------------------- */
 
+    enum SigType {
+        normal,
+        chained
+    }
+
+    struct Signature {
+        SigType sigType;
+        bytes signatureData;
+    }
+
+    struct TransformationsSignature {
+        bytes[] transformations;
+        bytes signature;
+    }
+
+    struct ChainedSignature {
+        TransformationsSignature[] transformations;
+        bytes userOpSignature;
+    }
+
     /**
      * @notice A wrapper struct used for signature validation so that callers
      *         can identify the signer that signed.
@@ -197,45 +217,13 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
         payPrefund(_missingAccountFunds)
         returns (uint256 validationData)
     {
-        SignatureWrapper[] memory sigWrappers = abi.decode(_userOp.signature, (SignatureWrapper[]));
-        uint256 numberOfSignatures = sigWrappers.length;
+        Signature memory signature = abi.decode(_userOp.signature, (Signature));
 
-        uint8 threshold_ = threshold();
-        if (numberOfSignatures < threshold_) revert MissingSignatures(numberOfSignatures, threshold_);
-
-        if (numberOfSignatures == 1) {
-            return _isValidSignature(_userOpHash, sigWrappers[0].signerIndex, sigWrappers[0].signatureData) ? 0 : 1;
+        if (signature.sigType == SigType.normal) {
+            return validateNormalSignature(_userOpHash, getLightUserOpHash(_userOp), signature.signatureData);
+        } else if (signature.sigType == SigType.chained) {
+            return validateChainedSignature(_userOp, _userOpHash, signature.signatureData);
         }
-
-        bytes32 lightUserOpHash = getLightUserOpHash(_userOp);
-
-        uint256 alreadySigned;
-        uint256 mask;
-        uint8 signerIndex;
-        bool isValid;
-
-        for (uint256 i; i < numberOfSignatures - 1; i++) {
-            isValid = false;
-            signerIndex = sigWrappers[i].signerIndex;
-
-            mask = (1 << signerIndex);
-            if (alreadySigned & mask != 0) revert DuplicateSigner(signerIndex);
-
-            isValid = _isValidSignature(lightUserOpHash, signerIndex, sigWrappers[i].signatureData);
-
-            if (isValid) {
-                alreadySigned |= mask;
-            } else {
-                return 1;
-            }
-        }
-
-        signerIndex = sigWrappers[numberOfSignatures - 1].signerIndex;
-
-        mask = (1 << signerIndex);
-        if (alreadySigned & mask != 0) revert DuplicateSigner(signerIndex);
-
-        return _isValidSignature(_userOpHash, signerIndex, sigWrappers[numberOfSignatures - 1].signatureData) ? 0 : 1;
     }
 
     /**
@@ -317,6 +305,88 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
                 revert(add(result, 32), mload(result))
             }
         }
+    }
+
+    function validateChainedSignature(
+        IAccount.PackedUserOperation calldata _userOp,
+        bytes32 _userOpHash,
+        bytes memory _chainedSignature
+    )
+        internal
+        returns (uint256)
+    {
+        ChainedSignature memory chained_signature = abi.decode(_chainedSignature, (ChainedSignature));
+
+        TransformationsSignature[] memory transformations = chained_signature.transformations;
+
+        for (uint256 i; i < transformations.length; i++) {
+            validateAndExecuteTransformation(transformations[i]);
+        }
+        // validate normal signature
+        return validateNormalSignature(_userOpHash, getLightUserOpHash(_userOp), chained_signature.userOpSignature);
+    }
+
+    function validateAndExecuteTransformation(TransformationsSignature memory transformation) internal {
+        // get transformations hash
+        bytes32 transformation_hash = keccak256(abi.encode(address(this), transformation.transformations));
+
+        // validate transformations
+        if (validateNormalSignature(transformation_hash, transformation_hash, transformation.signature) == 1) {
+            revert();
+        }
+
+        // execute transformations
+        for (uint256 j; j < transformation.transformations.length; j++) {
+            _call(address(this), 0, transformation.transformations[j]);
+        }
+    }
+
+    function validateNormalSignature(
+        bytes32 _hash,
+        bytes32 _lightHash,
+        bytes memory signature
+    )
+        internal
+        view
+        returns (uint256 validationData)
+    {
+        SignatureWrapper[] memory sigWrappers = abi.decode(signature, (SignatureWrapper[]));
+        uint256 numberOfSignatures = sigWrappers.length;
+
+        uint8 threshold_ = threshold();
+        if (numberOfSignatures < threshold_) revert MissingSignatures(numberOfSignatures, threshold_);
+
+        if (numberOfSignatures == 1) {
+            return _isValidSignature(_hash, sigWrappers[0].signerIndex, sigWrappers[0].signatureData) ? 0 : 1;
+        }
+
+        uint256 alreadySigned;
+        uint256 mask;
+        uint8 signerIndex;
+        bool isValid;
+
+        for (uint256 i; i < numberOfSignatures - 1; i++) {
+            isValid = false;
+            signerIndex = sigWrappers[i].signerIndex;
+
+            mask = (1 << signerIndex);
+            if (alreadySigned & mask != 0) revert DuplicateSigner(signerIndex);
+
+            isValid = _isValidSignature(_lightHash, signerIndex, sigWrappers[i].signatureData);
+
+            if (isValid) {
+                alreadySigned |= mask;
+            } else {
+                return 1;
+            }
+        }
+
+        signerIndex = sigWrappers[numberOfSignatures - 1].signerIndex;
+
+        mask = (1 << signerIndex);
+        if (alreadySigned & mask != 0) revert DuplicateSigner(signerIndex);
+
+        return _isValidSignature(_hash, signerIndex, sigWrappers[numberOfSignatures - 1].signatureData) ? 0 : 1;
     }
 
     /**
