@@ -6,6 +6,8 @@ import "@web-authn/../test/Utils.sol";
 import "@web-authn/WebAuthn.sol";
 import { IAccount } from "src/interfaces/IAccount.sol";
 import { UserOperationLib } from "src/library/UserOperationLib.sol";
+
+import { MultiSigner } from "src/utils/MultiSigner.sol";
 import { SmartVault } from "src/vault/SmartVault.sol";
 
 import { console } from "forge-std/console.sol";
@@ -104,8 +106,8 @@ contract SmartVaultTest is BaseTest {
 
         vm.deal(address(vault), _missingAccountsFund);
 
-        SmartVault.SignatureWrapper[] memory signatures = new SmartVault.SignatureWrapper[](1);
-        signatures[0] = SmartVault.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+        MultiSigner.SignatureWrapper[] memory signatures = new MultiSigner.SignatureWrapper[](1);
+        signatures[0] = MultiSigner.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         IAccount.PackedUserOperation memory userOp = _userOp;
         userOp.signature = abi.encode(signatures);
@@ -128,10 +130,10 @@ contract SmartVaultTest is BaseTest {
         SmartVault.SignatureWrapper[] memory signatures = new SmartVault.SignatureWrapper[](2);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, lightHash);
-        signatures[0] = SmartVault.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+        signatures[0] = MultiSigner.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         (v, r, s) = vm.sign(BOB.key, hash);
-        signatures[1] = SmartVault.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
+        signatures[1] = MultiSigner.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
 
         IAccount.PackedUserOperation memory userOp = _userOp;
         userOp.signature = abi.encode(signatures);
@@ -154,7 +156,7 @@ contract SmartVaultTest is BaseTest {
         s = bytes32(Utils.normalizeS(uint256(s)));
 
         SmartVault.SignatureWrapper[] memory signatures = new SmartVault.SignatureWrapper[](1);
-        signatures[0] = SmartVault.SignatureWrapper(
+        signatures[0] = MultiSigner.SignatureWrapper(
             2,
             abi.encode(
                 WebAuthn.WebAuthnAuth({
@@ -218,7 +220,7 @@ contract SmartVaultTest is BaseTest {
         vm.deal(address(vault), _missingAccountsFund);
 
         SmartVault.SignatureWrapper[] memory signatures = new SmartVault.SignatureWrapper[](1);
-        signatures[0] = SmartVault.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+        signatures[0] = MultiSigner.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
         _userOp.signature = abi.encode(signatures);
 
         vm.expectRevert(abi.encodeWithSelector(MissingSignatures.selector, 1, 2));
@@ -244,10 +246,10 @@ contract SmartVaultTest is BaseTest {
 
         SmartVault.SignatureWrapper[] memory signatures = new SmartVault.SignatureWrapper[](2);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, lightHash);
-        signatures[0] = SmartVault.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+        signatures[0] = MultiSigner.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         (v, r, s) = vm.sign(ALICE.key, hash);
-        signatures[1] = SmartVault.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+        signatures[1] = MultiSigner.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         IAccount.PackedUserOperation memory userOp = _userOp;
         userOp.signature = abi.encode(signatures);
@@ -269,7 +271,7 @@ contract SmartVaultTest is BaseTest {
         vm.deal(address(vault), _missingAccountsFund);
 
         SmartVault.SignatureWrapper[] memory signatures = new SmartVault.SignatureWrapper[](1);
-        signatures[0] = SmartVault.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+        signatures[0] = MultiSigner.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
         IAccount.PackedUserOperation memory userOp = _userOp;
         userOp.signature = abi.encode(signatures);
 

@@ -7,9 +7,7 @@ import { ERC1271 } from "../utils/ERC1271.sol";
 import { MultiSigner } from "../utils/MultiSigner.sol";
 import { RootOwner } from "../utils/RootOwner.sol";
 
-import { WebAuthn } from "@web-authn/WebAuthn.sol";
 import { Receiver } from "solady/accounts/Receiver.sol";
-import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
 import { UUPSUpgradeable } from "solady/utils/UUPSUpgradeable.sol";
 
 /**
@@ -23,20 +21,6 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
     /* -------------------------------------------------------------------------- */
     /*                                   STRUCTS                                  */
     /* -------------------------------------------------------------------------- */
-
-    /**
-     * @notice A wrapper struct used for signature validation so that callers
-     *         can identify the signer that signed.
-     */
-    struct SignatureWrapper {
-        /// @dev The index of the signer that signed, see `MultiSigner.signerAtIndex`
-        uint8 signerIndex;
-        /**
-         * @dev If `MultiSigner.signerAtIndex` is an Ethereum address, this should be `abi.encodePacked(r, s, v)`
-         *      If `MultiSigner.signerAtIndex` is a public key, this should be `abi.encode(WebAuthnAuth)`.
-         */
-        bytes signatureData;
-    }
 
     /// @notice Represents a call to make.
     struct Call {
@@ -70,12 +54,6 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
 
     /// @notice Thrown when caller is not address(this).
     error OnlyAccount();
-
-    /// @notice Thrown when number of signatures is less than threshold.
-    error MissingSignatures(uint256 signaturesSupplied, uint8 threshold);
-
-    /// @notice Thrown when duplicate signer is encountered.
-    error DuplicateSigner(uint8 signerIndex);
 
     /// @notice Thrown when contract creation has failed.
     error FailedContractCreation();
@@ -197,14 +175,16 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
         payPrefund(_missingAccountFunds)
         returns (uint256 validationData)
     {
-        SignatureWrapper[] memory sigWrappers = abi.decode(_userOp.signature, (SignatureWrapper[]));
+        bytes memory signature = preValidationStateSync(_userOp.signature);
+
+        SignatureWrapper[] memory sigWrappers = abi.decode(signature, (NormalSignature)).signature;
         uint256 numberOfSignatures = sigWrappers.length;
 
         uint8 threshold_ = threshold();
         if (numberOfSignatures < threshold_) revert MissingSignatures(numberOfSignatures, threshold_);
 
         if (numberOfSignatures == 1) {
-            return _isValidSignature(_userOpHash, sigWrappers[0].signerIndex, sigWrappers[0].signatureData) ? 0 : 1;
+            return validateSignature(_userOpHash, sigWrappers[0].signerIndex, sigWrappers[0].signatureData) ? 0 : 1;
         }
 
         bytes32 lightUserOpHash = getLightUserOpHash(_userOp);
@@ -221,7 +201,7 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
             mask = (1 << signerIndex);
             if (alreadySigned & mask != 0) revert DuplicateSigner(signerIndex);
 
-            isValid = _isValidSignature(lightUserOpHash, signerIndex, sigWrappers[i].signatureData);
+            isValid = validateSignature(lightUserOpHash, signerIndex, sigWrappers[i].signatureData);
 
             if (isValid) {
                 alreadySigned |= mask;
@@ -235,7 +215,7 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
         mask = (1 << signerIndex);
         if (alreadySigned & mask != 0) revert DuplicateSigner(signerIndex);
 
-        return _isValidSignature(_userOpHash, signerIndex, sigWrappers[numberOfSignatures - 1].signatureData) ? 0 : 1;
+        return validateSignature(_userOpHash, signerIndex, sigWrappers[numberOfSignatures - 1].signatureData) ? 0 : 1;
     }
 
     /**
@@ -319,104 +299,30 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
         }
     }
 
-    /**
-     * @notice validates if the signature provided by the signer at `signerIndex` is valid for the hash.
-     */
-    function _isValidSignature(
-        bytes32 _hash,
-        uint8 _signerIndex,
-        bytes memory _signature
-    )
-        internal
-        view
-        returns (bool isValid)
-    {
-        bytes memory signer = signerAtIndex(_signerIndex);
-
-        if (signer.length == 32) {
-            isValid = _isValidSignatureEOA(_hash, signer, _signature);
-        } else {
-            isValid = _isValidSignaturePasskey(_hash, signer, _signature);
-        }
-    }
-
-    /**
-     * @notice validates if the given hash was signed by the signers of this account.
-     * @dev used internally for erc1271 isValidSignature.
-     */
-    function _isValidSignature(
-        bytes32 _hash,
-        bytes calldata _signature
-    )
-        internal
-        view
-        virtual
-        override
-        returns (bool)
-    {
-        SignatureWrapper[] memory sigWrappers = abi.decode(_signature, (SignatureWrapper[]));
-        uint256 numberOfSignatures = sigWrappers.length;
-
-        uint8 threshold_ = threshold();
-        if (numberOfSignatures < threshold_) revert MissingSignatures(numberOfSignatures, threshold_);
-
-        uint256 alreadySigned;
-        uint256 mask;
-        uint8 signerIndex;
-        bool isValid;
-        for (uint256 i; i < numberOfSignatures; i++) {
-            isValid = false;
-            signerIndex = sigWrappers[i].signerIndex;
-            mask = (1 << signerIndex);
-            if (alreadySigned & mask != 0) revert DuplicateSigner(signerIndex);
-
-            isValid = _isValidSignature(_hash, signerIndex, sigWrappers[i].signatureData);
-
-            if (isValid) {
-                alreadySigned |= mask;
-            } else {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    function _isValidSignaturePasskey(
-        bytes32 _hash,
-        bytes memory _signer,
-        bytes memory _signature
-    )
-        internal
-        view
-        returns (bool)
-    {
-        (uint256 x, uint256 y) = abi.decode(_signer, (uint256, uint256));
-
-        WebAuthn.WebAuthnAuth memory auth = abi.decode(_signature, (WebAuthn.WebAuthnAuth));
-
-        return WebAuthn.verify({ challenge: abi.encode(_hash), requireUV: false, webAuthnAuth: auth, x: x, y: y });
-    }
-
-    function _isValidSignatureEOA(
-        bytes32 _hash,
-        bytes memory _signer,
-        bytes memory _signature
-    )
-        internal
-        view
-        returns (bool)
-    {
-        address owner;
-        assembly ("memory-safe") {
-            owner := mload(add(_signer, 32))
-        }
-
-        return SignatureCheckerLib.isValidSignatureNow(owner, _hash, _signature);
-    }
-
     function _authorizeUpgrade(address) internal view virtual override(UUPSUpgradeable) onlyRoot { }
 
     function authorizeUpdate() internal view override(MultiSigner) {
         if (msg.sender != address(this) && msg.sender != root()) revert OnlyAccount();
+    }
+
+    /**
+     * @notice validates if the given hash was signed by the signers.
+     */
+    function _isValidSignature(bytes32 _hash, bytes calldata _signature) internal view override returns (bool) {
+        return validateNormalSignature(_hash, _signature);
+    }
+
+    function preValidationStateSync(bytes memory _signature) internal returns (bytes memory) {
+        Signature memory signature = abi.decode(_signature, (Signature));
+
+        if (signature.sigType == SignatureType.chained) {
+            ChainedSignature memory chainedSignature = abi.decode(_signature, (ChainedSignature));
+            processsSignerUpdates(chainedSignature.updates);
+            return chainedSignature.normalSignature;
+        } else if (signature.sigType == SignatureType.normal) {
+            return signature.signature;
+        } else {
+            revert();
+        }
     }
 }
