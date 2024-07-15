@@ -11,6 +11,7 @@ test = "test"
 allow_paths = ['../../node_modules']
 fs_permissions = [{ access = "read-write", path = "./" }]
 evm_version = "shanghai"
+via_ir = true
 
 [profile.default.fuzz]
 max_test_rejects = 1_000_000
@@ -24,7 +25,6 @@ runs = 20
 
 [profile.optimized]
 out = "out-optimized"
-via_ir = true
 
 [profile.test-optimized]
 ffi = true

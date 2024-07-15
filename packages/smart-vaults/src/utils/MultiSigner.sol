@@ -362,6 +362,24 @@ abstract contract MultiSigner {
         }
     }
 
+    /// @notice reverts if validation fails
+    function validateSignerUpdate(SignerUpdate memory _signerUpdate) internal view {
+        if (
+            !validateNormalSignature(
+                getSignerUpdateHash(_signerUpdate, getMultiSignerStorage().nonce), _signerUpdate.normalSignature
+            )
+        ) revert();
+    }
+
+    function processsSignerUpdate(SignerUpdate memory _signerUpdate) internal {
+        SignerUpdateParam[] memory updateParams = _signerUpdate.updateParams;
+        uint256 noOfUpdates = updateParams.length;
+        for (uint256 i; i < noOfUpdates; i++) {
+            processsSignerUpdateParam(updateParams[i]);
+        }
+        getMultiSignerStorage().nonce += 1;
+    }
+
     function processsSignerUpdatesMemory(SignerUpdate[] memory _signerUpdates)
         internal
         view
@@ -374,15 +392,6 @@ abstract contract MultiSigner {
             validateSignerUpdateMemory(_signerUpdates[i], signers, threshold, nonce++);
             (signers, threshold) = processsSignerUpdateMemory(_signerUpdates[i], signers, threshold);
         }
-    }
-
-    /// @notice reverts if validation fails
-    function validateSignerUpdate(SignerUpdate memory _signerUpdate) internal view {
-        if (
-            !validateNormalSignature(
-                getSignerUpdateHash(_signerUpdate, getMultiSignerStorage().nonce), _signerUpdate.normalSignature
-            )
-        ) revert();
     }
 
     /// @notice reverts if validation fails
@@ -402,15 +411,6 @@ abstract contract MultiSigner {
         ) {
             revert();
         }
-    }
-
-    function processsSignerUpdate(SignerUpdate memory _signerUpdate) internal {
-        SignerUpdateParam[] memory updateParams = _signerUpdate.updateParams;
-        uint256 noOfUpdates = updateParams.length;
-        for (uint256 i; i < noOfUpdates; i++) {
-            processsSignerUpdateParam(updateParams[i]);
-        }
-        getMultiSignerStorage().nonce += 1;
     }
 
     function processsSignerUpdateMemory(
