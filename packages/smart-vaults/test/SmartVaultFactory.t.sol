@@ -40,7 +40,7 @@ contract SmartVaultFactoryTest is BaseTest {
 
         assertEq(predictedVault, address(deployedVault));
         assertEq(deployedVault.root(), root);
-        assertEq(deployedVault.threshold(), 1);
+        assertEq(deployedVault.getThreshold(), 1);
         assertEq(deployedVault.signerCount(), 3);
     }
 
@@ -51,7 +51,7 @@ contract SmartVaultFactoryTest is BaseTest {
 
         assertEq(predictedVault, address(deployedVault));
         assertEq(deployedVault.root(), root);
-        assertEq(deployedVault.threshold(), 1);
+        assertEq(deployedVault.getThreshold(), 1);
         assertEq(deployedVault.signerCount(), 3);
     }
 }

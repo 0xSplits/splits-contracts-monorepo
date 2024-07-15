@@ -25,6 +25,8 @@ abstract contract MultiSigner {
     bytes32 private constant MUTLI_SIGNER_STORAGE_LOCATION =
         0xc6b44c835744ff7e5272b762d148484b103b956d9f16ac625b855244e8132a00;
 
+    bytes32 private constant SIGNER_REMOVED = 0xb04ab4afa2f1583231336fc5be76c590578027387608a6a8dc2e65a46dbe66d3;
+
     /* -------------------------------------------------------------------------- */
     /*                                   STRUCTS                                  */
     /* -------------------------------------------------------------------------- */
@@ -40,8 +42,6 @@ abstract contract MultiSigner {
         uint8 signerCount;
         /// @dev signer bytes;
         mapping(uint8 => bytes) signers;
-        /// @dev tracks if provided bytes is signer.
-        mapping(bytes => bool) isSigner;
     }
 
     /**
@@ -158,11 +158,6 @@ abstract contract MultiSigner {
     /*                            PUBLIC VIEW FUNCTIONS                           */
     /* -------------------------------------------------------------------------- */
 
-    /// @notice Returns if the passed in _signer is registered.
-    function isSigner(bytes calldata _signer) public view virtual returns (bool) {
-        return getMultiSignerStorage().isSigner[_signer];
-    }
-
     /// @notice Returns the owner bytes at the given `index`.
     function signerAtIndex(uint8 index) public view virtual returns (bytes memory) {
         return getMultiSignerStorage().signers[index];
@@ -174,7 +169,7 @@ abstract contract MultiSigner {
     }
 
     /// @notice Returns the threshold
-    function threshold() public view virtual returns (uint8) {
+    function getThreshold() public view virtual returns (uint8) {
         return getMultiSignerStorage().threshold;
     }
 
@@ -242,7 +237,6 @@ abstract contract MultiSigner {
 
             MultiSignerLib.validateSigner(signer);
 
-            $.isSigner[signer] = true;
             $.signers[i] = signer;
 
             emit AddSigner(i, signer);
@@ -267,7 +261,7 @@ abstract contract MultiSigner {
         SignatureWrapper[] memory sigWrappers = signature.signature;
         uint256 numberOfSignatures = sigWrappers.length;
 
-        uint8 threshold_ = threshold();
+        uint8 threshold_ = getThreshold();
         if (numberOfSignatures < threshold_) revert MissingSignatures(numberOfSignatures, threshold_);
 
         uint256 alreadySigned;
@@ -281,6 +275,54 @@ abstract contract MultiSigner {
             if (alreadySigned & mask != 0) revert DuplicateSigner(signerIndex);
 
             isValid = MultiSignerLib.isValidSignature(_hash, signerAtIndex(signerIndex), sigWrappers[i].signatureData);
+
+            if (isValid) {
+                alreadySigned |= mask;
+            } else {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * @notice validates if the given hash was signed by the signers.
+     */
+    function validateNormalSignature(
+        bytes32 _hash,
+        bytes memory _signature,
+        bytes[256] memory _signers,
+        uint8 _threshold
+    )
+        internal
+        view
+        returns (bool)
+    {
+        NormalSignature memory signature = abi.decode(_signature, (NormalSignature));
+        SignatureWrapper[] memory sigWrappers = signature.signature;
+        uint256 numberOfSignatures = sigWrappers.length;
+
+        if (numberOfSignatures < _threshold) revert MissingSignatures(numberOfSignatures, _threshold);
+
+        uint256 alreadySigned;
+        uint256 mask;
+        uint8 signerIndex;
+        bool isValid;
+        bytes memory signer;
+        for (uint256 i; i < numberOfSignatures; i++) {
+            isValid = false;
+            signerIndex = sigWrappers[i].signerIndex;
+            mask = (1 << signerIndex);
+            if (alreadySigned & mask != 0) revert DuplicateSigner(signerIndex);
+
+            signer = _signers[signerIndex];
+            if (signer.length == 0) {
+                signer = signerAtIndex(signerIndex);
+            } else if (bytes32(signer) == SIGNER_REMOVED) {
+                revert();
+            }
+
+            isValid = MultiSignerLib.isValidSignature(_hash, signer, sigWrappers[i].signatureData);
 
             if (isValid) {
                 alreadySigned |= mask;
@@ -320,9 +362,46 @@ abstract contract MultiSigner {
         }
     }
 
+    function processsSignerUpdatesMemory(SignerUpdate[] memory _signerUpdates)
+        internal
+        view
+        returns (bytes[256] memory signers, uint8 threshold)
+    {
+        uint256 nonce = getMultiSignerStorage().nonce;
+        uint256 noOfUpdates = _signerUpdates.length;
+        threshold = getThreshold();
+        for (uint256 i; i < noOfUpdates; i++) {
+            validateSignerUpdateMemory(_signerUpdates[i], signers, threshold, nonce++);
+            (signers, threshold) = processsSignerUpdateMemory(_signerUpdates[i], signers, threshold);
+        }
+    }
+
     /// @notice reverts if validation fails
     function validateSignerUpdate(SignerUpdate memory _signerUpdate) internal view {
-        if (!validateNormalSignature(getSignerUpdateHash(_signerUpdate), _signerUpdate.normalSignature)) revert();
+        if (
+            !validateNormalSignature(
+                getSignerUpdateHash(_signerUpdate, getMultiSignerStorage().nonce), _signerUpdate.normalSignature
+            )
+        ) revert();
+    }
+
+    /// @notice reverts if validation fails
+    function validateSignerUpdateMemory(
+        SignerUpdate memory _signerUpdate,
+        bytes[256] memory _signers,
+        uint8 _threshold,
+        uint256 _nonce
+    )
+        internal
+        view
+    {
+        if (
+            !validateNormalSignature(
+                getSignerUpdateHash(_signerUpdate, _nonce), _signerUpdate.normalSignature, _signers, _threshold
+            )
+        ) {
+            revert();
+        }
     }
 
     function processsSignerUpdate(SignerUpdate memory _signerUpdate) internal {
@@ -332,6 +411,37 @@ abstract contract MultiSigner {
             processsSignerUpdateParam(updateParams[i]);
         }
         getMultiSignerStorage().nonce += 1;
+    }
+
+    function processsSignerUpdateMemory(
+        SignerUpdate memory _signerUpdate,
+        bytes[256] memory _signers,
+        uint8 _threshold
+    )
+        internal
+        view
+        returns (bytes[256] memory, uint8)
+    {
+        SignerUpdateParam[] memory updateParams = _signerUpdate.updateParams;
+        uint256 noOfUpdates = updateParams.length;
+
+        for (uint256 i; i < noOfUpdates; i++) {
+            SignerUpdateParam memory _signerUpdateParam = updateParams[i];
+            if (_signerUpdateParam.updateType == SignerUpdateType.addSigner) {
+                (bytes memory signer, uint8 index) = abi.decode(_signerUpdateParam.data, (bytes, uint8));
+                MultiSignerLib.validateSigner(signer);
+                _signers[index] = signer;
+            } else if (_signerUpdateParam.updateType == SignerUpdateType.removeSigner) {
+                uint8 index = abi.decode(_signerUpdateParam.data, (uint8));
+                _signers[index] = bytes.concat(SIGNER_REMOVED);
+            } else if (_signerUpdateParam.updateType == SignerUpdateType.updateThreshold) {
+                _threshold = abi.decode(_signerUpdateParam.data, (uint8));
+            } else {
+                revert();
+            }
+        }
+
+        return (_signers, _threshold);
     }
 
     function processsSignerUpdateParam(SignerUpdateParam memory _signerUpdateParam) internal {
@@ -349,8 +459,8 @@ abstract contract MultiSigner {
         }
     }
 
-    function getSignerUpdateHash(SignerUpdate memory _signerUpdate) internal view returns (bytes32) {
-        return keccak256(abi.encode(getMultiSignerStorage().nonce, address(this), _signerUpdate.updateParams));
+    function getSignerUpdateHash(SignerUpdate memory _signerUpdate, uint256 _nonce) internal view returns (bytes32) {
+        return keccak256(abi.encode(_nonce, address(this), _signerUpdate.updateParams));
     }
 
     function authorizeUpdate() internal virtual;
@@ -358,14 +468,10 @@ abstract contract MultiSigner {
     function _addSigner(bytes memory _signer, uint8 _index) internal {
         MultiSignerStorage storage $ = getMultiSignerStorage();
 
-        if ($.isSigner[_signer]) revert SignerAlreadyAdded(_signer);
-        if ($.signers[_index].length > 0) revert SignerPresentAtIndex(_index);
-
         MultiSignerLib.validateSigner(_signer);
 
-        $.isSigner[_signer] = true;
+        if ($.signers[_index].length == 0) $.signerCount += 1;
         $.signers[_index] = _signer;
-        $.signerCount += 1;
 
         emit AddSigner(_index, _signer);
     }
@@ -379,7 +485,6 @@ abstract contract MultiSigner {
 
         bytes memory signer = $.signers[_index];
 
-        delete $.isSigner[signer];
         delete $.signers[_index];
         $.signerCount -= 1;
 

@@ -56,7 +56,7 @@ contract MultiSignerTest is BaseTest {
         assertEq(multiSigner.signerAtIndex(1), abi.encode(BOB.addr));
         assertEq(multiSigner.signerAtIndex(2), abi.encode(MIKE.x, MIKE.y));
         assertEq(multiSigner.signerCount(), 3);
-        assertEq(multiSigner.threshold(), 1);
+        assertEq(multiSigner.getThreshold(), 1);
     }
 
     function test_initialize_signers_RevertWhen_thresholdIsZero() public {
@@ -112,7 +112,7 @@ contract MultiSignerTest is BaseTest {
         multiSigner.updateThreshold(2);
         vm.stopPrank();
 
-        assertEq(multiSigner.threshold(), 2);
+        assertEq(multiSigner.getThreshold(), 2);
     }
 
     function testFuzz_updateThreshold_RevertWhen_callerNotRoot(address _caller, uint8 _threshold) public {
@@ -158,7 +158,6 @@ contract MultiSignerTest is BaseTest {
         vm.stopPrank();
 
         assertEq(multiSigner.signerCount(), 2);
-        assertFalse(multiSigner.isSigner(abi.encode(ALICE.addr)));
         assertEq(multiSigner.signerAtIndex(0).length, 0);
     }
 
@@ -195,7 +194,6 @@ contract MultiSignerTest is BaseTest {
         vm.stopPrank();
 
         assertEq(multiSigner.signerCount(), 2);
-        assertFalse(multiSigner.isSigner(abi.encode(ALICE.addr)));
         assertEq(multiSigner.signerAtIndex(0).length, 0);
     }
 

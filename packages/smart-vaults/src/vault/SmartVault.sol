@@ -180,7 +180,7 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
         SignatureWrapper[] memory sigWrappers = abi.decode(signature, (NormalSignature)).signature;
         uint256 numberOfSignatures = sigWrappers.length;
 
-        uint8 threshold_ = threshold();
+        uint8 threshold_ = getThreshold();
         if (numberOfSignatures < threshold_) revert MissingSignatures(numberOfSignatures, threshold_);
 
         if (numberOfSignatures == 1) {
@@ -309,7 +309,17 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
      * @notice validates if the given hash was signed by the signers.
      */
     function _isValidSignature(bytes32 _hash, bytes calldata _signature) internal view override returns (bool) {
-        return validateNormalSignature(_hash, _signature);
+        Signature memory signature = abi.decode(_signature, (Signature));
+
+        if (signature.sigType == SignatureType.chained) {
+            ChainedSignature memory chainedSignature = abi.decode(_signature, (ChainedSignature));
+            (bytes[256] memory signers, uint8 threshold) = processsSignerUpdatesMemory(chainedSignature.updates);
+            return validateNormalSignature(_hash, chainedSignature.normalSignature, signers, threshold);
+        } else if (signature.sigType == SignatureType.normal) {
+            return validateNormalSignature(_hash, signature.signature);
+        } else {
+            revert();
+        }
     }
 
     function preValidationStateSync(bytes memory _signature) internal returns (bytes memory) {
