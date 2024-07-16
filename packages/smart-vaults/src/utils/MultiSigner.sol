@@ -58,18 +58,34 @@ abstract contract MultiSigner {
         bytes signatureData;
     }
 
-    enum SignatureType {
-        normal,
-        chained
+    enum RootSignatureType {
+        userOp,
+        stateSync
     }
 
-    struct Signature {
-        SignatureType sigType;
+    struct RootSignature {
+        RootSignatureType sigType;
+        bytes signature;
+    }
+
+    enum UserOpSignatureType {
+        normal,
+        multiChain
+    }
+
+    struct UserOpSignature {
+        UserOpSignatureType sigType;
         bytes signature;
     }
 
     struct NormalSignature {
         SignatureWrapper[] signature;
+    }
+
+    struct MultiChainSignature {
+        bytes32 merkleTreeRoot;
+        bytes32[] merkleProofs;
+        bytes normalSignature;
     }
 
     enum SignerUpdateType {
@@ -88,9 +104,9 @@ abstract contract MultiSigner {
         bytes normalSignature;
     }
 
-    struct ChainedSignature {
+    struct StateSyncSignature {
         SignerUpdate[] updates;
-        bytes normalSignature;
+        bytes userOpSignature;
     }
 
     /* -------------------------------------------------------------------------- */

@@ -7,6 +7,7 @@ import { ERC1271 } from "../utils/ERC1271.sol";
 import { MultiSigner } from "../utils/MultiSigner.sol";
 import { RootOwner } from "../utils/RootOwner.sol";
 
+import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { Receiver } from "solady/accounts/Receiver.sol";
 import { UUPSUpgradeable } from "solady/utils/UUPSUpgradeable.sol";
 
@@ -177,45 +178,13 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
     {
         bytes memory signature = preValidationStateSync(_userOp.signature);
 
-        SignatureWrapper[] memory sigWrappers = abi.decode(signature, (NormalSignature)).signature;
-        uint256 numberOfSignatures = sigWrappers.length;
+        UserOpSignature memory userOpSignature = abi.decode(signature, (UserOpSignature));
 
-        uint8 threshold_ = getThreshold();
-        if (numberOfSignatures < threshold_) revert MissingSignatures(numberOfSignatures, threshold_);
-
-        if (numberOfSignatures == 1) {
-            return validateSignature(_userOpHash, sigWrappers[0].signerIndex, sigWrappers[0].signatureData) ? 0 : 1;
+        if (userOpSignature.sigType == UserOpSignatureType.normal) {
+            return validateNormalUserOp(_userOp, _userOpHash, userOpSignature.signature);
+        } else if (userOpSignature.sigType == UserOpSignatureType.multiChain) {
+            return validateMultiChainUserOp(_userOpHash, userOpSignature.signature);
         }
-
-        bytes32 lightUserOpHash = getLightUserOpHash(_userOp);
-
-        uint256 alreadySigned;
-        uint256 mask;
-        uint8 signerIndex;
-        bool isValid;
-
-        for (uint256 i; i < numberOfSignatures - 1; i++) {
-            isValid = false;
-            signerIndex = sigWrappers[i].signerIndex;
-
-            mask = (1 << signerIndex);
-            if (alreadySigned & mask != 0) revert DuplicateSigner(signerIndex);
-
-            isValid = validateSignature(lightUserOpHash, signerIndex, sigWrappers[i].signatureData);
-
-            if (isValid) {
-                alreadySigned |= mask;
-            } else {
-                return 1;
-            }
-        }
-
-        signerIndex = sigWrappers[numberOfSignatures - 1].signerIndex;
-
-        mask = (1 << signerIndex);
-        if (alreadySigned & mask != 0) revert DuplicateSigner(signerIndex);
-
-        return validateSignature(_userOpHash, signerIndex, sigWrappers[numberOfSignatures - 1].signatureData) ? 0 : 1;
     }
 
     /**
@@ -309,30 +278,96 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
      * @notice validates if the given hash was signed by the signers.
      */
     function _isValidSignature(bytes32 _hash, bytes calldata _signature) internal view override returns (bool) {
-        Signature memory signature = abi.decode(_signature, (Signature));
+        RootSignature memory rootSignature = abi.decode(_signature, (RootSignature));
 
-        if (signature.sigType == SignatureType.chained) {
-            ChainedSignature memory chainedSignature = abi.decode(signature.signature, (ChainedSignature));
-            (bytes[256] memory signers, uint8 threshold) = processsSignerUpdatesMemory(chainedSignature.updates);
-            return validateNormalSignature(_hash, chainedSignature.normalSignature, signers, threshold);
-        } else if (signature.sigType == SignatureType.normal) {
-            return validateNormalSignature(_hash, signature.signature);
+        if (rootSignature.sigType == RootSignatureType.stateSync) {
+            StateSyncSignature memory stateSyncSignature = abi.decode(rootSignature.signature, (StateSyncSignature));
+            (bytes[256] memory signers, uint8 threshold) = processsSignerUpdatesMemory(stateSyncSignature.updates);
+
+            UserOpSignature memory userOpSignature = abi.decode(stateSyncSignature.userOpSignature, (UserOpSignature));
+            return validateNormalSignature(_hash, userOpSignature.signature, signers, threshold);
+        } else if (rootSignature.sigType == RootSignatureType.userOp) {
+            UserOpSignature memory userOpSignature = abi.decode(rootSignature.signature, (UserOpSignature));
+            return validateNormalSignature(_hash, userOpSignature.signature);
         } else {
             revert();
         }
     }
 
     function preValidationStateSync(bytes memory _signature) internal returns (bytes memory) {
-        Signature memory signature = abi.decode(_signature, (Signature));
+        RootSignature memory rootSignature = abi.decode(_signature, (RootSignature));
 
-        if (signature.sigType == SignatureType.chained) {
-            ChainedSignature memory chainedSignature = abi.decode(signature.signature, (ChainedSignature));
-            processSignerUpdates(chainedSignature.updates);
-            return chainedSignature.normalSignature;
-        } else if (signature.sigType == SignatureType.normal) {
-            return signature.signature;
+        if (rootSignature.sigType == RootSignatureType.stateSync) {
+            StateSyncSignature memory stateSyncSignature = abi.decode(rootSignature.signature, (StateSyncSignature));
+            processSignerUpdates(stateSyncSignature.updates);
+            return stateSyncSignature.userOpSignature;
+        } else if (rootSignature.sigType == RootSignatureType.userOp) {
+            return rootSignature.signature;
         } else {
             revert();
         }
+    }
+
+    function validateNormalUserOp(
+        IAccount.PackedUserOperation calldata _userOp,
+        bytes32 _userOpHash,
+        bytes memory _signature
+    )
+        internal
+        view
+        returns (uint256 validationData)
+    {
+        SignatureWrapper[] memory sigWrappers = abi.decode(_signature, (NormalSignature)).signature;
+        uint256 numberOfSignatures = sigWrappers.length;
+
+        uint8 threshold_ = getThreshold();
+        if (numberOfSignatures < threshold_) revert MissingSignatures(numberOfSignatures, threshold_);
+
+        if (numberOfSignatures == 1) {
+            return validateSignature(_userOpHash, sigWrappers[0].signerIndex, sigWrappers[0].signatureData) ? 0 : 1;
+        }
+
+        bytes32 lightUserOpHash = getLightUserOpHash(_userOp);
+
+        uint256 alreadySigned;
+        uint256 mask;
+        uint8 signerIndex;
+        bool isValid;
+
+        for (uint256 i; i < numberOfSignatures - 1; i++) {
+            isValid = false;
+            signerIndex = sigWrappers[i].signerIndex;
+
+            mask = (1 << signerIndex);
+            if (alreadySigned & mask != 0) revert DuplicateSigner(signerIndex);
+
+            isValid = validateSignature(lightUserOpHash, signerIndex, sigWrappers[i].signatureData);
+
+            if (isValid) {
+                alreadySigned |= mask;
+            } else {
+                return 1;
+            }
+        }
+
+        signerIndex = sigWrappers[numberOfSignatures - 1].signerIndex;
+
+        mask = (1 << signerIndex);
+        if (alreadySigned & mask != 0) revert DuplicateSigner(signerIndex);
+
+        return validateSignature(_userOpHash, signerIndex, sigWrappers[numberOfSignatures - 1].signatureData) ? 0 : 1;
+    }
+
+    function validateMultiChainUserOp(
+        bytes32 _userOpHash,
+        bytes memory _signature
+    )
+        internal
+        view
+        returns (uint256 validationData)
+    {
+        MultiChainSignature memory multiChainSig = abi.decode(_signature, (MultiChainSignature));
+        if (!MerkleProof.verify(multiChainSig.merkleProofs, multiChainSig.merkleTreeRoot, _userOpHash)) revert();
+        return validateNormalSignature(multiChainSig.merkleTreeRoot, multiChainSig.normalSignature) ? 0 : 1;
     }
 }

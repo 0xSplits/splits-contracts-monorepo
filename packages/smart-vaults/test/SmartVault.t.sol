@@ -68,20 +68,58 @@ contract SmartVaultTest is BaseTest {
         return keccak256(abi.encode(userOp.hashLight(), ENTRY_POINT, block.chainid));
     }
 
-    function getNormalSignatureFromSignatures(SmartVault.SignatureWrapper[] memory signatures)
+    function getUserOpSignature(SmartVault.SignatureWrapper[] memory signatures)
         internal
         pure
-        returns (bytes memory)
+        returns (MultiSigner.UserOpSignature memory userOpsignature)
     {
         MultiSigner.NormalSignature memory normalSignature = MultiSigner.NormalSignature(signatures);
 
-        MultiSigner.Signature memory signature =
-            MultiSigner.Signature(MultiSigner.SignatureType.normal, abi.encode(normalSignature));
+        userOpsignature =
+            MultiSigner.UserOpSignature(MultiSigner.UserOpSignatureType.normal, abi.encode(normalSignature));
+    }
+
+    function getUserOpSignature(
+        SmartVault.SignatureWrapper[] memory signatures,
+        bytes32[] memory proof,
+        bytes32 rootHash
+    )
+        internal
+        pure
+        returns (MultiSigner.UserOpSignature memory userOpsignature)
+    {
+        MultiSigner.NormalSignature memory normalSignature = MultiSigner.NormalSignature(signatures);
+        MultiSigner.MultiChainSignature memory multiChainSignature =
+            MultiSigner.MultiChainSignature(rootHash, proof, abi.encode(normalSignature));
+
+        userOpsignature =
+            MultiSigner.UserOpSignature(MultiSigner.UserOpSignatureType.multiChain, abi.encode(multiChainSignature));
+    }
+
+    function getRootSignature(SmartVault.SignatureWrapper[] memory signatures) internal pure returns (bytes memory) {
+        MultiSigner.RootSignature memory signature =
+            MultiSigner.RootSignature(MultiSigner.RootSignatureType.userOp, abi.encode(getUserOpSignature(signatures)));
 
         return abi.encode(signature);
     }
 
-    function getChainedSignature(
+    function getRootSignature(
+        SmartVault.SignatureWrapper[] memory signatures,
+        bytes32[] memory proof,
+        bytes32 rootHash
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        MultiSigner.RootSignature memory signature = MultiSigner.RootSignature(
+            MultiSigner.RootSignatureType.userOp, abi.encode(getUserOpSignature(signatures, proof, rootHash))
+        );
+
+        return abi.encode(signature);
+    }
+
+    function getRootSignature(
         MultiSigner.SignerUpdate[] memory updates,
         SmartVault.SignatureWrapper[] memory signatures
     )
@@ -89,13 +127,36 @@ contract SmartVaultTest is BaseTest {
         pure
         returns (bytes memory)
     {
-        MultiSigner.ChainedSignature memory chainedSignature =
-            MultiSigner.ChainedSignature(updates, abi.encode(MultiSigner.NormalSignature(signatures)));
-
-        MultiSigner.Signature memory signature =
-            MultiSigner.Signature(MultiSigner.SignatureType.chained, abi.encode(chainedSignature));
+        MultiSigner.RootSignature memory signature = MultiSigner.RootSignature(
+            MultiSigner.RootSignatureType.stateSync,
+            abi.encode(getStateSyncSignature(updates, getUserOpSignature(signatures)))
+        );
 
         return abi.encode(signature);
+    }
+
+    function getStateSyncSignature(
+        MultiSigner.SignerUpdate[] memory updates,
+        MultiSigner.UserOpSignature memory userOpSignature
+    )
+        internal
+        pure
+        returns (MultiSigner.StateSyncSignature memory signature)
+    {
+        signature = MultiSigner.StateSyncSignature(updates, abi.encode(userOpSignature));
+    }
+
+    function hashPair(bytes32 a, bytes32 b) private pure returns (bytes32) {
+        return a < b ? _efficientHash(a, b) : _efficientHash(b, a);
+    }
+
+    function _efficientHash(bytes32 a, bytes32 b) private pure returns (bytes32 value) {
+        /// @solidity memory-safe-assembly
+        assembly {
+            mstore(0x00, a)
+            mstore(0x20, b)
+            value := keccak256(0x00, 0x40)
+        }
     }
 
     /* -------------------------------------------------------------------------- */
@@ -140,7 +201,7 @@ contract SmartVaultTest is BaseTest {
         signatures[0] = MultiSigner.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         IAccount.PackedUserOperation memory userOp = _userOp;
-        userOp.signature = getNormalSignatureFromSignatures(signatures);
+        userOp.signature = getRootSignature(signatures);
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
@@ -166,7 +227,7 @@ contract SmartVaultTest is BaseTest {
         signatures[1] = MultiSigner.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
 
         IAccount.PackedUserOperation memory userOp = _userOp;
-        userOp.signature = getNormalSignatureFromSignatures(signatures);
+        userOp.signature = getRootSignature(signatures);
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
@@ -201,7 +262,7 @@ contract SmartVaultTest is BaseTest {
         );
 
         IAccount.PackedUserOperation memory userOp = _userOp;
-        userOp.signature = getNormalSignatureFromSignatures(signatures);
+        userOp.signature = getRootSignature(signatures);
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
@@ -228,7 +289,7 @@ contract SmartVaultTest is BaseTest {
     {
         SmartVault.SignatureWrapper[] memory signatures = new SmartVault.SignatureWrapper[](0);
 
-        _userOp.signature = getNormalSignatureFromSignatures(signatures);
+        _userOp.signature = getRootSignature(signatures);
 
         vm.expectRevert(abi.encodeWithSelector(MissingSignatures.selector, 0, 1));
         vm.prank(ENTRY_POINT);
@@ -251,7 +312,7 @@ contract SmartVaultTest is BaseTest {
 
         SmartVault.SignatureWrapper[] memory signatures = new SmartVault.SignatureWrapper[](1);
         signatures[0] = MultiSigner.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
-        _userOp.signature = getNormalSignatureFromSignatures(signatures);
+        _userOp.signature = getRootSignature(signatures);
 
         vm.expectRevert(abi.encodeWithSelector(MissingSignatures.selector, 1, 2));
         vm.prank(ENTRY_POINT);
@@ -282,7 +343,7 @@ contract SmartVaultTest is BaseTest {
         signatures[1] = MultiSigner.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         IAccount.PackedUserOperation memory userOp = _userOp;
-        userOp.signature = getNormalSignatureFromSignatures(signatures);
+        userOp.signature = getRootSignature(signatures);
 
         vm.expectRevert(abi.encodeWithSelector(DuplicateSigner.selector, 0));
         vm.prank(ENTRY_POINT);
@@ -304,7 +365,7 @@ contract SmartVaultTest is BaseTest {
         signatures[0] = MultiSigner.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
         IAccount.PackedUserOperation memory userOp = _userOp;
 
-        userOp.signature = getNormalSignatureFromSignatures(signatures);
+        userOp.signature = getRootSignature(signatures);
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 1);
@@ -343,7 +404,7 @@ contract SmartVaultTest is BaseTest {
         signatures[0] = MultiSigner.SignatureWrapper(uint8(3), abi.encodePacked(r, s, v));
 
         IAccount.PackedUserOperation memory userOp = _userOp;
-        userOp.signature = getChainedSignature(signerUpdates, signatures);
+        userOp.signature = getRootSignature(signerUpdates, signatures);
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
@@ -383,7 +444,7 @@ contract SmartVaultTest is BaseTest {
         signatures[0] = MultiSigner.SignatureWrapper(uint8(3), abi.encodePacked(r, s, v));
 
         IAccount.PackedUserOperation memory userOp = _userOp1;
-        userOp.signature = getChainedSignature(signerUpdates, signatures);
+        userOp.signature = getRootSignature(signerUpdates, signatures);
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
@@ -393,7 +454,7 @@ contract SmartVaultTest is BaseTest {
         signatures[0] = MultiSigner.SignatureWrapper(uint8(3), abi.encodePacked(r, s, v));
 
         userOp = _userOp2;
-        userOp.signature = getChainedSignature(signerUpdates, signatures);
+        userOp.signature = getRootSignature(signerUpdates, signatures);
 
         vm.expectRevert(abi.encodeWithSelector(MultiSigner.SignerUpdateValidationFailed.selector, signerUpdates[0]));
         vm.prank(ENTRY_POINT);
@@ -425,7 +486,7 @@ contract SmartVaultTest is BaseTest {
         signatures[0] = MultiSigner.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         IAccount.PackedUserOperation memory userOp = _userOp;
-        userOp.signature = getChainedSignature(signerUpdates, signatures);
+        userOp.signature = getRootSignature(signerUpdates, signatures);
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 1);
@@ -457,11 +518,49 @@ contract SmartVaultTest is BaseTest {
         signatures[0] = MultiSigner.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         IAccount.PackedUserOperation memory userOp = _userOp;
-        userOp.signature = getChainedSignature(signerUpdates, signatures);
+        userOp.signature = getRootSignature(signerUpdates, signatures);
 
         vm.expectRevert(abi.encodeWithSelector(MissingSignatures.selector, 1, 2));
         vm.prank(ENTRY_POINT);
         vault.validateUserOp(userOp, hash, _missingAccountsFund);
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*                        VALIDATE MULTI CHAIN USER OP                        */
+    /* -------------------------------------------------------------------------- */
+
+    function testFuzz_validateMultiUserOp(
+        IAccount.PackedUserOperation calldata _userOp1,
+        IAccount.PackedUserOperation calldata _userOp2
+    )
+        public
+    {
+        bytes32 hash1 = getUserOpHash(_userOp1);
+        bytes32 hash2 = getUserOpHash(_userOp2);
+
+        bytes32 rootHash = hashPair(hash1, hash2);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, rootHash);
+
+        MultiSigner.SignatureWrapper[] memory signatures = new MultiSigner.SignatureWrapper[](1);
+        signatures[0] = MultiSigner.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        bytes32[] memory proof = new bytes32[](1);
+        proof[0] = hash2;
+
+        IAccount.PackedUserOperation memory userOp = _userOp1;
+        userOp.signature = getRootSignature(signatures, proof, rootHash);
+
+        vm.prank(ENTRY_POINT);
+        assertEq(vault.validateUserOp(userOp, hash1, 0), 0);
+
+        proof[0] = hash1;
+
+        userOp = _userOp2;
+        userOp.signature = getRootSignature(signatures, proof, rootHash);
+
+        vm.prank(ENTRY_POINT);
+        assertEq(vault.validateUserOp(userOp, hash2, 0), 0);
     }
 
     /* -------------------------------------------------------------------------- */
@@ -475,7 +574,7 @@ contract SmartVaultTest is BaseTest {
         signatures[0] = MultiSigner.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         vm.prank(ENTRY_POINT);
-        assertTrue(vault.isValidSignature(_hash, getNormalSignatureFromSignatures(signatures)) == 0x1626ba7e);
+        assertTrue(vault.isValidSignature(_hash, getRootSignature(signatures)) == 0x1626ba7e);
     }
 
     function testFuzz_erc1271_newSigner(bytes32 _hash) public {
@@ -499,7 +598,7 @@ contract SmartVaultTest is BaseTest {
         signatures[0] = MultiSigner.SignatureWrapper(uint8(3), abi.encodePacked(r, s, v));
 
         vm.prank(ENTRY_POINT);
-        assertTrue(vault.isValidSignature(_hash, getChainedSignature(signerUpdates, signatures)) == 0x1626ba7e);
+        assertTrue(vault.isValidSignature(_hash, getRootSignature(signerUpdates, signatures)) == 0x1626ba7e);
     }
 
     function testFuzz_erc1271_newSigner_RevertsWhen_invalidNonce(bytes32 _hash) public {
@@ -524,7 +623,7 @@ contract SmartVaultTest is BaseTest {
 
         vm.expectRevert(abi.encodeWithSelector(MultiSigner.SignerUpdateValidationFailed.selector, signerUpdates[0]));
         vm.prank(ENTRY_POINT);
-        vault.isValidSignature(_hash, getChainedSignature(signerUpdates, signatures));
+        vault.isValidSignature(_hash, getRootSignature(signerUpdates, signatures));
     }
 
     function testFuzz_erc1271_removeSigner(bytes32 _hash) public {
@@ -544,7 +643,7 @@ contract SmartVaultTest is BaseTest {
         signatures[0] = MultiSigner.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
 
         vm.prank(ENTRY_POINT);
-        assertTrue(vault.isValidSignature(_hash, getChainedSignature(signerUpdates, signatures)) == 0x1626ba7e);
+        assertTrue(vault.isValidSignature(_hash, getRootSignature(signerUpdates, signatures)) == 0x1626ba7e);
     }
 
     function testFuzz_erc1271_removeSigner_RevertsWhen_signerAlreadyRemoved(bytes32 _hash) public {
@@ -565,7 +664,7 @@ contract SmartVaultTest is BaseTest {
 
         vm.expectRevert(abi.encodeWithSelector(MultiSigner.InvalidSigner.selector, 0));
         vm.prank(ENTRY_POINT);
-        vault.isValidSignature(_hash, getChainedSignature(signerUpdates, signatures));
+        vault.isValidSignature(_hash, getRootSignature(signerUpdates, signatures));
     }
 
     function testFuzz_erc1271_updateThreshold_RevertsWhen_signaturesLessThanThreshold(bytes32 _hash) public {
@@ -586,7 +685,7 @@ contract SmartVaultTest is BaseTest {
 
         vm.expectRevert(abi.encodeWithSelector(MissingSignatures.selector, 1, 2));
         vm.prank(ENTRY_POINT);
-        vault.isValidSignature(_hash, getChainedSignature(signerUpdates, signatures));
+        vault.isValidSignature(_hash, getRootSignature(signerUpdates, signatures));
     }
 
     /* -------------------------------------------------------------------------- */
