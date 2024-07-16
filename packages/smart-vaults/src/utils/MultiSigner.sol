@@ -121,6 +121,8 @@ abstract contract MultiSigner {
     /// @notice Thrown when duplicate signer is encountered.
     error DuplicateSigner(uint8 signerIndex);
 
+    error SignerUpdateValidationFailed(SignerUpdate);
+
     /* -------------------------------------------------------------------------- */
     /*                                   EVENTS                                   */
     /* -------------------------------------------------------------------------- */
@@ -171,6 +173,11 @@ abstract contract MultiSigner {
     /// @notice Returns the threshold
     function getThreshold() public view virtual returns (uint8) {
         return getMultiSignerStorage().threshold;
+    }
+
+    /// @notice Returns the nonce for the signer set
+    function getNonce() public view virtual returns (uint256) {
+        return getMultiSignerStorage().nonce;
     }
 
     /* -------------------------------------------------------------------------- */
@@ -267,16 +274,12 @@ abstract contract MultiSigner {
         uint256 alreadySigned;
         uint256 mask;
         uint8 signerIndex;
-        bool isValid;
         for (uint256 i; i < numberOfSignatures; i++) {
-            isValid = false;
             signerIndex = sigWrappers[i].signerIndex;
             mask = (1 << signerIndex);
             if (alreadySigned & mask != 0) revert DuplicateSigner(signerIndex);
 
-            isValid = MultiSignerLib.isValidSignature(_hash, signerAtIndex(signerIndex), sigWrappers[i].signatureData);
-
-            if (isValid) {
+            if (MultiSignerLib.isValidSignature(_hash, signerAtIndex(signerIndex), sigWrappers[i].signatureData)) {
                 alreadySigned |= mask;
             } else {
                 return false;
@@ -307,10 +310,8 @@ abstract contract MultiSigner {
         uint256 alreadySigned;
         uint256 mask;
         uint8 signerIndex;
-        bool isValid;
         bytes memory signer;
         for (uint256 i; i < numberOfSignatures; i++) {
-            isValid = false;
             signerIndex = sigWrappers[i].signerIndex;
             mask = (1 << signerIndex);
             if (alreadySigned & mask != 0) revert DuplicateSigner(signerIndex);
@@ -322,9 +323,7 @@ abstract contract MultiSigner {
                 revert();
             }
 
-            isValid = MultiSignerLib.isValidSignature(_hash, signer, sigWrappers[i].signatureData);
-
-            if (isValid) {
+            if (MultiSignerLib.isValidSignature(_hash, signer, sigWrappers[i].signatureData)) {
                 alreadySigned |= mask;
             } else {
                 return false;
@@ -368,7 +367,7 @@ abstract contract MultiSigner {
             !validateNormalSignature(
                 getSignerUpdateHash(_signerUpdate, getMultiSignerStorage().nonce), _signerUpdate.normalSignature
             )
-        ) revert();
+        ) revert SignerUpdateValidationFailed(_signerUpdate);
     }
 
     function processsSignerUpdate(SignerUpdate memory _signerUpdate) internal {

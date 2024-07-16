@@ -87,7 +87,7 @@ library MultiSignerLib {
     {
         if (_signer.length == 32) {
             isValid = isValidSignatureEOA(_hash, _signer, _signature);
-        } else {
+        } else if (_signer.length == 64) {
             isValid = isValidSignaturePasskey(_hash, _signer, _signature);
         }
     }

@@ -81,6 +81,23 @@ contract SmartVaultTest is BaseTest {
         return abi.encode(signature);
     }
 
+    function getChainedSignature(
+        MultiSigner.SignerUpdate[] memory updates,
+        SmartVault.SignatureWrapper[] memory signatures
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        MultiSigner.ChainedSignature memory chainedSignature =
+            MultiSigner.ChainedSignature(updates, abi.encode(MultiSigner.NormalSignature(signatures)));
+
+        MultiSigner.Signature memory signature =
+            MultiSigner.Signature(MultiSigner.SignatureType.chained, abi.encode(chainedSignature));
+
+        return abi.encode(signature);
+    }
+
     /* -------------------------------------------------------------------------- */
     /*                                 INITIALIZE                                 */
     /* -------------------------------------------------------------------------- */
@@ -291,6 +308,160 @@ contract SmartVaultTest is BaseTest {
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 1);
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*                   VALIDATE USER OP WITH LIGHT STATE SYNC                   */
+    /* -------------------------------------------------------------------------- */
+
+    function testFuzz_validateUserOpWithLightStateSync_newSigner(
+        IAccount.PackedUserOperation calldata _userOp,
+        uint256 _missingAccountsFund
+    )
+        public
+    {
+        address newSigner = CAROL.addr;
+
+        MultiSigner.SignerUpdateParam[] memory updates = new MultiSigner.SignerUpdateParam[](1);
+        updates[0] = MultiSigner.SignerUpdateParam(
+            MultiSigner.SignerUpdateType.addSigner, abi.encode(abi.encode(newSigner), uint8(3))
+        );
+
+        bytes32 hash = keccak256(abi.encode(0, address(vault), updates));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, hash);
+
+        MultiSigner.SignatureWrapper[] memory signatures = new MultiSigner.SignatureWrapper[](1);
+        signatures[0] = MultiSigner.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        MultiSigner.SignerUpdate[] memory signerUpdates = new MultiSigner.SignerUpdate[](1);
+        signerUpdates[0] = MultiSigner.SignerUpdate(updates, abi.encode(MultiSigner.NormalSignature(signatures)));
+
+        vm.deal(address(vault), _missingAccountsFund);
+
+        hash = getUserOpHash(_userOp);
+        (v, r, s) = vm.sign(CAROL.key, hash);
+        signatures[0] = MultiSigner.SignatureWrapper(uint8(3), abi.encodePacked(r, s, v));
+
+        IAccount.PackedUserOperation memory userOp = _userOp;
+        userOp.signature = getChainedSignature(signerUpdates, signatures);
+
+        vm.prank(ENTRY_POINT);
+        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
+
+        assertEq(vault.signerCount(), 4);
+        assertEq(vault.signerAtIndex(3), abi.encode(CAROL.addr));
+        assertEq(vault.getNonce(), 1);
+    }
+
+    function testFuzz_validateUserOpWithLightStateSync_RevertsWhen_invalidNonce(
+        IAccount.PackedUserOperation calldata _userOp1,
+        IAccount.PackedUserOperation calldata _userOp2,
+        uint256 _missingAccountsFund
+    )
+        public
+    {
+        address newSigner = CAROL.addr;
+
+        MultiSigner.SignerUpdateParam[] memory updates = new MultiSigner.SignerUpdateParam[](1);
+        updates[0] = MultiSigner.SignerUpdateParam(
+            MultiSigner.SignerUpdateType.addSigner, abi.encode(abi.encode(newSigner), uint8(3))
+        );
+
+        bytes32 hash = keccak256(abi.encode(0, address(vault), updates));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, hash);
+
+        MultiSigner.SignatureWrapper[] memory signatures = new MultiSigner.SignatureWrapper[](1);
+        signatures[0] = MultiSigner.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        MultiSigner.SignerUpdate[] memory signerUpdates = new MultiSigner.SignerUpdate[](1);
+        signerUpdates[0] = MultiSigner.SignerUpdate(updates, abi.encode(MultiSigner.NormalSignature(signatures)));
+
+        vm.deal(address(vault), _missingAccountsFund);
+
+        hash = getUserOpHash(_userOp1);
+        (v, r, s) = vm.sign(CAROL.key, hash);
+        signatures[0] = MultiSigner.SignatureWrapper(uint8(3), abi.encodePacked(r, s, v));
+
+        IAccount.PackedUserOperation memory userOp = _userOp1;
+        userOp.signature = getChainedSignature(signerUpdates, signatures);
+
+        vm.prank(ENTRY_POINT);
+        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
+
+        hash = getUserOpHash(_userOp2);
+        (v, r, s) = vm.sign(CAROL.key, hash);
+        signatures[0] = MultiSigner.SignatureWrapper(uint8(3), abi.encodePacked(r, s, v));
+
+        userOp = _userOp2;
+        userOp.signature = getChainedSignature(signerUpdates, signatures);
+
+        vm.expectRevert(abi.encodeWithSelector(MultiSigner.SignerUpdateValidationFailed.selector, signerUpdates[0]));
+        vm.prank(ENTRY_POINT);
+        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
+    }
+
+    function testFuzz_validateUserOpWithLightStateSync_removeSigner(
+        IAccount.PackedUserOperation calldata _userOp,
+        uint256 _missingAccountsFund
+    )
+        public
+    {
+        MultiSigner.SignerUpdateParam[] memory updates = new MultiSigner.SignerUpdateParam[](1);
+        updates[0] = MultiSigner.SignerUpdateParam(MultiSigner.SignerUpdateType.removeSigner, abi.encode(uint8(0)));
+
+        bytes32 hash = keccak256(abi.encode(0, address(vault), updates));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, hash);
+
+        MultiSigner.SignatureWrapper[] memory signatures = new MultiSigner.SignatureWrapper[](1);
+        signatures[0] = MultiSigner.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        MultiSigner.SignerUpdate[] memory signerUpdates = new MultiSigner.SignerUpdate[](1);
+        signerUpdates[0] = MultiSigner.SignerUpdate(updates, abi.encode(MultiSigner.NormalSignature(signatures)));
+
+        vm.deal(address(vault), _missingAccountsFund);
+
+        hash = getUserOpHash(_userOp);
+        (v, r, s) = vm.sign(ALICE.key, hash);
+        signatures[0] = MultiSigner.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        IAccount.PackedUserOperation memory userOp = _userOp;
+        userOp.signature = getChainedSignature(signerUpdates, signatures);
+
+        vm.prank(ENTRY_POINT);
+        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 1);
+        assertEq(vault.getNonce(), 1);
+    }
+
+    function testFuzz_validateUserOpWithLightStateSync_updateThreshold_RevertsWhen_signaturesLessThanThreshold(
+        IAccount.PackedUserOperation calldata _userOp,
+        uint256 _missingAccountsFund
+    )
+        public
+    {
+        MultiSigner.SignerUpdateParam[] memory updates = new MultiSigner.SignerUpdateParam[](1);
+        updates[0] = MultiSigner.SignerUpdateParam(MultiSigner.SignerUpdateType.updateThreshold, abi.encode(uint8(2)));
+
+        bytes32 hash = keccak256(abi.encode(0, address(vault), updates));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, hash);
+
+        MultiSigner.SignatureWrapper[] memory signatures = new MultiSigner.SignatureWrapper[](1);
+        signatures[0] = MultiSigner.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        MultiSigner.SignerUpdate[] memory signerUpdates = new MultiSigner.SignerUpdate[](1);
+        signerUpdates[0] = MultiSigner.SignerUpdate(updates, abi.encode(MultiSigner.NormalSignature(signatures)));
+
+        vm.deal(address(vault), _missingAccountsFund);
+
+        hash = getUserOpHash(_userOp);
+        (v, r, s) = vm.sign(ALICE.key, hash);
+        signatures[0] = MultiSigner.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        IAccount.PackedUserOperation memory userOp = _userOp;
+        userOp.signature = getChainedSignature(signerUpdates, signatures);
+
+        vm.expectRevert(abi.encodeWithSelector(MissingSignatures.selector, 1, 2));
+        vm.prank(ENTRY_POINT);
+        vault.validateUserOp(userOp, hash, _missingAccountsFund);
     }
 
     /* -------------------------------------------------------------------------- */
