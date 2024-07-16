@@ -123,6 +123,10 @@ abstract contract MultiSigner {
 
     error SignerUpdateValidationFailed(SignerUpdate);
 
+    error InvalidSignerUpdateParam(SignerUpdateParam);
+
+    error InvalidSigner(uint8 signerIndex);
+
     /* -------------------------------------------------------------------------- */
     /*                                   EVENTS                                   */
     /* -------------------------------------------------------------------------- */
@@ -320,7 +324,7 @@ abstract contract MultiSigner {
             if (signer.length == 0) {
                 signer = signerAtIndex(signerIndex);
             } else if (bytes32(signer) == SIGNER_REMOVED) {
-                revert();
+                revert InvalidSigner(signerIndex);
             }
 
             if (MultiSignerLib.isValidSignature(_hash, signer, sigWrappers[i].signatureData)) {
@@ -347,13 +351,7 @@ abstract contract MultiSigner {
         return MultiSignerLib.isValidSignature(_hash, signerAtIndex(_signerIndex), _signature);
     }
 
-    function processChainedSignature(bytes memory _signature) internal returns (bytes memory) {
-        ChainedSignature memory chainedSignature = abi.decode(_signature, (ChainedSignature));
-        processsSignerUpdates(chainedSignature.updates);
-        return chainedSignature.normalSignature;
-    }
-
-    function processsSignerUpdates(SignerUpdate[] memory _signerUpdates) internal {
+    function processSignerUpdates(SignerUpdate[] memory _signerUpdates) internal {
         uint256 noOfUpdates = _signerUpdates.length;
         for (uint256 i; i < noOfUpdates; i++) {
             validateSignerUpdate(_signerUpdates[i]);
@@ -408,7 +406,7 @@ abstract contract MultiSigner {
                 getSignerUpdateHash(_signerUpdate, _nonce), _signerUpdate.normalSignature, _signers, _threshold
             )
         ) {
-            revert();
+            revert SignerUpdateValidationFailed(_signerUpdate);
         }
     }
 
@@ -436,7 +434,7 @@ abstract contract MultiSigner {
             } else if (_signerUpdateParam.updateType == SignerUpdateType.updateThreshold) {
                 _threshold = abi.decode(_signerUpdateParam.data, (uint8));
             } else {
-                revert();
+                revert InvalidSignerUpdateParam(_signerUpdateParam);
             }
         }
 
@@ -454,7 +452,7 @@ abstract contract MultiSigner {
             uint8 threshold_ = abi.decode(_signerUpdateParam.data, (uint8));
             _updateThreshold(threshold_);
         } else {
-            revert();
+            revert InvalidSignerUpdateParam(_signerUpdateParam);
         }
     }
 

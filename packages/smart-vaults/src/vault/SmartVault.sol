@@ -312,7 +312,7 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
         Signature memory signature = abi.decode(_signature, (Signature));
 
         if (signature.sigType == SignatureType.chained) {
-            ChainedSignature memory chainedSignature = abi.decode(_signature, (ChainedSignature));
+            ChainedSignature memory chainedSignature = abi.decode(signature.signature, (ChainedSignature));
             (bytes[256] memory signers, uint8 threshold) = processsSignerUpdatesMemory(chainedSignature.updates);
             return validateNormalSignature(_hash, chainedSignature.normalSignature, signers, threshold);
         } else if (signature.sigType == SignatureType.normal) {
@@ -327,7 +327,7 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
 
         if (signature.sigType == SignatureType.chained) {
             ChainedSignature memory chainedSignature = abi.decode(signature.signature, (ChainedSignature));
-            processsSignerUpdates(chainedSignature.updates);
+            processSignerUpdates(chainedSignature.updates);
             return chainedSignature.normalSignature;
         } else if (signature.sigType == SignatureType.normal) {
             return signature.signature;

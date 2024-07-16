@@ -465,6 +465,131 @@ contract SmartVaultTest is BaseTest {
     }
 
     /* -------------------------------------------------------------------------- */
+    /*                                   ERC1271                                  */
+    /* -------------------------------------------------------------------------- */
+
+    function testFuzz_erc1271(bytes32 _hash) public {
+        MultiSigner.SignatureWrapper[] memory signatures = new MultiSigner.SignatureWrapper[](1);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, vault.replaySafeHash(_hash));
+        signatures[0] = MultiSigner.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        vm.prank(ENTRY_POINT);
+        assertTrue(vault.isValidSignature(_hash, getNormalSignatureFromSignatures(signatures)) == 0x1626ba7e);
+    }
+
+    function testFuzz_erc1271_newSigner(bytes32 _hash) public {
+        address newSigner = CAROL.addr;
+
+        MultiSigner.SignerUpdateParam[] memory updates = new MultiSigner.SignerUpdateParam[](1);
+        updates[0] = MultiSigner.SignerUpdateParam(
+            MultiSigner.SignerUpdateType.addSigner, abi.encode(abi.encode(newSigner), uint8(3))
+        );
+
+        bytes32 hash = keccak256(abi.encode(0, address(vault), updates));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, hash);
+
+        MultiSigner.SignatureWrapper[] memory signatures = new MultiSigner.SignatureWrapper[](1);
+        signatures[0] = MultiSigner.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        MultiSigner.SignerUpdate[] memory signerUpdates = new MultiSigner.SignerUpdate[](1);
+        signerUpdates[0] = MultiSigner.SignerUpdate(updates, abi.encode(MultiSigner.NormalSignature(signatures)));
+
+        (v, r, s) = vm.sign(CAROL.key, vault.replaySafeHash(_hash));
+        signatures[0] = MultiSigner.SignatureWrapper(uint8(3), abi.encodePacked(r, s, v));
+
+        vm.prank(ENTRY_POINT);
+        assertTrue(vault.isValidSignature(_hash, getChainedSignature(signerUpdates, signatures)) == 0x1626ba7e);
+    }
+
+    function testFuzz_erc1271_newSigner_RevertsWhen_invalidNonce(bytes32 _hash) public {
+        address newSigner = CAROL.addr;
+
+        MultiSigner.SignerUpdateParam[] memory updates = new MultiSigner.SignerUpdateParam[](1);
+        updates[0] = MultiSigner.SignerUpdateParam(
+            MultiSigner.SignerUpdateType.addSigner, abi.encode(abi.encode(newSigner), uint8(3))
+        );
+
+        bytes32 hash = keccak256(abi.encode(1, address(vault), updates));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, hash);
+
+        MultiSigner.SignatureWrapper[] memory signatures = new MultiSigner.SignatureWrapper[](1);
+        signatures[0] = MultiSigner.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        MultiSigner.SignerUpdate[] memory signerUpdates = new MultiSigner.SignerUpdate[](1);
+        signerUpdates[0] = MultiSigner.SignerUpdate(updates, abi.encode(MultiSigner.NormalSignature(signatures)));
+
+        (v, r, s) = vm.sign(CAROL.key, vault.replaySafeHash(_hash));
+        signatures[0] = MultiSigner.SignatureWrapper(uint8(3), abi.encodePacked(r, s, v));
+
+        vm.expectRevert(abi.encodeWithSelector(MultiSigner.SignerUpdateValidationFailed.selector, signerUpdates[0]));
+        vm.prank(ENTRY_POINT);
+        vault.isValidSignature(_hash, getChainedSignature(signerUpdates, signatures));
+    }
+
+    function testFuzz_erc1271_removeSigner(bytes32 _hash) public {
+        MultiSigner.SignerUpdateParam[] memory updates = new MultiSigner.SignerUpdateParam[](1);
+        updates[0] = MultiSigner.SignerUpdateParam(MultiSigner.SignerUpdateType.removeSigner, abi.encode(uint8(0)));
+
+        bytes32 hash = keccak256(abi.encode(0, address(vault), updates));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, hash);
+
+        MultiSigner.SignatureWrapper[] memory signatures = new MultiSigner.SignatureWrapper[](1);
+        signatures[0] = MultiSigner.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        MultiSigner.SignerUpdate[] memory signerUpdates = new MultiSigner.SignerUpdate[](1);
+        signerUpdates[0] = MultiSigner.SignerUpdate(updates, abi.encode(MultiSigner.NormalSignature(signatures)));
+
+        (v, r, s) = vm.sign(BOB.key, vault.replaySafeHash(_hash));
+        signatures[0] = MultiSigner.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
+
+        vm.prank(ENTRY_POINT);
+        assertTrue(vault.isValidSignature(_hash, getChainedSignature(signerUpdates, signatures)) == 0x1626ba7e);
+    }
+
+    function testFuzz_erc1271_removeSigner_RevertsWhen_signerAlreadyRemoved(bytes32 _hash) public {
+        MultiSigner.SignerUpdateParam[] memory updates = new MultiSigner.SignerUpdateParam[](1);
+        updates[0] = MultiSigner.SignerUpdateParam(MultiSigner.SignerUpdateType.removeSigner, abi.encode(uint8(0)));
+
+        bytes32 hash = keccak256(abi.encode(0, address(vault), updates));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, hash);
+
+        MultiSigner.SignatureWrapper[] memory signatures = new MultiSigner.SignatureWrapper[](1);
+        signatures[0] = MultiSigner.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        MultiSigner.SignerUpdate[] memory signerUpdates = new MultiSigner.SignerUpdate[](1);
+        signerUpdates[0] = MultiSigner.SignerUpdate(updates, abi.encode(MultiSigner.NormalSignature(signatures)));
+
+        (v, r, s) = vm.sign(ALICE.key, vault.replaySafeHash(_hash));
+        signatures[0] = MultiSigner.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        vm.expectRevert(abi.encodeWithSelector(MultiSigner.InvalidSigner.selector, 0));
+        vm.prank(ENTRY_POINT);
+        vault.isValidSignature(_hash, getChainedSignature(signerUpdates, signatures));
+    }
+
+    function testFuzz_erc1271_updateThreshold_RevertsWhen_signaturesLessThanThreshold(bytes32 _hash) public {
+        MultiSigner.SignerUpdateParam[] memory updates = new MultiSigner.SignerUpdateParam[](1);
+        updates[0] = MultiSigner.SignerUpdateParam(MultiSigner.SignerUpdateType.updateThreshold, abi.encode(uint8(2)));
+
+        bytes32 hash = keccak256(abi.encode(0, address(vault), updates));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, hash);
+
+        MultiSigner.SignatureWrapper[] memory signatures = new MultiSigner.SignatureWrapper[](1);
+        signatures[0] = MultiSigner.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        MultiSigner.SignerUpdate[] memory signerUpdates = new MultiSigner.SignerUpdate[](1);
+        signerUpdates[0] = MultiSigner.SignerUpdate(updates, abi.encode(MultiSigner.NormalSignature(signatures)));
+
+        (v, r, s) = vm.sign(ALICE.key, vault.replaySafeHash(_hash));
+        signatures[0] = MultiSigner.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        vm.expectRevert(abi.encodeWithSelector(MissingSignatures.selector, 1, 2));
+        vm.prank(ENTRY_POINT);
+        vault.isValidSignature(_hash, getChainedSignature(signerUpdates, signatures));
+    }
+
+    /* -------------------------------------------------------------------------- */
     /*                                   EXECUTE                                  */
     /* -------------------------------------------------------------------------- */
 
