@@ -10,6 +10,14 @@ import { IAccount } from "../interfaces/IAccount.sol";
  * @dev Light here refers to the piece of data not related to gas or gas price in the userOp.
  */
 library UserOperationLib {
+    /* -------------------------------------------------------------------------- */
+    /*                                  CONSTANTS                                 */
+    /* -------------------------------------------------------------------------- */
+
+    uint256 public constant VALID_SIGNATURE = 0;
+
+    uint256 public constant INVALID_SIGNATURE = 1;
+
     /**
      * keccak function over calldata.
      * @dev copy calldata into memory, do keccak and drop allocated memory. Strangely, this is more efficient than

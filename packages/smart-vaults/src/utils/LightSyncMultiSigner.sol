@@ -181,13 +181,13 @@ abstract contract LightSyncMultiSigner is MultiSigner {
     }
 
     function _getSignerUpdateHash(
-        SignerSetUpdate memory _signerUpdate,
+        SignerSetUpdate memory _signerSetUpdate,
         uint256 _nonce
     )
         internal
         view
         returns (bytes32)
     {
-        return keccak256(abi.encode(_nonce, address(this), _signerUpdate.updateParams));
+        return keccak256(abi.encode(_nonce, address(this), _signerSetUpdate.updateParams));
     }
 }
