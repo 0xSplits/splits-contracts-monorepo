@@ -9,6 +9,27 @@ import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
  * @author Splits
  */
 library MultiSignerLib {
+    /* -------------------------------------------------------------------------- */
+    /*                                   STRUCTS                                  */
+    /* -------------------------------------------------------------------------- */
+
+    /// @notice Storage layout used by this contract.
+    /// @dev Can allow upto 256 signers.
+    /// @custom:storage-location erc7201:splits.storage.MultiSigner
+    struct MultiSignerStorage {
+        uint256 nonce;
+        /// @dev Number of unique signatures required to validate a message signed by this contract.
+        uint8 threshold;
+        /// @dev number of signers
+        uint8 signerCount;
+        /// @dev signer bytes;
+        mapping(uint8 => bytes) signers;
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*                                   ERRORS                                   */
+    /* -------------------------------------------------------------------------- */
+
     /**
      * @notice Thrown when a provided signer is neither 64 bytes long (for public key)
      *         nor a ABI encoded address.
@@ -28,6 +49,10 @@ library MultiSignerLib {
 
     /// @notice Thrown when number of signers is more than 256.
     error InvalidNumberOfSigners();
+
+    /* -------------------------------------------------------------------------- */
+    /*                                  FUNCTIONS                                 */
+    /* -------------------------------------------------------------------------- */
 
     /**
      * @notice Validates the list of `signers` and `threshold`.
