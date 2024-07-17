@@ -73,11 +73,19 @@ contract SmartVault is LightSyncMultiSigner, RootOwner, ERC1271, UUPSUpgradeable
 
     /// @notice Multiple user op signature using merkle tree.
     struct MultiOpSignature {
+        /// @notice merkleRoot of all the light(userOp) signers want to execute. If threshold is 1, this will be
+        /// bytes32(0).
+        bytes32 lightMerkleTreeRoot;
+        /// @notice list of proofs to verify if the light userOp hash is present in the light merkle tree root. If
+        /// threshold is 1, this will be empty.
+        bytes32[] lightMerkleProofs;
         /// @notice merkleRoot of all the user ops signers want to execute.
         bytes32 merkleTreeRoot;
         /// @notice list of proofs to verify if the userOp hash is present in the root.
         bytes32[] merkleProofs;
-        /// @notice abi.encode(MultiSignerSignatureLib.Signature) over the merkleTreeRoot
+        /// @notice abi.encode(MultiSignerSignatureLib.Signature), where threshold - 1
+        /// signatures will be verified against the light root and the final signature will be verified against the
+        /// root.
         bytes normalSignature;
     }
 
@@ -248,7 +256,7 @@ contract SmartVault is LightSyncMultiSigner, RootOwner, ERC1271, UUPSUpgradeable
         if (userOpSignature.sigType == UserOpSignatureType.Single) {
             return _validateSingleUserOp(_userOp, _userOpHash, userOpSignature.signature);
         } else if (userOpSignature.sigType == UserOpSignatureType.Multi) {
-            return _validateMultiUserOp(_userOpHash, userOpSignature.signature);
+            return _validateMultiUserOp(_userOp, _userOpHash, userOpSignature.signature);
         }
         revert InvalidUserOpSignatureType();
     }
@@ -392,13 +400,47 @@ contract SmartVault is LightSyncMultiSigner, RootOwner, ERC1271, UUPSUpgradeable
         view
         returns (uint256 validationData)
     {
+        return _validateSignature(_getLightUserOpHash(_userOp), _userOpHash, _signature);
+    }
+
+    /// @notice Validates a multi user op signature using merkleProofs.
+    function _validateMultiUserOp(
+        IAccount.PackedUserOperation calldata _userOp,
+        bytes32 _userOpHash,
+        bytes memory _signature
+    )
+        internal
+        view
+        returns (uint256 validationData)
+    {
+        MultiOpSignature memory signature = abi.decode(_signature, (MultiOpSignature));
+        bytes32 lightHash = _getLightUserOpHash(_userOp);
+
+        if (signature.lightMerkleTreeRoot != bytes32(0)) {
+            if (!MerkleProof.verify(signature.lightMerkleProofs, signature.lightMerkleTreeRoot, lightHash)) {
+                revert InvalidMerkleProof();
+            }
+        }
+        if (!MerkleProof.verify(signature.merkleProofs, signature.merkleTreeRoot, _userOpHash)) {
+            revert InvalidMerkleProof();
+        }
+        return _validateSignature(signature.lightMerkleTreeRoot, signature.merkleTreeRoot, signature.normalSignature);
+    }
+
+    function _validateSignature(
+        bytes32 _lightHash,
+        bytes32 _hash,
+        bytes memory _signature
+    )
+        internal
+        view
+        returns (uint256 validationData)
+    {
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
         MultiSignerSignatureLib.SignatureWrapper[] memory sigWrappers =
             abi.decode(_signature, (MultiSignerSignatureLib.Signature)).signature;
 
-        uint8 threshold = getThreshold();
-
-        bytes32 lightUserOpHash = _getLightUserOpHash(_userOp);
+        uint8 threshold = $.threshold;
 
         uint256 alreadySigned;
         uint256 mask;
@@ -412,8 +454,7 @@ contract SmartVault is LightSyncMultiSigner, RootOwner, ERC1271, UUPSUpgradeable
             mask = (1 << signerIndex);
             if (alreadySigned & mask != 0) return UserOperationLib.INVALID_SIGNATURE;
 
-            isValid =
-                MultiSignerLib.isValidSignature(lightUserOpHash, $.signers[signerIndex], sigWrappers[i].signatureData);
+            isValid = MultiSignerLib.isValidSignature(_lightHash, $.signers[signerIndex], sigWrappers[i].signatureData);
 
             if (isValid) {
                 alreadySigned |= mask;
@@ -427,26 +468,8 @@ contract SmartVault is LightSyncMultiSigner, RootOwner, ERC1271, UUPSUpgradeable
         mask = (1 << signerIndex);
         if (alreadySigned & mask != 0) return UserOperationLib.INVALID_SIGNATURE;
 
-        return MultiSignerLib.isValidSignature(
-            _userOpHash, $.signers[signerIndex], sigWrappers[threshold - 1].signatureData
-        ) ? UserOperationLib.VALID_SIGNATURE : UserOperationLib.INVALID_SIGNATURE;
-    }
-
-    /// @notice Validates a multi user op signature using merkleProofs.
-    function _validateMultiUserOp(
-        bytes32 _userOpHash,
-        bytes memory _signature
-    )
-        internal
-        view
-        returns (uint256 validationData)
-    {
-        MultiOpSignature memory signature = abi.decode(_signature, (MultiOpSignature));
-        if (!MerkleProof.verify(signature.merkleProofs, signature.merkleTreeRoot, _userOpHash)) {
-            revert InvalidMerkleProof();
-        }
-        return MultiSignerSignatureLib.isValidSignature(
-            _getMultiSignerStorage(), signature.merkleTreeRoot, signature.normalSignature
-        ) ? UserOperationLib.VALID_SIGNATURE : UserOperationLib.INVALID_SIGNATURE;
+        return MultiSignerLib.isValidSignature(_hash, $.signers[signerIndex], sigWrappers[threshold - 1].signatureData)
+            ? UserOperationLib.VALID_SIGNATURE
+            : UserOperationLib.INVALID_SIGNATURE;
     }
 }

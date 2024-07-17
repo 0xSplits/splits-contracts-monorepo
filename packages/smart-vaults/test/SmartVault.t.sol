@@ -84,7 +84,9 @@ contract SmartVaultTest is BaseTest {
     function getUserOpSignature(
         MultiSignerSignatureLib.SignatureWrapper[] memory sigs,
         bytes32[] memory proof,
-        bytes32 rootHash
+        bytes32[] memory lightProof,
+        bytes32 rootHash,
+        bytes32 lightRootHash
     )
         internal
         pure
@@ -92,7 +94,7 @@ contract SmartVaultTest is BaseTest {
     {
         MultiSignerSignatureLib.Signature memory normalSignature = MultiSignerSignatureLib.Signature(sigs);
         SmartVault.MultiOpSignature memory multiChainSignature =
-            SmartVault.MultiOpSignature(rootHash, proof, abi.encode(normalSignature));
+            SmartVault.MultiOpSignature(lightRootHash, lightProof, rootHash, proof, abi.encode(normalSignature));
 
         userOpsignature =
             SmartVault.UserOpSignature(SmartVault.UserOpSignatureType.Multi, abi.encode(multiChainSignature));
@@ -112,14 +114,40 @@ contract SmartVaultTest is BaseTest {
     function getRootSignature(
         MultiSignerSignatureLib.SignatureWrapper[] memory sigs,
         bytes32[] memory proof,
-        bytes32 rootHash
+        bytes32[] memory lightProof,
+        bytes32 rootHash,
+        bytes32 lightRootHash
     )
         internal
         pure
         returns (bytes memory)
     {
-        SmartVault.Signature memory signature =
-            SmartVault.Signature(SmartVault.SignatureType.UserOp, abi.encode(getUserOpSignature(sigs, proof, rootHash)));
+        SmartVault.Signature memory signature = SmartVault.Signature(
+            SmartVault.SignatureType.UserOp,
+            abi.encode(getUserOpSignature(sigs, proof, lightProof, rootHash, lightRootHash))
+        );
+
+        return abi.encode(signature);
+    }
+
+    function getRootSignature(
+        SmartVault.SignerSetUpdate[] memory updates,
+        MultiSignerSignatureLib.SignatureWrapper[] memory sigs,
+        bytes32[] memory proof,
+        bytes32[] memory lightProof,
+        bytes32 rootHash,
+        bytes32 lightRootHash
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        SmartVault.Signature memory signature = SmartVault.Signature(
+            SmartVault.SignatureType.LightSync,
+            abi.encode(
+                getStateSyncSignature(updates, getUserOpSignature(sigs, proof, lightProof, rootHash, lightRootHash))
+            )
+        );
 
         return abi.encode(signature);
     }
@@ -232,6 +260,9 @@ contract SmartVaultTest is BaseTest {
 
         IAccount.PackedUserOperation memory userOp = _userOp;
         userOp.signature = getRootSignature(sigs);
+
+        vm.prank(ALICE.addr);
+        vault.updateThreshold(2);
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
@@ -537,7 +568,7 @@ contract SmartVaultTest is BaseTest {
     }
 
     /* -------------------------------------------------------------------------- */
-    /*                        VALIDATE MULTI CHAIN USER OP                        */
+    /*                        VALIDATE MULTI USER OP                        */
     /* -------------------------------------------------------------------------- */
 
     function testFuzz_validateMultiUserOp(
@@ -560,7 +591,7 @@ contract SmartVaultTest is BaseTest {
         proof[0] = hash2;
 
         IAccount.PackedUserOperation memory userOp = _userOp1;
-        userOp.signature = getRootSignature(sigs, proof, rootHash);
+        userOp.signature = getRootSignature(sigs, proof, new bytes32[](0), rootHash, bytes32(0));
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash1, 0), 0);
@@ -568,7 +599,67 @@ contract SmartVaultTest is BaseTest {
         proof[0] = hash1;
 
         userOp = _userOp2;
-        userOp.signature = getRootSignature(sigs, proof, rootHash);
+        userOp.signature = getRootSignature(sigs, proof, new bytes32[](0), rootHash, bytes32(0));
+
+        vm.prank(ENTRY_POINT);
+        assertEq(vault.validateUserOp(userOp, hash2, 0), 0);
+    }
+
+    function testFuzz_validateMultiUserOp_withMultipleSigners(
+        IAccount.PackedUserOperation calldata _userOp1,
+        IAccount.PackedUserOperation calldata _userOp2
+    )
+        public
+    {
+        LightSyncMultiSigner.SignerUpdateParam[] memory updates = new LightSyncMultiSigner.SignerUpdateParam[](1);
+        updates[0] = LightSyncMultiSigner.SignerUpdateParam(
+            LightSyncMultiSigner.SignerUpdateType.UpdateThreshold, abi.encode(uint8(2))
+        );
+
+        bytes32 hash = keccak256(abi.encode(0, address(vault), updates));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, hash);
+
+        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](1);
+        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        LightSyncMultiSigner.SignerSetUpdate[] memory signerUpdates = new LightSyncMultiSigner.SignerSetUpdate[](1);
+        signerUpdates[0] =
+            LightSyncMultiSigner.SignerSetUpdate(updates, abi.encode(MultiSignerSignatureLib.Signature(sigs)));
+
+        bytes32 hash1 = getUserOpHash(_userOp1);
+        bytes32 hash2 = getUserOpHash(_userOp2);
+
+        bytes32 lightHash1 = getLightUserOpHash(_userOp1);
+        bytes32 lightHash2 = getLightUserOpHash(_userOp2);
+
+        bytes32 rootHash = hashPair(hash1, hash2);
+        bytes32 lightRootHash = hashPair(lightHash1, lightHash2);
+
+        sigs = new MultiSignerSignatureLib.SignatureWrapper[](2);
+
+        (v, r, s) = vm.sign(ALICE.key, lightRootHash);
+        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        (v, r, s) = vm.sign(BOB.key, rootHash);
+        sigs[1] = MultiSignerSignatureLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
+
+        bytes32[] memory proof = new bytes32[](1);
+        proof[0] = hash2;
+
+        bytes32[] memory lightProof = new bytes32[](1);
+        lightProof[0] = lightHash2;
+
+        IAccount.PackedUserOperation memory userOp = _userOp1;
+        userOp.signature = getRootSignature(signerUpdates, sigs, proof, lightProof, rootHash, lightRootHash);
+
+        vm.prank(ENTRY_POINT);
+        assertEq(vault.validateUserOp(userOp, hash1, 0), 0);
+
+        proof[0] = hash1;
+        lightProof[0] = lightHash1;
+
+        userOp = _userOp2;
+        userOp.signature = getRootSignature(sigs, proof, lightProof, rootHash, lightRootHash);
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash2, 0), 0);
