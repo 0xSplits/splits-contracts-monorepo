@@ -32,11 +32,11 @@ contract RootOwnerTest is BaseTest {
     }
 
     function test_rootOwner_is_ALICE() public view {
-        assertEq(rootOwner.root(), ALICE.addr);
+        assertEq(rootOwner.getRoot(), ALICE.addr);
     }
 
     function test_rootOwnerProxy_is_BOB() public view {
-        assertEq(rootOwnerProxy.root(), BOB.addr);
+        assertEq(rootOwnerProxy.getRoot(), BOB.addr);
     }
 
     function testFuzz_transferRoot(bool proxy, address newRoot) public {
@@ -46,7 +46,7 @@ contract RootOwnerTest is BaseTest {
         getRootOwner(proxy).transferRootControl(newRoot);
         vm.stopPrank();
 
-        assertEq(getRootOwner(proxy).root(), newRoot);
+        assertEq(getRootOwner(proxy).getRoot(), newRoot);
     }
 
     function testFuzz_transferRoot_RevertWhen_NotOwner(bool proxy, address owner) public {
@@ -61,7 +61,7 @@ contract RootOwnerTest is BaseTest {
     function testFuzz_transferRoot_RevertWhen_OwnerIsZero(bool proxy, address caller) public {
         vm.assume(caller != address(0) && caller != address(getRootOwner(proxy)));
         getRootOwner(proxy).initialize(address(0));
-        assertEq(getRootOwner(proxy).root(), address(0));
+        assertEq(getRootOwner(proxy).getRoot(), address(0));
 
         vm.startPrank(caller);
         vm.expectRevert(OnlyRoot.selector);
@@ -71,7 +71,7 @@ contract RootOwnerTest is BaseTest {
 
     function testFuzz_transferRootOpen_when_ownerIsZero(bool proxy, address newRoot) public {
         getRootOwner(proxy).initialize(address(0));
-        assertEq(getRootOwner(proxy).root(), address(0));
+        assertEq(getRootOwner(proxy).getRoot(), address(0));
 
         vm.expectEmit();
         emit RootOwner.RootControlTransferred(address(0), newRoot);

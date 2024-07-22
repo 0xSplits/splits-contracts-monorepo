@@ -52,10 +52,10 @@ contract MultiSignerTest is BaseTest {
         emit MultiSigner.AddSigner(2, abi.encode(MIKE.x, MIKE.y));
         initializeSigners();
 
-        assertEq(multiSigner.signerAtIndex(0), abi.encode(ALICE.addr));
-        assertEq(multiSigner.signerAtIndex(1), abi.encode(BOB.addr));
-        assertEq(multiSigner.signerAtIndex(2), abi.encode(MIKE.x, MIKE.y));
-        assertEq(multiSigner.signerCount(), 3);
+        assertEq(multiSigner.getSignerAtIndex(0), abi.encode(ALICE.addr));
+        assertEq(multiSigner.getSignerAtIndex(1), abi.encode(BOB.addr));
+        assertEq(multiSigner.getSignerAtIndex(2), abi.encode(MIKE.x, MIKE.y));
+        assertEq(multiSigner.getSignerCount(), 3);
         assertEq(multiSigner.getThreshold(), 1);
     }
 
@@ -157,8 +157,8 @@ contract MultiSignerTest is BaseTest {
         multiSigner.removeSigner(0);
         vm.stopPrank();
 
-        assertEq(multiSigner.signerCount(), 2);
-        assertEq(multiSigner.signerAtIndex(0).length, 0);
+        assertEq(multiSigner.getSignerCount(), 2);
+        assertEq(multiSigner.getSignerAtIndex(0).length, 0);
     }
 
     function testFuzz_removeSigner_RevertWhen_callerNotRoot(address _caller) public {
@@ -193,8 +193,8 @@ contract MultiSignerTest is BaseTest {
         multiSigner.addSigner(abi.encode(BOB.addr), 2);
         vm.stopPrank();
 
-        assertEq(multiSigner.signerCount(), 3);
-        assertEq(multiSigner.signerAtIndex(2), abi.encode(BOB.addr));
+        assertEq(multiSigner.getSignerCount(), 3);
+        assertEq(multiSigner.getSignerAtIndex(2), abi.encode(BOB.addr));
     }
 
     function testFuzz_addSigner_RevertWhen_callerNotRoot(bytes memory _signer, address _caller) public {
@@ -214,8 +214,8 @@ contract MultiSignerTest is BaseTest {
         multiSigner.addSigner(abi.encode(DAN.addr), uint8(0));
         vm.stopPrank();
 
-        assertEq(multiSigner.signerCount(), 3);
-        assertEq(multiSigner.signerAtIndex(0), abi.encode(DAN.addr));
+        assertEq(multiSigner.getSignerCount(), 3);
+        assertEq(multiSigner.getSignerAtIndex(0), abi.encode(DAN.addr));
     }
 
     function testFuzz_addSigner_RevertWhen_invalidSignerBytesLength(bytes memory signer) public {

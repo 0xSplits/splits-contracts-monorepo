@@ -91,12 +91,12 @@ abstract contract MultiSigner {
     /* -------------------------------------------------------------------------- */
 
     /// @notice Returns the owner bytes at the given `index`.
-    function signerAtIndex(uint8 index) public view virtual returns (bytes memory) {
+    function getSignerAtIndex(uint8 index) public view virtual returns (bytes memory) {
         return _getMultiSignerStorage().signers[index];
     }
 
     /// @notice Returns the current number of signers
-    function signerCount() public view virtual returns (uint256) {
+    function getSignerCount() public view virtual returns (uint256) {
         return _getMultiSignerStorage().signerCount;
     }
 

@@ -39,9 +39,9 @@ contract SmartVaultFactoryTest is BaseTest {
         SmartVault deployedVault = smartVaultFactory.createAccount(root, signers, 1, 0);
 
         assertEq(predictedVault, address(deployedVault));
-        assertEq(deployedVault.root(), root);
+        assertEq(deployedVault.getRoot(), root);
         assertEq(deployedVault.getThreshold(), 1);
-        assertEq(deployedVault.signerCount(), 3);
+        assertEq(deployedVault.getSignerCount(), 3);
     }
 
     function test_getAddress() public {
@@ -50,8 +50,8 @@ contract SmartVaultFactoryTest is BaseTest {
         SmartVault deployedVault = smartVaultFactory.createAccount(root, signers, 1, 0);
 
         assertEq(predictedVault, address(deployedVault));
-        assertEq(deployedVault.root(), root);
+        assertEq(deployedVault.getRoot(), root);
         assertEq(deployedVault.getThreshold(), 1);
-        assertEq(deployedVault.signerCount(), 3);
+        assertEq(deployedVault.getSignerCount(), 3);
     }
 }

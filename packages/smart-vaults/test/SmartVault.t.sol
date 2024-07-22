@@ -443,8 +443,8 @@ contract SmartVaultTest is BaseTest {
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
 
-        assertEq(vault.signerCount(), 4);
-        assertEq(vault.signerAtIndex(3), abi.encode(CAROL.addr));
+        assertEq(vault.getSignerCount(), 4);
+        assertEq(vault.getSignerAtIndex(3), abi.encode(CAROL.addr));
         assertEq(vault.getNonce(), 1);
     }
 

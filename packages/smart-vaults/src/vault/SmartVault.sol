@@ -297,7 +297,7 @@ contract SmartVault is LightSyncMultiSigner, RootOwner, ERC1271, UUPSUpgradeable
      *
      * @return implementation_ The address of implementation contract.
      */
-    function implementation() public view returns (address implementation_) {
+    function getImplementation() public view returns (address implementation_) {
         assembly {
             implementation_ := sload(_ERC1967_IMPLEMENTATION_SLOT)
         }
@@ -345,7 +345,7 @@ contract SmartVault is LightSyncMultiSigner, RootOwner, ERC1271, UUPSUpgradeable
     function _authorizeUpgrade(address) internal view virtual override(UUPSUpgradeable) onlyRoot { }
 
     function _authorizeUpdate() internal view override(MultiSigner) {
-        if (msg.sender != address(this) && msg.sender != root()) revert OnlyAccount();
+        if (msg.sender != address(this) && msg.sender != _getRoot()) revert OnlyAccount();
     }
 
     /**
