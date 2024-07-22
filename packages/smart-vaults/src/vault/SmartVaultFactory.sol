@@ -24,9 +24,7 @@ contract SmartVaultFactory {
     /*                                   EVENTS                                   */
     /* -------------------------------------------------------------------------- */
 
-    event SmartVaultCreated(
-        address indexed vault, address indexed root, bytes[] signers, uint8 threshold, uint256 nonce
-    );
+    event SmartVaultCreated(address indexed vault, address owner, bytes[] signers, uint8 threshold, uint256 nonce);
 
     /* -------------------------------------------------------------------------- */
     /*                                 CONSTRUCTOR                                */
@@ -46,7 +44,7 @@ contract SmartVaultFactory {
      *
      * @dev Deployed as a ERC-1967 proxy that's implementation is `this.implementation`.
      *
-     * @param _root Root owner of the smart vault.
+     * @param _owner Root owner of the smart vault.
      * @param _signers Array of initial signers. Each item should be an ABI encoded address or 64 byte public key.
      * @param _threshold Number of approvals needed for a valid user op/hash.
      * @param _nonce  The nonce of the account, a caller defined value which allows multiple accounts
@@ -56,7 +54,7 @@ contract SmartVaultFactory {
      *                 `this.implementation`.
      */
     function createAccount(
-        address _root,
+        address _owner,
         bytes[] calldata _signers,
         uint8 _threshold,
         uint256 _nonce
@@ -67,17 +65,17 @@ contract SmartVaultFactory {
         returns (SmartVault account)
     {
         (bool alreadyDeployed, address accountAddress) = LibClone.createDeterministicERC1967(
-            msg.value, IMPLEMENTATION, _getSalt(_root, _signers, _threshold, _nonce)
+            msg.value, IMPLEMENTATION, _getSalt(_owner, _signers, _threshold, _nonce)
         );
 
         account = SmartVault(payable(accountAddress));
 
         if (!alreadyDeployed) {
-            account.initialize(_root, _signers, _threshold);
+            account.initialize(_owner, _signers, _threshold);
 
             emit SmartVaultCreated({
                 vault: accountAddress,
-                root: _root,
+                owner: _owner,
                 signers: _signers,
                 threshold: _threshold,
                 nonce: _nonce
@@ -90,7 +88,7 @@ contract SmartVaultFactory {
      *
      * @dev Reverts when the initial configuration of signers is invalid.
      *
-     * @param _root Root owner of the smart vault.
+     * @param _owner Root owner of the smart vault.
      * @param _signers Array of initial signers. Each item should be an ABI encoded address or 64 byte public key.
      * @param _threshold Number of approvals needed for a valid user op/hash.
      * @param _nonce  The nonce provided to `createAccount()`.
@@ -98,7 +96,7 @@ contract SmartVaultFactory {
      * @return The predicted account deployment address.
      */
     function getAddress(
-        address _root,
+        address _owner,
         bytes[] calldata _signers,
         uint8 _threshold,
         uint256 _nonce
@@ -109,7 +107,7 @@ contract SmartVaultFactory {
     {
         MultiSignerLib.validateSigners(_signers, _threshold);
         return LibClone.predictDeterministicAddress(
-            initCodeHash(), _getSalt(_root, _signers, _threshold, _nonce), address(this)
+            initCodeHash(), _getSalt(_owner, _signers, _threshold, _nonce), address(this)
         );
     }
 
@@ -125,7 +123,7 @@ contract SmartVaultFactory {
 
     /// @notice Returns the create2 salt for `LibClone.predictDeterministicAddress`
     function _getSalt(
-        address _root,
+        address _owner,
         bytes[] calldata _signers,
         uint8 _threshold,
         uint256 _nonce
@@ -134,6 +132,6 @@ contract SmartVaultFactory {
         pure
         returns (bytes32)
     {
-        return keccak256(abi.encode(_root, _signers, _threshold, _nonce));
+        return keccak256(abi.encode(_owner, _signers, _threshold, _nonce));
     }
 }

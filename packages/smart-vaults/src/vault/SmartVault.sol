@@ -9,10 +9,10 @@ import { UserOperationLib } from "../library/UserOperationLib.sol";
 import { ERC1271 } from "../utils/ERC1271.sol";
 import { LightSyncMultiSigner } from "../utils/LightSyncMultiSigner.sol";
 import { MultiSigner } from "../utils/MultiSigner.sol";
-import { RootOwner } from "../utils/RootOwner.sol";
 
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { Receiver } from "solady/accounts/Receiver.sol";
+import { Ownable } from "solady/auth/Ownable.sol";
 import { UUPSUpgradeable } from "solady/utils/UUPSUpgradeable.sol";
 
 /**
@@ -21,7 +21,7 @@ import { UUPSUpgradeable } from "solady/utils/UUPSUpgradeable.sol";
  * @notice Based on Coinbase's Smart Wallet (https://github.com/coinbase/smart-wallet) and Solady's Smart Wallet.
  * @author Splits
  */
-contract SmartVault is LightSyncMultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receiver {
+contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, Receiver {
     using UserOperationLib for IAccount.PackedUserOperation;
     /* -------------------------------------------------------------------------- */
     /*                                   STRUCTS                                  */
@@ -115,7 +115,10 @@ contract SmartVault is LightSyncMultiSigner, RootOwner, ERC1271, UUPSUpgradeable
     error OnlyFactory();
 
     /// @notice Thrown when caller is not address(this).
-    error OnlyAccount();
+    error OnlySelf();
+
+    /// @notice Thrown when caller is not owner or self.
+    error OnlySelfOrOwner();
 
     /// @notice Thrown when contract creation has failed.
     error FailedContractCreation();
@@ -141,20 +144,25 @@ contract SmartVault is LightSyncMultiSigner, RootOwner, ERC1271, UUPSUpgradeable
         _;
     }
 
-    /// @notice Reverts if the caller is neither the EntryPoint, the root, nor the account itself when root is zero.
-    modifier onlyEntryPointOrRoot() virtual {
+    /// @notice Reverts if the caller is neither the EntryPoint or the owner.
+    modifier onlyEntryPointOrOwner() virtual {
         if (msg.sender != entryPoint()) {
-            checkRoot();
+            _checkOwner();
         }
         _;
     }
 
     /// @notice Reverts when caller is not this account.
-    modifier onlyAccount() virtual {
+    modifier onlySelf() virtual {
         if (msg.sender != address(this)) {
-            revert OnlyAccount();
+            revert OnlySelf();
         }
         _;
+    }
+
+    modifier onlySelfOrOwner() virtual {
+        if (msg.sender == address(this) || msg.sender == owner()) _;
+        else revert OnlySelfOrOwner();
     }
 
     /**
@@ -196,17 +204,17 @@ contract SmartVault is LightSyncMultiSigner, RootOwner, ERC1271, UUPSUpgradeable
      *
      * @dev Reverts if caller is not factory.
      *
-     * @param _root Root owner of the smart account.
+     * @param _owner Root owner of the smart account.
      * @param _signers Array of initial signers for this account. Each item should be
      *               an ABI encoded Ethereum address, i.e. 32 bytes with 12 leading 0 bytes,
      *               or a 64 byte public key.
      * @param _threshold Number of signers required to approve a signature.
      */
-    function initialize(address _root, bytes[] calldata _signers, uint8 _threshold) external payable {
+    function initialize(address _owner, bytes[] calldata _signers, uint8 _threshold) external payable {
         if (msg.sender != FACTORY) revert OnlyFactory();
 
         _initializeSigners(_signers, _threshold);
-        initializeRoot(_root);
+        _initializeOwner(_owner);
     }
 
     /**
@@ -267,7 +275,7 @@ contract SmartVault is LightSyncMultiSigner, RootOwner, ERC1271, UUPSUpgradeable
      * @param _value  The value to send with the call.
      * @param _data   The data of the call.
      */
-    function execute(address _target, uint256 _value, bytes calldata _data) external payable onlyEntryPointOrRoot {
+    function execute(address _target, uint256 _value, bytes calldata _data) external payable onlyEntryPointOrOwner {
         _call(_target, _value, _data);
     }
 
@@ -278,7 +286,7 @@ contract SmartVault is LightSyncMultiSigner, RootOwner, ERC1271, UUPSUpgradeable
      *
      * @param _calls The list of `Call`s to execute.
      */
-    function executeBatch(Call[] calldata _calls) external payable onlyEntryPointOrRoot {
+    function executeBatch(Call[] calldata _calls) external payable onlyEntryPointOrOwner {
         for (uint256 i; i < _calls.length; i++) {
             _call(_calls[i].target, _calls[i].value, _calls[i].data);
         }
@@ -309,7 +317,7 @@ contract SmartVault is LightSyncMultiSigner, RootOwner, ERC1271, UUPSUpgradeable
      * @param _initCode The creation bytecode.
      * @return newContract The 20-byte address where the contract was deployed.
      */
-    function deployCreate(bytes memory _initCode) public payable onlyAccount returns (address newContract) {
+    function deployCreate(bytes memory _initCode) public payable onlySelfOrOwner returns (address newContract) {
         assembly ("memory-safe") {
             newContract := create(callvalue(), add(_initCode, 0x20), mload(_initCode))
         }
@@ -339,11 +347,9 @@ contract SmartVault is LightSyncMultiSigner, RootOwner, ERC1271, UUPSUpgradeable
         }
     }
 
-    function _authorizeUpgrade(address) internal view virtual override(UUPSUpgradeable) onlyRoot { }
+    function _authorizeUpgrade(address) internal view virtual override(UUPSUpgradeable) onlyOwner { }
 
-    function _authorizeUpdate() internal view override(MultiSigner) {
-        if (msg.sender != address(this) && msg.sender != _getRoot()) revert OnlyAccount();
-    }
+    function _authorizeUpdate() internal view override(MultiSigner) onlySelfOrOwner { }
 
     /**
      * @notice validates if the given hash was signed by the signers.

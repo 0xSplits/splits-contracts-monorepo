@@ -21,7 +21,7 @@ contract MultiSignerTest is BaseTest {
     error InvalidNumberOfSigners();
     error InvalidSignerBytesLength(bytes signer);
     error InvalidEthereumAddressOwner(bytes signer);
-    error OnlyRoot();
+    error Unauthorized();
     error SignerAlreadyAdded(bytes signer);
     error SignerPresentAtIndex(uint8 index);
 
@@ -120,7 +120,7 @@ contract MultiSignerTest is BaseTest {
         initializeSigners();
 
         vm.startPrank(_caller);
-        vm.expectRevert(OnlyRoot.selector);
+        vm.expectRevert(Unauthorized.selector);
         multiSigner.updateThreshold(_threshold);
         vm.stopPrank();
     }
@@ -166,7 +166,7 @@ contract MultiSignerTest is BaseTest {
         initializeSigners();
 
         vm.startPrank(_caller);
-        vm.expectRevert(OnlyRoot.selector);
+        vm.expectRevert(Unauthorized.selector);
         multiSigner.removeSigner(0);
         vm.stopPrank();
     }
@@ -202,7 +202,7 @@ contract MultiSignerTest is BaseTest {
         initializeSigners();
 
         vm.startPrank(_caller);
-        vm.expectRevert(OnlyRoot.selector);
+        vm.expectRevert(Unauthorized.selector);
         multiSigner.addSigner(_signer, 0);
         vm.stopPrank();
     }

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+import { Ownable } from "solady/auth/Ownable.sol";
 import { MultiSigner } from "src/utils/MultiSigner.sol";
-import { RootOwner } from "src/utils/RootOwner.sol";
 
-contract MultiSignerMock is MultiSigner, RootOwner {
+contract MultiSignerMock is MultiSigner, Ownable {
     /* -------------------------------------------------------------------------- */
     /*                                  CONSTANTS                                 */
     /* -------------------------------------------------------------------------- */
@@ -30,9 +30,9 @@ contract MultiSignerMock is MultiSigner, RootOwner {
 
     function initialize(address _root, bytes[] calldata _signers, uint8 _threshold) external {
         if (msg.sender != deployer) revert();
-        initializeRoot(_root);
+        _initializeOwner(_root);
         _initializeSigners(_signers, _threshold);
     }
 
-    function _authorizeUpdate() internal view override(MultiSigner) onlyRoot { }
+    function _authorizeUpdate() internal view override(MultiSigner) onlyOwner { }
 }

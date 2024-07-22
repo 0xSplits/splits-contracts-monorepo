@@ -9,6 +9,7 @@ import { IAccount } from "src/interfaces/IAccount.sol";
 import { MultiSignerSignatureLib } from "src/library/MultiSignerSignatureLib.sol";
 import { UserOperationLib } from "src/library/UserOperationLib.sol";
 
+import { Ownable } from "solady/auth/Ownable.sol";
 import { LightSyncMultiSigner } from "src/utils/LightSyncMultiSigner.sol";
 import { MultiSigner } from "src/utils/MultiSigner.sol";
 import { SmartVault } from "src/vault/SmartVault.sol";
@@ -42,8 +43,8 @@ contract SmartVaultTest is BaseTest {
 
     error OnlyEntryPoint();
     error OnlyFactory();
-    error OnlyAccount();
-    error OnlyRoot();
+    error OnlySelfOrOwner();
+    error Unauthorized();
     error InvalidSignerBytesLength(bytes signer);
     error MissingSignatures(uint256 signaturesSupplied, uint8 threshold);
     error DuplicateSigner(uint8 signerIndex);
@@ -815,7 +816,7 @@ contract SmartVaultTest is BaseTest {
     }
 
     function testFuzz_execute_revertsWhenNotRootOrEntryPoint(address target, uint256 value, bytes memory data) public {
-        vm.expectRevert(abi.encodeWithSelector(OnlyRoot.selector));
+        vm.expectRevert(abi.encodeWithSelector(Unauthorized.selector));
         vault.execute(target, value, data);
     }
 
@@ -843,7 +844,7 @@ contract SmartVaultTest is BaseTest {
     }
 
     function test_executeBatch_revertsWhenNotRootOrEntryPoint() public {
-        vm.expectRevert(abi.encodeWithSelector(OnlyRoot.selector));
+        vm.expectRevert(abi.encodeWithSelector(Unauthorized.selector));
         vault.executeBatch(new SmartVault.Call[](0));
     }
 
@@ -874,8 +875,66 @@ contract SmartVaultTest is BaseTest {
     }
 
     function test_deployCreate_RevertsWhen_callerNotAccount() public {
-        vm.expectRevert(OnlyAccount.selector);
+        vm.expectRevert(OnlySelfOrOwner.selector);
         vm.prank(ENTRY_POINT);
         vault.deployCreate(abi.encodePacked(type(SmartVault).creationCode, abi.encode(root)));
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*                                  OWNERSHIP                                 */
+    /* -------------------------------------------------------------------------- */
+
+    function test_transferOwnership() public {
+        vm.expectEmit();
+        emit Ownable.OwnershipTransferred(vault.owner(), BOB.addr);
+        vm.prank(vault.owner());
+        vault.transferOwnership(BOB.addr);
+
+        assertEq(vault.owner(), BOB.addr);
+    }
+
+    function test_transferOwnership_RevertsWhen_notOwner() public {
+        vm.expectRevert(Unauthorized.selector);
+        vault.transferOwnership(BOB.addr);
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*                             SIGNER SET UPDATES                             */
+    /* -------------------------------------------------------------------------- */
+
+    function testFuzz_addSigner_RevertWhen_callerNotOwner(bytes memory _signer, address _caller) public {
+        vm.assume(_caller != ALICE.addr && _caller != address(vault));
+
+        vm.startPrank(_caller);
+        vm.expectRevert(OnlySelfOrOwner.selector);
+        vault.addSigner(_signer, 0);
+        vm.stopPrank();
+    }
+
+    function testFuzz_removeSigner_RevertWhen_callerNotOwner(uint8 _index, address _caller) public {
+        vm.assume(_caller != ALICE.addr && _caller != address(vault));
+
+        vm.startPrank(_caller);
+        vm.expectRevert(OnlySelfOrOwner.selector);
+        vault.removeSigner(_index);
+        vm.stopPrank();
+    }
+
+    function testFuzz_updateThreshold_RevertWhen_callerNotOwner(uint8 _threshold, address _caller) public {
+        vm.assume(_caller != ALICE.addr && _caller != address(vault));
+
+        vm.startPrank(_caller);
+        vm.expectRevert(OnlySelfOrOwner.selector);
+        vault.updateThreshold(_threshold);
+        vm.stopPrank();
+    }
+
+    function testFuzz_setNonce_RevertWhen_callerNotOwner(uint8 _nonce, address _caller) public {
+        vm.assume(_caller != ALICE.addr && _caller != address(vault));
+
+        vm.startPrank(_caller);
+        vm.expectRevert(OnlySelfOrOwner.selector);
+        vault.setNonce(_nonce);
+        vm.stopPrank();
     }
 }
