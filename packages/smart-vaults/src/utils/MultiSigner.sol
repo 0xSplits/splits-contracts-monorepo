@@ -47,6 +47,9 @@ abstract contract MultiSigner {
      */
     error SignerAlreadyAdded(bytes signer);
 
+    /// @notice Thrown when setting nonce to less than the current storage nonce.
+    error InvalidNonce();
+
     /* -------------------------------------------------------------------------- */
     /*                                   EVENTS                                   */
     /* -------------------------------------------------------------------------- */
@@ -151,6 +154,8 @@ abstract contract MultiSigner {
      */
     function setNonce(uint256 _nonce) public OnlyAuthorized {
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
+
+        if (_nonce <= $.nonce) revert InvalidNonce();
 
         $.nonce = _nonce;
 

@@ -74,6 +74,7 @@ abstract contract LightSyncMultiSigner is MultiSigner {
         for (uint256 i; i < noOfUpdates; i++) {
             _validateSignerSetUpdate(_signerUpdates[i]);
             $.nonce += 1;
+            emit updateNonce($.nonce);
             _processsSignerSetUpdate(_signerUpdates[i]);
         }
     }
