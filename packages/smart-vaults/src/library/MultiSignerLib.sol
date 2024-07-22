@@ -14,7 +14,7 @@ library MultiSignerLib {
     /* -------------------------------------------------------------------------- */
 
     /// @notice Storage layout used by this contract.
-    /// @dev Can allow upto 256 signers.
+    /// @dev Can allow up to 256 signers.
     /// @custom:storage-location erc7201:splits.storage.MultiSigner
     struct MultiSignerStorage {
         uint256 nonce;
@@ -56,8 +56,8 @@ library MultiSignerLib {
 
     /**
      * @notice Validates the list of `signers` and `threshold`.
-     * @dev Throws error when number of signers is zero or greather than 255.
-     * @dev Throws error if `threshold` is zero or greather than number of signers.
+     * @dev Throws error when number of signers is zero or greater than 255.
+     * @dev Throws error if `threshold` is zero or greater than number of signers.
      * @param _signers abi encoded list of signers (passkey/eoa).
      * @param _threshold minimum number of signers required for approval.
      */

@@ -34,7 +34,7 @@ abstract contract LightSyncMultiSigner is MultiSigner {
         /**
          * Data can be of the following types:
          *  AddSigner: abi.encode(bytes signer, uint8 index)
-         *  RemoveSigner: abi.encode(uint8, index)
+         *  RemoveSigner: abi.encode(uint8 index)
          *  UpdateThreshold: abi.encode(uint8 threshold)
          */
         bytes data;
@@ -70,12 +70,12 @@ abstract contract LightSyncMultiSigner is MultiSigner {
 
     function _processSignerSetUpdates(SignerSetUpdate[] memory _signerUpdates) internal {
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
-        uint256 noOfUpdates = _signerUpdates.length;
-        for (uint256 i; i < noOfUpdates; i++) {
+        uint256 numUpdates = _signerUpdates.length;
+        for (uint256 i; i < numUpdates; i++) {
             _validateSignerSetUpdate(_signerUpdates[i]);
             $.nonce += 1;
             emit updateNonce($.nonce);
-            _processsSignerSetUpdate(_signerUpdates[i]);
+            _processSignerSetUpdate(_signerUpdates[i]);
         }
     }
 
@@ -89,25 +89,25 @@ abstract contract LightSyncMultiSigner is MultiSigner {
         ) revert SignerSetUpdateValidationFailed(_signerUpdate);
     }
 
-    function _processsSignerSetUpdate(SignerSetUpdate memory _signerUpdate) internal {
+    function _processSignerSetUpdate(SignerSetUpdate memory _signerUpdate) internal {
         SignerUpdateParam[] memory updateParams = _signerUpdate.updateParams;
-        uint256 noOfUpdates = updateParams.length;
-        for (uint256 i; i < noOfUpdates; i++) {
-            _processsSignerUpdateParam(updateParams[i]);
+        uint256 numUpdates = updateParams.length;
+        for (uint256 i; i < numUpdates; i++) {
+            _processSignerUpdateParam(updateParams[i]);
         }
     }
 
-    function _processsSignerSetUpdatesMemory(SignerSetUpdate[] memory _signerUpdates)
+    function _processSignerSetUpdatesMemory(SignerSetUpdate[] memory _signerUpdates)
         internal
         view
         returns (bytes[256] memory signers, uint8 threshold)
     {
         uint256 nonce = _getMultiSignerStorage().nonce;
-        uint256 noOfUpdates = _signerUpdates.length;
+        uint256 numUpdates = _signerUpdates.length;
         threshold = getThreshold();
-        for (uint256 i; i < noOfUpdates; i++) {
+        for (uint256 i; i < numUpdates; i++) {
             _validateSignerSetUpdateMemory(_signerUpdates[i], signers, threshold, nonce++);
-            (signers, threshold) = _processsSignerSetUpdateMemory(_signerUpdates[i], signers, threshold);
+            (signers, threshold) = _processSignerSetUpdateMemory(_signerUpdates[i], signers, threshold);
         }
     }
 
@@ -135,7 +135,7 @@ abstract contract LightSyncMultiSigner is MultiSigner {
         }
     }
 
-    function _processsSignerSetUpdateMemory(
+    function _processSignerSetUpdateMemory(
         SignerSetUpdate memory _signerUpdate,
         bytes[256] memory _signers,
         uint8 _threshold
@@ -145,9 +145,9 @@ abstract contract LightSyncMultiSigner is MultiSigner {
         returns (bytes[256] memory, uint8)
     {
         SignerUpdateParam[] memory updateParams = _signerUpdate.updateParams;
-        uint256 noOfUpdates = updateParams.length;
+        uint256 numUpdates = updateParams.length;
 
-        for (uint256 i; i < noOfUpdates; i++) {
+        for (uint256 i; i < numUpdates; i++) {
             SignerUpdateParam memory _signerUpdateParam = updateParams[i];
             if (_signerUpdateParam.updateType == SignerUpdateType.AddSigner) {
                 (bytes memory signer, uint8 index) = abi.decode(_signerUpdateParam.data, (bytes, uint8));
@@ -166,7 +166,7 @@ abstract contract LightSyncMultiSigner is MultiSigner {
         return (_signers, _threshold);
     }
 
-    function _processsSignerUpdateParam(SignerUpdateParam memory _signerUpdateParam) internal {
+    function _processSignerUpdateParam(SignerUpdateParam memory _signerUpdateParam) internal {
         if (_signerUpdateParam.updateType == SignerUpdateType.AddSigner) {
             (bytes memory signer, uint8 index) = abi.decode(_signerUpdateParam.data, (bytes, uint8));
             _addSigner(signer, index);

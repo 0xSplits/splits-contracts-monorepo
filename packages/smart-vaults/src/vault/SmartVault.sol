@@ -47,8 +47,8 @@ contract SmartVault is LightSyncMultiSigner, RootOwner, ERC1271, UUPSUpgradeable
     struct Signature {
         SignatureType sigType;
         /**
-         * @dev Signatue can be of the following types:
-         *      UserOp: abi.encode(UserOPSignature)
+         * @dev Signature can be of the following types:
+         *      UserOp: abi.encode(UserOpSignature)
          *      LightSync: abi.encode(LightSyncSignature)
          */
         bytes signature;
@@ -64,7 +64,7 @@ contract SmartVault is LightSyncMultiSigner, RootOwner, ERC1271, UUPSUpgradeable
     struct UserOpSignature {
         UserOpSignatureType sigType;
         /**
-         * @dev Signatue can be of the following types:
+         * @dev Signature can be of the following types:
          *      Single: abi.encode(MultiSignerSignatureLib.Signature)
          *      Multi: abi.encode(MultiOpSignature)
          */
@@ -78,11 +78,11 @@ contract SmartVault is LightSyncMultiSigner, RootOwner, ERC1271, UUPSUpgradeable
         bytes32 lightMerkleTreeRoot;
         /// @notice list of proofs to verify if the light userOp hash is present in the light merkle tree root. If
         /// threshold is 1, this will be empty.
-        bytes32[] lightMerkleProofs;
+        bytes32[] lightMerkleProof;
         /// @notice merkleRoot of all the user ops signers want to execute.
         bytes32 merkleTreeRoot;
         /// @notice list of proofs to verify if the userOp hash is present in the root.
-        bytes32[] merkleProofs;
+        bytes32[] merkleProof;
         /// @notice abi.encode(MultiSignerSignatureLib.Signature), where threshold - 1
         /// signatures will be verified against the light root and the final signature will be verified against the
         /// root.
@@ -123,10 +123,10 @@ contract SmartVault is LightSyncMultiSigner, RootOwner, ERC1271, UUPSUpgradeable
     /// @notice Thrown when contract creation has failed.
     error FailedContractCreation();
 
-    /// @notice Thrown when User Operation signature is of unkown type.
+    /// @notice Thrown when User Operation signature is of unknown type.
     error InvalidUserOpSignatureType();
 
-    /// @notice Thrown when Signature is of unkown type.
+    /// @notice Thrown when Signature is of unknown type.
     error InvalidSignatureType();
 
     /// @notice Thrown when merkle root validation fails.
@@ -356,7 +356,7 @@ contract SmartVault is LightSyncMultiSigner, RootOwner, ERC1271, UUPSUpgradeable
 
         if (rootSignature.sigType == SignatureType.LightSync) {
             LightSyncSignature memory stateSyncSignature = abi.decode(rootSignature.signature, (LightSyncSignature));
-            (bytes[256] memory signers, uint8 threshold) = _processsSignerSetUpdatesMemory(stateSyncSignature.updates);
+            (bytes[256] memory signers, uint8 threshold) = _processSignerSetUpdatesMemory(stateSyncSignature.updates);
 
             UserOpSignature memory userOpSignature = abi.decode(stateSyncSignature.userOpSignature, (UserOpSignature));
             return MultiSignerSignatureLib.isValidSignature({
@@ -417,11 +417,11 @@ contract SmartVault is LightSyncMultiSigner, RootOwner, ERC1271, UUPSUpgradeable
         bytes32 lightHash = _getLightUserOpHash(_userOp);
 
         if (signature.lightMerkleTreeRoot != bytes32(0)) {
-            if (!MerkleProof.verify(signature.lightMerkleProofs, signature.lightMerkleTreeRoot, lightHash)) {
+            if (!MerkleProof.verify(signature.lightMerkleProof, signature.lightMerkleTreeRoot, lightHash)) {
                 revert InvalidMerkleProof();
             }
         }
-        if (!MerkleProof.verify(signature.merkleProofs, signature.merkleTreeRoot, _userOpHash)) {
+        if (!MerkleProof.verify(signature.merkleProof, signature.merkleTreeRoot, _userOpHash)) {
             revert InvalidMerkleProof();
         }
         return _validateSignature(signature.lightMerkleTreeRoot, signature.merkleTreeRoot, signature.normalSignature);
