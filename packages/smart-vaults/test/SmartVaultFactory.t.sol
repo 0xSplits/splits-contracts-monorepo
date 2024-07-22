@@ -28,7 +28,7 @@ contract SmartVaultFactoryTest is BaseTest {
     }
 
     function test_implementation() public view {
-        assertEq(SmartVault(payable(smartVaultFactory.implementation())).factory(), address(smartVaultFactory));
+        assertEq(SmartVault(payable(smartVaultFactory.IMPLEMENTATION())).FACTORY(), address(smartVaultFactory));
     }
 
     function test_createAccount() public {

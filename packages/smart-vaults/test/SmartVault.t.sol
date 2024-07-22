@@ -40,7 +40,6 @@ contract SmartVaultTest is BaseTest {
         hex"1c05286fe694493eae33312f2d2e0d0abeda8db76238b7a204be1fb87f54ce4228fef61ef4ac300f631657635c28e59bfb2fe71bce1634c81c65642042f6dc4d";
     // solhint-enable
 
-    error Initialized();
     error OnlyEntryPoint();
     error OnlyFactory();
     error OnlyAccount();
@@ -74,11 +73,11 @@ contract SmartVaultTest is BaseTest {
     function getUserOpSignature(MultiSignerSignatureLib.SignatureWrapper[] memory sigs)
         internal
         pure
-        returns (SmartVault.UserOpSignature memory userOpsignature)
+        returns (SmartVault.UserOpSignature memory userOpSignature)
     {
         MultiSignerSignatureLib.Signature memory normalSignature = MultiSignerSignatureLib.Signature(sigs);
 
-        userOpsignature = SmartVault.UserOpSignature(SmartVault.UserOpSignatureType.Single, abi.encode(normalSignature));
+        userOpSignature = SmartVault.UserOpSignature(SmartVault.UserOpSignatureType.Single, abi.encode(normalSignature));
     }
 
     function getUserOpSignature(
@@ -90,13 +89,13 @@ contract SmartVaultTest is BaseTest {
     )
         internal
         pure
-        returns (SmartVault.UserOpSignature memory userOpsignature)
+        returns (SmartVault.UserOpSignature memory userOpSignature)
     {
         MultiSignerSignatureLib.Signature memory normalSignature = MultiSignerSignatureLib.Signature(sigs);
         SmartVault.MultiOpSignature memory multiChainSignature =
             SmartVault.MultiOpSignature(lightRootHash, lightProof, rootHash, proof, abi.encode(normalSignature));
 
-        userOpsignature =
+        userOpSignature =
             SmartVault.UserOpSignature(SmartVault.UserOpSignatureType.Multi, abi.encode(multiChainSignature));
     }
 

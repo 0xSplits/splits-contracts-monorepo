@@ -102,14 +102,11 @@ contract SmartVault is LightSyncMultiSigner, RootOwner, ERC1271, UUPSUpgradeable
     /* -------------------------------------------------------------------------- */
 
     /// @notice Smart Vault Factory;
-    address public immutable factory;
+    address public immutable FACTORY;
 
     /* -------------------------------------------------------------------------- */
     /*                                   ERRORS                                   */
     /* -------------------------------------------------------------------------- */
-
-    /// @notice Thrown when `initialize` is called but the account is already initialized.
-    error Initialized();
 
     /// @notice Thrown when caller is not entry point.
     error OnlyEntryPoint();
@@ -187,7 +184,7 @@ contract SmartVault is LightSyncMultiSigner, RootOwner, ERC1271, UUPSUpgradeable
     /* -------------------------------------------------------------------------- */
 
     constructor(address _factory) ERC1271("splitSmartVault", "1") {
-        factory = _factory;
+        FACTORY = _factory;
     }
 
     /* -------------------------------------------------------------------------- */
@@ -206,7 +203,7 @@ contract SmartVault is LightSyncMultiSigner, RootOwner, ERC1271, UUPSUpgradeable
      * @param _threshold Number of signers required to approve a signature.
      */
     function initialize(address _root, bytes[] calldata _signers, uint8 _threshold) external payable {
-        if (msg.sender != factory) revert OnlyFactory();
+        if (msg.sender != FACTORY) revert OnlyFactory();
 
         _initializeSigners(_signers, _threshold);
         initializeRoot(_root);

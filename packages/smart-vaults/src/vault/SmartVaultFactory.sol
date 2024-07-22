@@ -18,7 +18,7 @@ contract SmartVaultFactory {
     /* -------------------------------------------------------------------------- */
 
     /// @notice Address of the ERC-4337 implementation used as implementation for new accounts.
-    address public immutable implementation;
+    address public immutable IMPLEMENTATION;
 
     /* -------------------------------------------------------------------------- */
     /*                                   EVENTS                                   */
@@ -33,7 +33,7 @@ contract SmartVaultFactory {
     /* -------------------------------------------------------------------------- */
 
     constructor() payable {
-        implementation = address(new SmartVault(address(this)));
+        IMPLEMENTATION = address(new SmartVault(address(this)));
     }
 
     /* -------------------------------------------------------------------------- */
@@ -67,7 +67,7 @@ contract SmartVaultFactory {
         returns (SmartVault account)
     {
         (bool alreadyDeployed, address accountAddress) = LibClone.createDeterministicERC1967(
-            msg.value, implementation, _getSalt(_root, _signers, _threshold, _nonce)
+            msg.value, IMPLEMENTATION, _getSalt(_root, _signers, _threshold, _nonce)
         );
 
         account = SmartVault(payable(accountAddress));
@@ -120,7 +120,7 @@ contract SmartVaultFactory {
      * @return The initialization code hash.
      */
     function initCodeHash() public view virtual returns (bytes32) {
-        return LibClone.initCodeHashERC1967(implementation);
+        return LibClone.initCodeHashERC1967(IMPLEMENTATION);
     }
 
     /// @notice Returns the create2 salt for `LibClone.predictDeterministicAddress`

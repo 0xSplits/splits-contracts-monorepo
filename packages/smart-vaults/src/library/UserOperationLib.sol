@@ -52,10 +52,9 @@ library UserOperationLib {
     function encodeLight(IAccount.PackedUserOperation calldata userOp) internal pure returns (bytes memory ret) {
         address sender = getSender(userOp);
         uint256 nonce = userOp.nonce;
-        bytes32 hashInitCode = calldataKeccak(userOp.initCode);
         bytes32 hashCallData = calldataKeccak(userOp.callData);
 
-        return abi.encode(sender, nonce, hashInitCode, hashCallData);
+        return abi.encode(sender, nonce, hashCallData);
     }
 
     /**
