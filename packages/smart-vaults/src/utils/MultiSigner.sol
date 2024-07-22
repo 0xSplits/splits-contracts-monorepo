@@ -50,6 +50,12 @@ abstract contract MultiSigner {
     /// @notice Thrown when setting nonce to less than the current storage nonce.
     error InvalidNonce();
 
+    /**
+     * @notice Thrown when trying to remove an empty signer.
+     * @param index Index of the empty signer.
+     */
+    error SignerNotPresent(uint8 index);
+
     /* -------------------------------------------------------------------------- */
     /*                                   EVENTS                                   */
     /* -------------------------------------------------------------------------- */
@@ -229,6 +235,7 @@ abstract contract MultiSigner {
         if (signerCount_ == $.threshold) revert InvalidThreshold();
 
         bytes memory signer = $.signers[_index];
+        if (signer.length == 0) revert SignerNotPresent(_index);
 
         delete $.signers[_index];
         $.signerCount -= 1;
