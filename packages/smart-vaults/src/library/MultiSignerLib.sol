@@ -1,11 +1,35 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.23;
 
+import { WebAuthn } from "@web-authn/WebAuthn.sol";
+import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
+
 /**
  * @title Multi Signer Library
  * @author Splits
  */
 library MultiSignerLib {
+    /* -------------------------------------------------------------------------- */
+    /*                                   STRUCTS                                  */
+    /* -------------------------------------------------------------------------- */
+
+    /// @notice Storage layout used by this contract.
+    /// @dev Can allow up to 256 signers.
+    /// @custom:storage-location erc7201:splits.storage.MultiSigner
+    struct MultiSignerStorage {
+        uint256 nonce;
+        /// @dev Number of unique signatures required to validate a message signed by this contract.
+        uint8 threshold;
+        /// @dev number of signers
+        uint8 signerCount;
+        /// @dev signer bytes;
+        mapping(uint8 => bytes) signers;
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*                                   ERRORS                                   */
+    /* -------------------------------------------------------------------------- */
+
     /**
      * @notice Thrown when a provided signer is neither 64 bytes long (for public key)
      *         nor a ABI encoded address.
@@ -26,10 +50,14 @@ library MultiSignerLib {
     /// @notice Thrown when number of signers is more than 256.
     error InvalidNumberOfSigners();
 
+    /* -------------------------------------------------------------------------- */
+    /*                                  FUNCTIONS                                 */
+    /* -------------------------------------------------------------------------- */
+
     /**
      * @notice Validates the list of `signers` and `threshold`.
-     * @dev Throws error when number of signers is zero or greather than 255.
-     * @dev Throws error if `threshold` is zero or greather than number of signers.
+     * @dev Throws error when number of signers is zero or greater than 255.
+     * @dev Throws error if `threshold` is zero or greater than number of signers.
      * @param _signers abi encoded list of signers (passkey/eoa).
      * @param _threshold minimum number of signers required for approval.
      */
@@ -68,5 +96,57 @@ library MultiSignerLib {
 
             if (eoa.code.length > 0) revert InvalidEthereumAddressOwner(_signer);
         }
+    }
+
+    /**
+     * @notice validates if the signature provided by the signer at `signerIndex` is valid for the hash.
+     */
+    function isValidSignature(
+        bytes32 _hash,
+        bytes memory _signer,
+        bytes memory _signature
+    )
+        internal
+        view
+        returns (bool isValid)
+    {
+        if (_signer.length == 32) {
+            isValid = isValidSignatureEOA(_hash, _signer, _signature);
+        } else if (_signer.length == 64) {
+            isValid = isValidSignaturePasskey(_hash, _signer, _signature);
+        }
+    }
+
+    function isValidSignaturePasskey(
+        bytes32 _hash,
+        bytes memory _signer,
+        bytes memory _signature
+    )
+        internal
+        view
+        returns (bool)
+    {
+        (uint256 x, uint256 y) = abi.decode(_signer, (uint256, uint256));
+
+        WebAuthn.WebAuthnAuth memory auth = abi.decode(_signature, (WebAuthn.WebAuthnAuth));
+
+        return WebAuthn.verify({ challenge: abi.encode(_hash), requireUV: false, webAuthnAuth: auth, x: x, y: y });
+    }
+
+    function isValidSignatureEOA(
+        bytes32 _hash,
+        bytes memory _signer,
+        bytes memory _signature
+    )
+        internal
+        view
+        returns (bool)
+    {
+        address owner;
+        assembly ("memory-safe") {
+            owner := mload(add(_signer, 32))
+        }
+
+        return SignatureCheckerLib.isValidSignatureNow(owner, _hash, _signature);
     }
 }

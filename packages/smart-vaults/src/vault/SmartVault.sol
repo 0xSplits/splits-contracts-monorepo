@@ -2,14 +2,17 @@
 pragma solidity ^0.8.23;
 
 import { IAccount } from "../interfaces/IAccount.sol";
+
+import { MultiSignerLib } from "../library/MultiSignerLib.sol";
+import { MultiSignerSignatureLib } from "../library/MultiSignerSignatureLib.sol";
 import { UserOperationLib } from "../library/UserOperationLib.sol";
 import { ERC1271 } from "../utils/ERC1271.sol";
+import { LightSyncMultiSigner } from "../utils/LightSyncMultiSigner.sol";
 import { MultiSigner } from "../utils/MultiSigner.sol";
 import { RootOwner } from "../utils/RootOwner.sol";
 
-import { WebAuthn } from "@web-authn/WebAuthn.sol";
+import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { Receiver } from "solady/accounts/Receiver.sol";
-import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
 import { UUPSUpgradeable } from "solady/utils/UUPSUpgradeable.sol";
 
 /**
@@ -18,25 +21,11 @@ import { UUPSUpgradeable } from "solady/utils/UUPSUpgradeable.sol";
  * @notice Based on Coinbase's Smart Wallet (https://github.com/coinbase/smart-wallet) and Solady's Smart Wallet.
  * @author Splits
  */
-contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receiver {
+contract SmartVault is LightSyncMultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receiver {
     using UserOperationLib for IAccount.PackedUserOperation;
     /* -------------------------------------------------------------------------- */
     /*                                   STRUCTS                                  */
     /* -------------------------------------------------------------------------- */
-
-    /**
-     * @notice A wrapper struct used for signature validation so that callers
-     *         can identify the signer that signed.
-     */
-    struct SignatureWrapper {
-        /// @dev The index of the signer that signed, see `MultiSigner.signerAtIndex`
-        uint8 signerIndex;
-        /**
-         * @dev If `MultiSigner.signerAtIndex` is an Ethereum address, this should be `abi.encodePacked(r, s, v)`
-         *      If `MultiSigner.signerAtIndex` is a public key, this should be `abi.encode(WebAuthnAuth)`.
-         */
-        bytes signatureData;
-    }
 
     /// @notice Represents a call to make.
     struct Call {
@@ -46,6 +35,66 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
         uint256 value;
         /// @dev The data of the call.
         bytes data;
+    }
+
+    /// @notice Primary Signature types
+    enum SignatureType {
+        UserOp,
+        LightSync
+    }
+
+    /// @notice Primary signature
+    struct Signature {
+        SignatureType sigType;
+        /**
+         * @dev Signature can be of the following types:
+         *      UserOp: abi.encode(UserOpSignature)
+         *      LightSync: abi.encode(LightSyncSignature)
+         */
+        bytes signature;
+    }
+
+    /// @notice User op signature types
+    enum UserOpSignatureType {
+        Single,
+        Multi
+    }
+
+    /// @notice User operation signature
+    struct UserOpSignature {
+        UserOpSignatureType sigType;
+        /**
+         * @dev Signature can be of the following types:
+         *      Single: abi.encode(MultiSignerSignatureLib.Signature)
+         *      Multi: abi.encode(MultiOpSignature)
+         */
+        bytes signature;
+    }
+
+    /// @notice Multiple user op signature using merkle tree.
+    struct MultiOpSignature {
+        /// @notice merkleRoot of all the light(userOp) signers want to execute. If threshold is 1, this will be
+        /// bytes32(0).
+        bytes32 lightMerkleTreeRoot;
+        /// @notice list of proofs to verify if the light userOp hash is present in the light merkle tree root. If
+        /// threshold is 1, this will be empty.
+        bytes32[] lightMerkleProof;
+        /// @notice merkleRoot of all the user ops signers want to execute.
+        bytes32 merkleTreeRoot;
+        /// @notice list of proofs to verify if the userOp hash is present in the root.
+        bytes32[] merkleProof;
+        /// @notice abi.encode(MultiSignerSignatureLib.Signature), where threshold - 1
+        /// signatures will be verified against the light root and the final signature will be verified against the
+        /// root.
+        bytes normalSignature;
+    }
+
+    /// @notice Light sync signature
+    struct LightSyncSignature {
+        /// @notice list of signer set updates.
+        SignerSetUpdate[] updates;
+        /// @notice abi.encode(UserOPSignature)
+        bytes userOpSignature;
     }
 
     /* -------------------------------------------------------------------------- */
@@ -71,14 +120,17 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
     /// @notice Thrown when caller is not address(this).
     error OnlyAccount();
 
-    /// @notice Thrown when number of signatures is less than threshold.
-    error MissingSignatures(uint256 signaturesSupplied, uint8 threshold);
-
-    /// @notice Thrown when duplicate signer is encountered.
-    error DuplicateSigner(uint8 signerIndex);
-
     /// @notice Thrown when contract creation has failed.
     error FailedContractCreation();
+
+    /// @notice Thrown when User Operation signature is of unknown type.
+    error InvalidUserOpSignatureType();
+
+    /// @notice Thrown when Signature is of unknown type.
+    error InvalidSignatureType();
+
+    /// @notice Thrown when merkle root validation fails.
+    error InvalidMerkleProof();
 
     /* -------------------------------------------------------------------------- */
     /*                                  MODIFIERS                                 */
@@ -156,7 +208,7 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
     function initialize(address _root, bytes[] calldata _signers, uint8 _threshold) external payable {
         if (msg.sender != factory) revert OnlyFactory();
 
-        initializeSigners(_signers, _threshold);
+        _initializeSigners(_signers, _threshold);
         initializeRoot(_root);
     }
 
@@ -197,45 +249,16 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
         payPrefund(_missingAccountFunds)
         returns (uint256 validationData)
     {
-        SignatureWrapper[] memory sigWrappers = abi.decode(_userOp.signature, (SignatureWrapper[]));
-        uint256 numberOfSignatures = sigWrappers.length;
+        bytes memory signature = _preValidationStateSync(_userOp.signature);
 
-        uint8 threshold_ = threshold();
-        if (numberOfSignatures < threshold_) revert MissingSignatures(numberOfSignatures, threshold_);
+        UserOpSignature memory userOpSignature = abi.decode(signature, (UserOpSignature));
 
-        if (numberOfSignatures == 1) {
-            return _isValidSignature(_userOpHash, sigWrappers[0].signerIndex, sigWrappers[0].signatureData) ? 0 : 1;
+        if (userOpSignature.sigType == UserOpSignatureType.Single) {
+            return _validateSingleUserOp(_userOp, _userOpHash, userOpSignature.signature);
+        } else if (userOpSignature.sigType == UserOpSignatureType.Multi) {
+            return _validateMultiUserOp(_userOp, _userOpHash, userOpSignature.signature);
         }
-
-        bytes32 lightUserOpHash = getLightUserOpHash(_userOp);
-
-        uint256 alreadySigned;
-        uint256 mask;
-        uint8 signerIndex;
-        bool isValid;
-
-        for (uint256 i; i < numberOfSignatures - 1; i++) {
-            isValid = false;
-            signerIndex = sigWrappers[i].signerIndex;
-
-            mask = (1 << signerIndex);
-            if (alreadySigned & mask != 0) revert DuplicateSigner(signerIndex);
-
-            isValid = _isValidSignature(lightUserOpHash, signerIndex, sigWrappers[i].signatureData);
-
-            if (isValid) {
-                alreadySigned |= mask;
-            } else {
-                return 1;
-            }
-        }
-
-        signerIndex = sigWrappers[numberOfSignatures - 1].signerIndex;
-
-        mask = (1 << signerIndex);
-        if (alreadySigned & mask != 0) revert DuplicateSigner(signerIndex);
-
-        return _isValidSignature(_userOpHash, signerIndex, sigWrappers[numberOfSignatures - 1].signatureData) ? 0 : 1;
+        revert InvalidUserOpSignatureType();
     }
 
     /**
@@ -274,7 +297,7 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
      *
      * @return implementation_ The address of implementation contract.
      */
-    function implementation() public view returns (address implementation_) {
+    function getImplementation() public view returns (address implementation_) {
         assembly {
             implementation_ := sload(_ERC1967_IMPLEMENTATION_SLOT)
         }
@@ -306,7 +329,7 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
     /**
      * @notice Get light user op hash for the giver userOp
      */
-    function getLightUserOpHash(IAccount.PackedUserOperation calldata _userOp) internal view returns (bytes32) {
+    function _getLightUserOpHash(IAccount.PackedUserOperation calldata _userOp) internal view returns (bytes32) {
         return keccak256(abi.encode(_userOp.hashLight(), entryPoint(), block.chainid));
     }
 
@@ -319,104 +342,134 @@ contract SmartVault is MultiSigner, RootOwner, ERC1271, UUPSUpgradeable, Receive
         }
     }
 
+    function _authorizeUpgrade(address) internal view virtual override(UUPSUpgradeable) onlyRoot { }
+
+    function _authorizeUpdate() internal view override(MultiSigner) {
+        if (msg.sender != address(this) && msg.sender != _getRoot()) revert OnlyAccount();
+    }
+
     /**
-     * @notice validates if the signature provided by the signer at `signerIndex` is valid for the hash.
+     * @notice validates if the given hash was signed by the signers.
      */
-    function _isValidSignature(
-        bytes32 _hash,
-        uint8 _signerIndex,
+    function _isValidSignature(bytes32 _hash, bytes calldata _signature) internal view override returns (bool) {
+        Signature memory rootSignature = abi.decode(_signature, (Signature));
+
+        if (rootSignature.sigType == SignatureType.LightSync) {
+            LightSyncSignature memory stateSyncSignature = abi.decode(rootSignature.signature, (LightSyncSignature));
+            (bytes[256] memory signers, uint8 threshold) = _processSignerSetUpdatesMemory(stateSyncSignature.updates);
+
+            UserOpSignature memory userOpSignature = abi.decode(stateSyncSignature.userOpSignature, (UserOpSignature));
+            return MultiSignerSignatureLib.isValidSignature({
+                $: _getMultiSignerStorage(),
+                _signers: signers,
+                _threshold: threshold,
+                _hash: _hash,
+                _signature: userOpSignature.signature
+            });
+        } else if (rootSignature.sigType == SignatureType.UserOp) {
+            UserOpSignature memory userOpSignature = abi.decode(rootSignature.signature, (UserOpSignature));
+            return MultiSignerSignatureLib.isValidSignature(_getMultiSignerStorage(), _hash, userOpSignature.signature);
+        } else {
+            revert InvalidSignatureType();
+        }
+    }
+
+    /// @notice decodes signature, updates state and returns the user op signature
+    function _preValidationStateSync(bytes memory _signature) internal returns (bytes memory) {
+        Signature memory rootSignature = abi.decode(_signature, (Signature));
+
+        if (rootSignature.sigType == SignatureType.LightSync) {
+            LightSyncSignature memory stateSyncSignature = abi.decode(rootSignature.signature, (LightSyncSignature));
+            _processSignerSetUpdates(stateSyncSignature.updates);
+            return stateSyncSignature.userOpSignature;
+        } else if (rootSignature.sigType == SignatureType.UserOp) {
+            return rootSignature.signature;
+        } else {
+            revert InvalidSignatureType();
+        }
+    }
+
+    /// @notice Validates a single user operation. First n-1 signatures are verified against a light user op hash of
+    /// `_userOp`. The nth signature is verified against `_userOpHash`.
+    function _validateSingleUserOp(
+        IAccount.PackedUserOperation calldata _userOp,
+        bytes32 _userOpHash,
         bytes memory _signature
     )
         internal
         view
-        returns (bool isValid)
+        returns (uint256 validationData)
     {
-        bytes memory signer = signerAtIndex(_signerIndex);
-
-        if (signer.length == 32) {
-            isValid = _isValidSignatureEOA(_hash, signer, _signature);
-        } else {
-            isValid = _isValidSignaturePasskey(_hash, signer, _signature);
-        }
+        return _validateSignature(_getLightUserOpHash(_userOp), _userOpHash, _signature);
     }
 
-    /**
-     * @notice validates if the given hash was signed by the signers of this account.
-     * @dev used internally for erc1271 isValidSignature.
-     */
-    function _isValidSignature(
-        bytes32 _hash,
-        bytes calldata _signature
+    /// @notice Validates a multi user op signature using merkleProofs.
+    function _validateMultiUserOp(
+        IAccount.PackedUserOperation calldata _userOp,
+        bytes32 _userOpHash,
+        bytes memory _signature
     )
         internal
         view
-        virtual
-        override
-        returns (bool)
+        returns (uint256 validationData)
     {
-        SignatureWrapper[] memory sigWrappers = abi.decode(_signature, (SignatureWrapper[]));
-        uint256 numberOfSignatures = sigWrappers.length;
+        MultiOpSignature memory signature = abi.decode(_signature, (MultiOpSignature));
+        bytes32 lightHash = _getLightUserOpHash(_userOp);
 
-        uint8 threshold_ = threshold();
-        if (numberOfSignatures < threshold_) revert MissingSignatures(numberOfSignatures, threshold_);
+        if (signature.lightMerkleTreeRoot != bytes32(0)) {
+            if (!MerkleProof.verify(signature.lightMerkleProof, signature.lightMerkleTreeRoot, lightHash)) {
+                revert InvalidMerkleProof();
+            }
+        }
+        if (!MerkleProof.verify(signature.merkleProof, signature.merkleTreeRoot, _userOpHash)) {
+            revert InvalidMerkleProof();
+        }
+        return _validateSignature(signature.lightMerkleTreeRoot, signature.merkleTreeRoot, signature.normalSignature);
+    }
+
+    function _validateSignature(
+        bytes32 _lightHash,
+        bytes32 _hash,
+        bytes memory _signature
+    )
+        internal
+        view
+        returns (uint256 validationData)
+    {
+        MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
+        MultiSignerSignatureLib.SignatureWrapper[] memory sigWrappers =
+            abi.decode(_signature, (MultiSignerSignatureLib.Signature)).signature;
+
+        uint8 threshold = $.threshold;
 
         uint256 alreadySigned;
         uint256 mask;
         uint8 signerIndex;
         bool isValid;
-        for (uint256 i; i < numberOfSignatures; i++) {
+
+        for (uint256 i; i < threshold - 1; i++) {
             isValid = false;
             signerIndex = sigWrappers[i].signerIndex;
-            mask = (1 << signerIndex);
-            if (alreadySigned & mask != 0) revert DuplicateSigner(signerIndex);
 
-            isValid = _isValidSignature(_hash, signerIndex, sigWrappers[i].signatureData);
+            mask = (1 << signerIndex);
+            if (alreadySigned & mask != 0) return UserOperationLib.INVALID_SIGNATURE;
+
+            isValid = MultiSignerLib.isValidSignature(_lightHash, $.signers[signerIndex], sigWrappers[i].signatureData);
 
             if (isValid) {
                 alreadySigned |= mask;
             } else {
-                return false;
+                return UserOperationLib.INVALID_SIGNATURE;
             }
         }
-        return true;
-    }
 
-    function _isValidSignaturePasskey(
-        bytes32 _hash,
-        bytes memory _signer,
-        bytes memory _signature
-    )
-        internal
-        view
-        returns (bool)
-    {
-        (uint256 x, uint256 y) = abi.decode(_signer, (uint256, uint256));
+        signerIndex = sigWrappers[threshold - 1].signerIndex;
 
-        WebAuthn.WebAuthnAuth memory auth = abi.decode(_signature, (WebAuthn.WebAuthnAuth));
+        mask = (1 << signerIndex);
+        if (alreadySigned & mask != 0) return UserOperationLib.INVALID_SIGNATURE;
 
-        return WebAuthn.verify({ challenge: abi.encode(_hash), requireUV: false, webAuthnAuth: auth, x: x, y: y });
-    }
-
-    function _isValidSignatureEOA(
-        bytes32 _hash,
-        bytes memory _signer,
-        bytes memory _signature
-    )
-        internal
-        view
-        returns (bool)
-    {
-        address owner;
-        assembly ("memory-safe") {
-            owner := mload(add(_signer, 32))
-        }
-
-        return SignatureCheckerLib.isValidSignatureNow(owner, _hash, _signature);
-    }
-
-    function _authorizeUpgrade(address) internal view virtual override(UUPSUpgradeable) onlyRoot { }
-
-    function authorizeUpdate() internal view override(MultiSigner) {
-        if (msg.sender != address(this) && msg.sender != root()) revert OnlyAccount();
+        return MultiSignerLib.isValidSignature(_hash, $.signers[signerIndex], sigWrappers[threshold - 1].signatureData)
+            ? UserOperationLib.VALID_SIGNATURE
+            : UserOperationLib.INVALID_SIGNATURE;
     }
 }

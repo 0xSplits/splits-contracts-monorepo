@@ -52,11 +52,11 @@ contract MultiSignerTest is BaseTest {
         emit MultiSigner.AddSigner(2, abi.encode(MIKE.x, MIKE.y));
         initializeSigners();
 
-        assertEq(multiSigner.signerAtIndex(0), abi.encode(ALICE.addr));
-        assertEq(multiSigner.signerAtIndex(1), abi.encode(BOB.addr));
-        assertEq(multiSigner.signerAtIndex(2), abi.encode(MIKE.x, MIKE.y));
-        assertEq(multiSigner.signerCount(), 3);
-        assertEq(multiSigner.threshold(), 1);
+        assertEq(multiSigner.getSignerAtIndex(0), abi.encode(ALICE.addr));
+        assertEq(multiSigner.getSignerAtIndex(1), abi.encode(BOB.addr));
+        assertEq(multiSigner.getSignerAtIndex(2), abi.encode(MIKE.x, MIKE.y));
+        assertEq(multiSigner.getSignerCount(), 3);
+        assertEq(multiSigner.getThreshold(), 1);
     }
 
     function test_initialize_signers_RevertWhen_thresholdIsZero() public {
@@ -112,7 +112,7 @@ contract MultiSignerTest is BaseTest {
         multiSigner.updateThreshold(2);
         vm.stopPrank();
 
-        assertEq(multiSigner.threshold(), 2);
+        assertEq(multiSigner.getThreshold(), 2);
     }
 
     function testFuzz_updateThreshold_RevertWhen_callerNotRoot(address _caller, uint8 _threshold) public {
@@ -157,9 +157,8 @@ contract MultiSignerTest is BaseTest {
         multiSigner.removeSigner(0);
         vm.stopPrank();
 
-        assertEq(multiSigner.signerCount(), 2);
-        assertFalse(multiSigner.isSigner(abi.encode(ALICE.addr)));
-        assertEq(multiSigner.signerAtIndex(0).length, 0);
+        assertEq(multiSigner.getSignerCount(), 2);
+        assertEq(multiSigner.getSignerAtIndex(0).length, 0);
     }
 
     function testFuzz_removeSigner_RevertWhen_callerNotRoot(address _caller) public {
@@ -190,13 +189,12 @@ contract MultiSignerTest is BaseTest {
 
         vm.startPrank(ALICE.addr);
         vm.expectEmit();
-        emit MultiSigner.RemoveSigner(0, abi.encode(ALICE.addr));
-        multiSigner.removeSigner(0);
+        emit MultiSigner.AddSigner(2, abi.encode(BOB.addr));
+        multiSigner.addSigner(abi.encode(BOB.addr), 2);
         vm.stopPrank();
 
-        assertEq(multiSigner.signerCount(), 2);
-        assertFalse(multiSigner.isSigner(abi.encode(ALICE.addr)));
-        assertEq(multiSigner.signerAtIndex(0).length, 0);
+        assertEq(multiSigner.getSignerCount(), 3);
+        assertEq(multiSigner.getSignerAtIndex(2), abi.encode(BOB.addr));
     }
 
     function testFuzz_addSigner_RevertWhen_callerNotRoot(bytes memory _signer, address _caller) public {
@@ -209,22 +207,15 @@ contract MultiSignerTest is BaseTest {
         vm.stopPrank();
     }
 
-    function testFuzz_addSigner_RevertWhen_signerAlreayAdded() public {
+    function test_addSigner_replace() public {
         initializeSigners();
 
         vm.startPrank(ALICE.addr);
-        vm.expectRevert(abi.encodeWithSelector(SignerAlreadyAdded.selector, abi.encode(ALICE.addr)));
-        multiSigner.addSigner(abi.encode(ALICE.addr), uint8(3));
-        vm.stopPrank();
-    }
-
-    function testFuzz_addSigner_RevertWhen_signerPresentAtIndex() public {
-        initializeSigners();
-
-        vm.startPrank(ALICE.addr);
-        vm.expectRevert(abi.encodeWithSelector(SignerPresentAtIndex.selector, 0));
         multiSigner.addSigner(abi.encode(DAN.addr), uint8(0));
         vm.stopPrank();
+
+        assertEq(multiSigner.getSignerCount(), 3);
+        assertEq(multiSigner.getSignerAtIndex(0), abi.encode(DAN.addr));
     }
 
     function testFuzz_addSigner_RevertWhen_invalidSignerBytesLength(bytes memory signer) public {

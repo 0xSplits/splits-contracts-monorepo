@@ -31,8 +31,8 @@ contract MultiSignerMock is MultiSigner, RootOwner {
     function initialize(address _root, bytes[] calldata _signers, uint8 _threshold) external {
         if (msg.sender != deployer) revert();
         initializeRoot(_root);
-        initializeSigners(_signers, _threshold);
+        _initializeSigners(_signers, _threshold);
     }
 
-    function authorizeUpdate() internal view override(MultiSigner) onlyRoot { }
+    function _authorizeUpdate() internal view override(MultiSigner) onlyRoot { }
 }

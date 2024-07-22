@@ -53,13 +53,13 @@ contract RootOwner {
     /* -------------------------------------------------------------------------- */
 
     /// @notice Returns the current root owner.
-    function root() public view returns (address) {
-        return getRoot();
+    function getRoot() public view returns (address) {
+        return _getRoot();
     }
 
     /// @notice Transfers root control to `_newRoot`.
     function transferRootControl(address _newRoot) public onlyRoot {
-        emit RootControlTransferred(getRoot(), _newRoot);
+        emit RootControlTransferred(_getRoot(), _newRoot);
 
         setRoot(_newRoot);
     }
@@ -89,7 +89,7 @@ contract RootOwner {
         revert OnlyRoot();
     }
 
-    function getRoot() internal view returns (address) {
+    function _getRoot() internal view returns (address) {
         return StorageSlot.getAddressSlot(ROOT_OWNER_STORAGE_LOCATION).value;
     }
 
