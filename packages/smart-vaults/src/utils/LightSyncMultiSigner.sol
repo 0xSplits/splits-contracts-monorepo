@@ -68,55 +68,55 @@ abstract contract LightSyncMultiSigner is MultiSigner {
     /*                             INTERNAL FUNCTIONS                             */
     /* -------------------------------------------------------------------------- */
 
-    function _processSignerSetUpdates(SignerSetUpdate[] memory _signerUpdates) internal {
+    function _processSignerSetUpdates(SignerSetUpdate[] memory signerUpdates_) internal {
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
-        uint256 numUpdates = _signerUpdates.length;
+        uint256 numUpdates = signerUpdates_.length;
         for (uint256 i; i < numUpdates; i++) {
-            _validateSignerSetUpdate(_signerUpdates[i]);
+            _validateSignerSetUpdate(signerUpdates_[i]);
             $.nonce += 1;
             emit updateNonce($.nonce);
-            _processSignerSetUpdate(_signerUpdates[i]);
+            _processSignerSetUpdate(signerUpdates_[i]);
         }
     }
 
     /// @notice reverts if validation fails
-    function _validateSignerSetUpdate(SignerSetUpdate memory _signerUpdate) internal view {
+    function _validateSignerSetUpdate(SignerSetUpdate memory signerUpdate_) internal view {
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
         if (
             !MultiSignerSignatureLib.isValidSignature(
-                $, _getSignerUpdateHash(_signerUpdate, $.nonce), _signerUpdate.normalSignature
+                $, _getSignerUpdateHash(signerUpdate_, $.nonce), signerUpdate_.normalSignature
             )
-        ) revert SignerSetUpdateValidationFailed(_signerUpdate);
+        ) revert SignerSetUpdateValidationFailed(signerUpdate_);
     }
 
-    function _processSignerSetUpdate(SignerSetUpdate memory _signerUpdate) internal {
-        SignerUpdateParam[] memory updateParams = _signerUpdate.updateParams;
+    function _processSignerSetUpdate(SignerSetUpdate memory signerUpdate_) internal {
+        SignerUpdateParam[] memory updateParams = signerUpdate_.updateParams;
         uint256 numUpdates = updateParams.length;
         for (uint256 i; i < numUpdates; i++) {
             _processSignerUpdateParam(updateParams[i]);
         }
     }
 
-    function _processSignerSetUpdatesMemory(SignerSetUpdate[] memory _signerUpdates)
+    function _processSignerSetUpdatesMemory(SignerSetUpdate[] memory signerUpdates_)
         internal
         view
         returns (bytes[256] memory signers, uint8 threshold)
     {
         uint256 nonce = _getMultiSignerStorage().nonce;
-        uint256 numUpdates = _signerUpdates.length;
+        uint256 numUpdates = signerUpdates_.length;
         threshold = getThreshold();
         for (uint256 i; i < numUpdates; i++) {
-            _validateSignerSetUpdateMemory(_signerUpdates[i], signers, threshold, nonce++);
-            (signers, threshold) = _processSignerSetUpdateMemory(_signerUpdates[i], signers, threshold);
+            _validateSignerSetUpdateMemory(signerUpdates_[i], signers, threshold, nonce++);
+            (signers, threshold) = _processSignerSetUpdateMemory(signerUpdates_[i], signers, threshold);
         }
     }
 
     /// @notice reverts if validation fails
     function _validateSignerSetUpdateMemory(
-        SignerSetUpdate memory _signerUpdate,
-        bytes[256] memory _signers,
-        uint8 _threshold,
-        uint256 _nonce
+        SignerSetUpdate memory signerUpdate_,
+        bytes[256] memory signers_,
+        uint8 threshold_,
+        uint256 nonce_
     )
         internal
         view
@@ -124,71 +124,72 @@ abstract contract LightSyncMultiSigner is MultiSigner {
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
         if (
             !MultiSignerSignatureLib.isValidSignature({
-                $: $,
-                _signers: _signers,
-                _threshold: _threshold,
-                _hash: _getSignerUpdateHash(_signerUpdate, _nonce),
-                _signature: _signerUpdate.normalSignature
+                $_: $,
+                signers_: signers_,
+                threshold_: threshold_,
+                hash_: _getSignerUpdateHash(signerUpdate_, nonce_),
+                signature_: signerUpdate_.normalSignature
             })
         ) {
-            revert SignerSetUpdateValidationFailed(_signerUpdate);
+            revert SignerSetUpdateValidationFailed(signerUpdate_);
         }
     }
 
     function _processSignerSetUpdateMemory(
-        SignerSetUpdate memory _signerUpdate,
-        bytes[256] memory _signers,
-        uint8 _threshold
+        SignerSetUpdate memory signerUpdate_,
+        bytes[256] memory signers_,
+        uint8 threshold_
     )
         internal
         view
         returns (bytes[256] memory, uint8)
     {
-        SignerUpdateParam[] memory updateParams = _signerUpdate.updateParams;
+        SignerUpdateParam[] memory updateParams = signerUpdate_.updateParams;
         uint256 numUpdates = updateParams.length;
 
+        SignerUpdateParam memory signerUpdateParam;
         for (uint256 i; i < numUpdates; i++) {
-            SignerUpdateParam memory _signerUpdateParam = updateParams[i];
-            if (_signerUpdateParam.updateType == SignerUpdateType.AddSigner) {
-                (bytes memory signer, uint8 index) = abi.decode(_signerUpdateParam.data, (bytes, uint8));
+            signerUpdateParam = updateParams[i];
+            if (signerUpdateParam.updateType == SignerUpdateType.AddSigner) {
+                (bytes memory signer, uint8 index) = abi.decode(signerUpdateParam.data, (bytes, uint8));
                 MultiSignerLib.validateSigner(signer);
-                _signers[index] = signer;
-            } else if (_signerUpdateParam.updateType == SignerUpdateType.RemoveSigner) {
-                uint8 index = abi.decode(_signerUpdateParam.data, (uint8));
-                _signers[index] = bytes.concat(MultiSignerSignatureLib.SIGNER_REMOVED);
-            } else if (_signerUpdateParam.updateType == SignerUpdateType.UpdateThreshold) {
-                _threshold = abi.decode(_signerUpdateParam.data, (uint8));
+                signers_[index] = signer;
+            } else if (signerUpdateParam.updateType == SignerUpdateType.RemoveSigner) {
+                uint8 index = abi.decode(signerUpdateParam.data, (uint8));
+                signers_[index] = bytes.concat(MultiSignerSignatureLib.SIGNER_REMOVED);
+            } else if (signerUpdateParam.updateType == SignerUpdateType.UpdateThreshold) {
+                threshold_ = abi.decode(signerUpdateParam.data, (uint8));
             } else {
-                revert InvalidSignerUpdateParam(_signerUpdateParam);
+                revert InvalidSignerUpdateParam(signerUpdateParam);
             }
         }
 
-        return (_signers, _threshold);
+        return (signers_, threshold_);
     }
 
-    function _processSignerUpdateParam(SignerUpdateParam memory _signerUpdateParam) internal {
-        if (_signerUpdateParam.updateType == SignerUpdateType.AddSigner) {
-            (bytes memory signer, uint8 index) = abi.decode(_signerUpdateParam.data, (bytes, uint8));
+    function _processSignerUpdateParam(SignerUpdateParam memory signerUpdateParam_) internal {
+        if (signerUpdateParam_.updateType == SignerUpdateType.AddSigner) {
+            (bytes memory signer, uint8 index) = abi.decode(signerUpdateParam_.data, (bytes, uint8));
             _addSigner(signer, index);
-        } else if (_signerUpdateParam.updateType == SignerUpdateType.RemoveSigner) {
-            uint8 index = abi.decode(_signerUpdateParam.data, (uint8));
+        } else if (signerUpdateParam_.updateType == SignerUpdateType.RemoveSigner) {
+            uint8 index = abi.decode(signerUpdateParam_.data, (uint8));
             _removeSigner(index);
-        } else if (_signerUpdateParam.updateType == SignerUpdateType.UpdateThreshold) {
-            uint8 threshold_ = abi.decode(_signerUpdateParam.data, (uint8));
+        } else if (signerUpdateParam_.updateType == SignerUpdateType.UpdateThreshold) {
+            uint8 threshold_ = abi.decode(signerUpdateParam_.data, (uint8));
             _updateThreshold(threshold_);
         } else {
-            revert InvalidSignerUpdateParam(_signerUpdateParam);
+            revert InvalidSignerUpdateParam(signerUpdateParam_);
         }
     }
 
     function _getSignerUpdateHash(
-        SignerSetUpdate memory _signerSetUpdate,
-        uint256 _nonce
+        SignerSetUpdate memory signerSetUpdate_,
+        uint256 nonce_
     )
         internal
         view
         returns (bytes32)
     {
-        return keccak256(abi.encode(_nonce, address(this), _signerSetUpdate.updateParams));
+        return keccak256(abi.encode(nonce_, address(this), signerSetUpdate_.updateParams));
     }
 }

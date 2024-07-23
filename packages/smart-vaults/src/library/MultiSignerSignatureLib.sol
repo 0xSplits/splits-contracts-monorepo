@@ -40,24 +40,24 @@ library MultiSignerSignatureLib {
     /* -------------------------------------------------------------------------- */
 
     /**
-     * @notice validates if `_hash` was signed by the signer set present in `$`
-     * @param $ Storage reference to MultiSigner storage.
-     * @param _hash blob of data that needs to be verified.
-     * @param _signature abi.encode(Signature)
+     * @notice validates if `hash_` was signed by the signer set present in `$_`
+     * @param $_ Storage reference to MultiSigner storage.
+     * @param hash_ blob of data that needs to be verified.
+     * @param signature_ abi.encode(Signature)
      */
     function isValidSignature(
-        MultiSignerLib.MultiSignerStorage storage $,
-        bytes32 _hash,
-        bytes memory _signature
+        MultiSignerLib.MultiSignerStorage storage $_,
+        bytes32 hash_,
+        bytes memory signature_
     )
         internal
         view
         returns (bool)
     {
-        Signature memory signature = abi.decode(_signature, (Signature));
+        Signature memory signature = abi.decode(signature_, (Signature));
         SignatureWrapper[] memory sigWrappers = signature.signature;
 
-        uint8 threshold = $.threshold;
+        uint8 threshold = $_.threshold;
 
         uint256 alreadySigned;
         uint256 mask;
@@ -67,7 +67,7 @@ library MultiSignerSignatureLib {
             mask = (1 << signerIndex);
             if (alreadySigned & mask != 0) return false;
 
-            if (MultiSignerLib.isValidSignature(_hash, $.signers[signerIndex], sigWrappers[i].signatureData)) {
+            if (MultiSignerLib.isValidSignature(hash_, $_.signers[signerIndex], sigWrappers[i].signatureData)) {
                 alreadySigned |= mask;
             } else {
                 return false;
@@ -77,45 +77,45 @@ library MultiSignerSignatureLib {
     }
 
     /**
-     * @notice validates if `_hash` was signed by the signer set present in `$` and '_signers`.
-     * @param $ Storage reference to MultiSigner storage.
-     * @param _signers list of 256 possible signers. Has higher preference over signers present in storage at a given
+     * @notice validates if `hash_` was signed by the signer set present in `$` and 'signers_`.
+     * @param $_ Storage reference to MultiSigner storage.
+     * @param signers_ list of 256 possible signers. Has higher preference over signers present in storage at a given
      * index.
-     * @param _threshold signer set threshold used for verification.
-     * @param _hash blob of data that needs to be verified.
-     * @param _signature abi.encode(Signature)
+     * @param threshold_ signer set threshold used for verification.
+     * @param hash_ blob of data that needs to be verified.
+     * @param signature_ abi.encode(Signature)
      */
     function isValidSignature(
-        MultiSignerLib.MultiSignerStorage storage $,
-        bytes[256] memory _signers,
-        uint8 _threshold,
-        bytes32 _hash,
-        bytes memory _signature
+        MultiSignerLib.MultiSignerStorage storage $_,
+        bytes[256] memory signers_,
+        uint8 threshold_,
+        bytes32 hash_,
+        bytes memory signature_
     )
         internal
         view
         returns (bool)
     {
-        Signature memory signature = abi.decode(_signature, (Signature));
+        Signature memory signature = abi.decode(signature_, (Signature));
         SignatureWrapper[] memory sigWrappers = signature.signature;
 
         uint256 alreadySigned;
         uint256 mask;
         uint8 signerIndex;
         bytes memory signer;
-        for (uint256 i; i < _threshold; i++) {
+        for (uint256 i; i < threshold_; i++) {
             signerIndex = sigWrappers[i].signerIndex;
             mask = (1 << signerIndex);
             if (alreadySigned & mask != 0) return false;
 
-            signer = _signers[signerIndex];
+            signer = signers_[signerIndex];
             if (signer.length == 0) {
-                signer = $.signers[signerIndex];
+                signer = $_.signers[signerIndex];
             } else if (bytes32(signer) == SIGNER_REMOVED) {
                 return false;
             }
 
-            if (MultiSignerLib.isValidSignature(_hash, signer, sigWrappers[i].signatureData)) {
+            if (MultiSignerLib.isValidSignature(hash_, signer, sigWrappers[i].signatureData)) {
                 alreadySigned |= mask;
             } else {
                 return false;

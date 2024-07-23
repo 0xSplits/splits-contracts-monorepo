@@ -58,20 +58,20 @@ library MultiSignerLib {
      * @notice Validates the list of `signers` and `threshold`.
      * @dev Throws error when number of signers is zero or greater than 255.
      * @dev Throws error if `threshold` is zero or greater than number of signers.
-     * @param _signers abi encoded list of signers (passkey/eoa).
-     * @param _threshold minimum number of signers required for approval.
+     * @param signers_ abi encoded list of signers (passkey/eoa).
+     * @param threshold_ minimum number of signers required for approval.
      */
-    function validateSigners(bytes[] calldata _signers, uint8 _threshold) internal view {
-        if (_signers.length > 255 || _signers.length == 0) revert InvalidNumberOfSigners();
+    function validateSigners(bytes[] calldata signers_, uint8 threshold_) internal view {
+        if (signers_.length > 255 || signers_.length == 0) revert InvalidNumberOfSigners();
 
-        uint8 numberOfSigners = uint8(_signers.length);
+        uint8 numberOfSigners = uint8(signers_.length);
 
-        if (numberOfSigners < _threshold || _threshold < 1) revert InvalidThreshold();
+        if (numberOfSigners < threshold_ || threshold_ < 1) revert InvalidThreshold();
 
         bytes memory signer;
 
         for (uint8 i; i < numberOfSigners; i++) {
-            signer = _signers[i];
+            signer = signers_[i];
 
             validateSigner(signer);
         }
@@ -82,19 +82,19 @@ library MultiSignerLib {
      * @dev Throws error when length of signer is neither 32 or 64.
      * @dev Throws error if signer is invalid address or if address has code.
      */
-    function validateSigner(bytes memory _signer) internal view {
-        if (_signer.length != 32 && _signer.length != 64) {
-            revert InvalidSignerBytesLength(_signer);
+    function validateSigner(bytes memory signer_) internal view {
+        if (signer_.length != 32 && signer_.length != 64) {
+            revert InvalidSignerBytesLength(signer_);
         }
 
-        if (_signer.length == 32) {
-            if (uint256(bytes32(_signer)) > type(uint160).max) revert InvalidEthereumAddressOwner(_signer);
+        if (signer_.length == 32) {
+            if (uint256(bytes32(signer_)) > type(uint160).max) revert InvalidEthereumAddressOwner(signer_);
             address eoa;
             assembly ("memory-safe") {
-                eoa := mload(add(_signer, 32))
+                eoa := mload(add(signer_, 32))
             }
 
-            if (eoa.code.length > 0) revert InvalidEthereumAddressOwner(_signer);
+            if (eoa.code.length > 0) revert InvalidEthereumAddressOwner(signer_);
         }
     }
 
@@ -102,41 +102,41 @@ library MultiSignerLib {
      * @notice validates if the signature provided by the signer at `signerIndex` is valid for the hash.
      */
     function isValidSignature(
-        bytes32 _hash,
-        bytes memory _signer,
-        bytes memory _signature
+        bytes32 hash_,
+        bytes memory signer_,
+        bytes memory signature_
     )
         internal
         view
         returns (bool isValid)
     {
-        if (_signer.length == 32) {
-            isValid = isValidSignatureEOA(_hash, _signer, _signature);
-        } else if (_signer.length == 64) {
-            isValid = isValidSignaturePasskey(_hash, _signer, _signature);
+        if (signer_.length == 32) {
+            isValid = isValidSignatureEOA(hash_, signer_, signature_);
+        } else if (signer_.length == 64) {
+            isValid = isValidSignaturePasskey(hash_, signer_, signature_);
         }
     }
 
     function isValidSignaturePasskey(
-        bytes32 _hash,
-        bytes memory _signer,
-        bytes memory _signature
+        bytes32 hash_,
+        bytes memory signer_,
+        bytes memory signature_
     )
         internal
         view
         returns (bool)
     {
-        (uint256 x, uint256 y) = abi.decode(_signer, (uint256, uint256));
+        (uint256 x, uint256 y) = abi.decode(signer_, (uint256, uint256));
 
-        WebAuthn.WebAuthnAuth memory auth = abi.decode(_signature, (WebAuthn.WebAuthnAuth));
+        WebAuthn.WebAuthnAuth memory auth = abi.decode(signature_, (WebAuthn.WebAuthnAuth));
 
-        return WebAuthn.verify({ challenge: abi.encode(_hash), requireUV: false, webAuthnAuth: auth, x: x, y: y });
+        return WebAuthn.verify({ challenge: abi.encode(hash_), requireUV: false, webAuthnAuth: auth, x: x, y: y });
     }
 
     function isValidSignatureEOA(
-        bytes32 _hash,
-        bytes memory _signer,
-        bytes memory _signature
+        bytes32 hash_,
+        bytes memory signer_,
+        bytes memory signature_
     )
         internal
         view
@@ -144,9 +144,9 @@ library MultiSignerLib {
     {
         address owner;
         assembly ("memory-safe") {
-            owner := mload(add(_signer, 32))
+            owner := mload(add(signer_, 32))
         }
 
-        return SignatureCheckerLib.isValidSignatureNow(owner, _hash, _signature);
+        return SignatureCheckerLib.isValidSignatureNow(owner, hash_, signature_);
     }
 }

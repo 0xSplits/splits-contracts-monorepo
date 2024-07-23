@@ -22,7 +22,7 @@ abstract contract MultiSigner {
      *      keccak256(abi.encode(uint256(keccak256("splits.storage.MultiSigner")) - 1)) & ~bytes32(uint256(0xff))
      *      Follows ERC-7201 (see https://eips.ethereum.org/EIPS/eip-7201).
      */
-    bytes32 private constant MUTLI_SIGNER_STORAGE_LOCATION =
+    bytes32 private constant _MUTLI_SIGNER_STORAGE_LOCATION =
         0xc6b44c835744ff7e5272b762d148484b103b956d9f16ac625b855244e8132a00;
 
     /* -------------------------------------------------------------------------- */
@@ -100,8 +100,8 @@ abstract contract MultiSigner {
     /* -------------------------------------------------------------------------- */
 
     /// @notice Returns the owner bytes at the given `index`.
-    function getSignerAtIndex(uint8 index) public view virtual returns (bytes memory) {
-        return _getMultiSignerStorage().signers[index];
+    function getSignerAtIndex(uint8 index_) public view virtual returns (bytes memory) {
+        return _getMultiSignerStorage().signers[index_];
     }
 
     /// @notice Returns the current number of signers
@@ -129,43 +129,44 @@ abstract contract MultiSigner {
      * @dev Reverts if `signer` is already registered.
      * @dev Reverts if `index` already has a signer.
      *
-     * @param _signer The owner raw bytes to register.
+     * @param signer_ The owner raw bytes to register.
+     * @param index_ The index to register the signer.
      */
-    function addSigner(bytes calldata _signer, uint8 _index) public OnlyAuthorized {
-        _addSigner(_signer, _index);
+    function addSigner(bytes calldata signer_, uint8 index_) public OnlyAuthorized {
+        _addSigner(signer_, index_);
     }
 
     /**
      * @notice Removes signer at the given `index`.
      *
-     * @param _index The index of the signer to be removed.
+     * @param index_ The index of the signer to be removed.
      */
-    function removeSigner(uint8 _index) public OnlyAuthorized {
-        _removeSigner(_index);
+    function removeSigner(uint8 index_) public OnlyAuthorized {
+        _removeSigner(index_);
     }
 
     /**
      * @notice Updates threshold of the signer set.
-     * @param _threshold The new signer set threshold.
+     * @param threshold_ The new signer set threshold.
      * @dev Reverts if 'threshold' is greater than owner count.
      * @dev Reverts if 'threshold' is 0.
      */
-    function updateThreshold(uint8 _threshold) public OnlyAuthorized {
-        _updateThreshold(_threshold);
+    function updateThreshold(uint8 threshold_) public OnlyAuthorized {
+        _updateThreshold(threshold_);
     }
 
     /**
      * @notice Updates nonce of the signer set.
-     * @param _nonce nonce to set.
+     * @param nonce_ nonce to set.
      */
-    function setNonce(uint256 _nonce) public OnlyAuthorized {
+    function setNonce(uint256 nonce_) public OnlyAuthorized {
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
 
-        if (_nonce <= $.nonce) revert InvalidNonce();
+        if (nonce_ <= $.nonce) revert InvalidNonce();
 
-        $.nonce = _nonce;
+        $.nonce = nonce_;
 
-        emit updateNonce(_nonce);
+        emit updateNonce(nonce_);
     }
 
     /* -------------------------------------------------------------------------- */
@@ -179,22 +180,22 @@ abstract contract MultiSigner {
      * @dev Reverts if 'threshold' is less than number of signers.
      * @dev Reverts if 'threshold' is 0.
      * @dev Reverts if number of signers is more than 256.
-     * @param _signers The initial set of signers.
-     * @param _threshold The number of signers needed for approval.
+     * @param signers_ The initial set of signers.
+     * @param threshold_ The number of signers needed for approval.
      */
-    function _initializeSigners(bytes[] calldata _signers, uint8 _threshold) internal virtual {
-        if (_signers.length > 255 || _signers.length == 0) revert InvalidNumberOfSigners();
+    function _initializeSigners(bytes[] calldata signers_, uint8 threshold_) internal virtual {
+        if (signers_.length > 255 || signers_.length == 0) revert InvalidNumberOfSigners();
 
-        uint8 numberOfSigners = uint8(_signers.length);
+        uint8 numberOfSigners = uint8(signers_.length);
 
-        if (numberOfSigners < _threshold || _threshold < 1) revert InvalidThreshold();
+        if (numberOfSigners < threshold_ || threshold_ < 1) revert InvalidThreshold();
 
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
 
         bytes memory signer;
 
         for (uint8 i; i < numberOfSigners; i++) {
-            signer = _signers[i];
+            signer = signers_[i];
 
             MultiSignerLib.validateSigner(signer);
 
@@ -204,13 +205,13 @@ abstract contract MultiSigner {
         }
 
         $.signerCount = numberOfSigners;
-        $.threshold = _threshold;
+        $.threshold = threshold_;
     }
 
     /// @notice Helper function to get a storage reference to the `MultiSignerStorage` struct.
     function _getMultiSignerStorage() internal pure returns (MultiSignerLib.MultiSignerStorage storage $) {
         assembly ("memory-safe") {
-            $.slot := MUTLI_SIGNER_STORAGE_LOCATION
+            $.slot := _MUTLI_SIGNER_STORAGE_LOCATION
         }
     }
 
@@ -243,12 +244,12 @@ abstract contract MultiSigner {
         emit RemoveSigner(_index, signer);
     }
 
-    function _updateThreshold(uint8 _threshold) internal {
-        if (_threshold == 0) revert InvalidThreshold();
+    function _updateThreshold(uint8 threshold_) internal {
+        if (threshold_ == 0) revert InvalidThreshold();
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
-        if ($.signerCount < _threshold) revert InvalidThreshold();
-        $.threshold = _threshold;
+        if ($.signerCount < threshold_) revert InvalidThreshold();
+        $.threshold = threshold_;
 
-        emit UpdateThreshold(_threshold);
+        emit UpdateThreshold(threshold_);
     }
 }

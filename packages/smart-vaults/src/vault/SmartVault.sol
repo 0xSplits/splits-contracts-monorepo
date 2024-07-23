@@ -23,6 +23,7 @@ import { UUPSUpgradeable } from "solady/utils/UUPSUpgradeable.sol";
  */
 contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, Receiver {
     using UserOperationLib for IAccount.PackedUserOperation;
+
     /* -------------------------------------------------------------------------- */
     /*                                   STRUCTS                                  */
     /* -------------------------------------------------------------------------- */
@@ -172,17 +173,17 @@ contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, 
      *      EntryPoint more than the minimum required, so that in future transactions it will not
      *      be required to send again).
      *
-     * @param _missingAccountFunds The minimum value this modifier should send the EntryPoint which
+     * @param missingAccountFunds_ The minimum value this modifier should send the EntryPoint which
      *                            MAY be zero, in case there is enough deposit, or the userOp has a
      *                            paymaster.
      */
-    modifier payPrefund(uint256 _missingAccountFunds) virtual {
+    modifier payPrefund(uint256 missingAccountFunds_) virtual {
         _;
 
         assembly ("memory-safe") {
-            if _missingAccountFunds {
+            if missingAccountFunds_ {
                 // Ignore failure (it's EntryPoint's job to verify, not the account's).
-                pop(call(gas(), caller(), _missingAccountFunds, codesize(), 0x00, codesize(), 0x00))
+                pop(call(gas(), caller(), missingAccountFunds_, codesize(), 0x00, codesize(), 0x00))
             }
         }
     }
@@ -191,8 +192,8 @@ contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, 
     /*                                 CONSTRUCTOR                                */
     /* -------------------------------------------------------------------------- */
 
-    constructor(address _factory) ERC1271("splitSmartVault", "1") {
-        FACTORY = _factory;
+    constructor(address factory_) ERC1271("splitsSmartVault", "1") {
+        FACTORY = factory_;
     }
 
     /* -------------------------------------------------------------------------- */
@@ -204,17 +205,17 @@ contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, 
      *
      * @dev Reverts if caller is not factory.
      *
-     * @param _owner Root owner of the smart account.
-     * @param _signers Array of initial signers for this account. Each item should be
+     * @param owner_ Root owner of the smart account.
+     * @param signers_ Array of initial signers for this account. Each item should be
      *               an ABI encoded Ethereum address, i.e. 32 bytes with 12 leading 0 bytes,
      *               or a 64 byte public key.
-     * @param _threshold Number of signers required to approve a signature.
+     * @param threshold_ Number of signers required to approve a signature.
      */
-    function initialize(address _owner, bytes[] calldata _signers, uint8 _threshold) external payable {
+    function initialize(address owner_, bytes[] calldata signers_, uint8 threshold_) external payable {
         if (msg.sender != FACTORY) revert OnlyFactory();
 
-        _initializeSigners(_signers, _threshold);
-        _initializeOwner(_owner);
+        _initializeSigners(signers_, threshold_);
+        _initializeOwner(owner_);
     }
 
     /**
@@ -226,9 +227,9 @@ contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, 
      *
      * @dev Must validate caller is the entryPoint.
      *      Must validate the signature and nonce
-     * @param _userOp              - The operation that is about to be executed.
-     * @param _userOpHash          - Hash of the user's request data. can be used as the basis for signature.
-     * @param _missingAccountFunds - Missing funds on the account's deposit in the entrypoint.
+     * @param userOp_              - The operation that is about to be executed.
+     * @param userOpHash_          - Hash of the user's request data. can be used as the basis for signature.
+     * @param missingAccountFunds_ - Missing funds on the account's deposit in the entrypoint.
      *                              This is the minimum amount to transfer to the sender(entryPoint) to be
      *                              able to make the call. The excess is left as a deposit in the entrypoint
      *                              for future calls. Can be withdrawn anytime using "entryPoint.withdrawTo()".
@@ -245,23 +246,23 @@ contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, 
      *                              Note that the validation code cannot use block.timestamp (or block.number) directly.
      */
     function validateUserOp(
-        IAccount.PackedUserOperation calldata _userOp,
-        bytes32 _userOpHash,
-        uint256 _missingAccountFunds
+        IAccount.PackedUserOperation calldata userOp_,
+        bytes32 userOpHash_,
+        uint256 missingAccountFunds_
     )
         external
         onlyEntryPoint
-        payPrefund(_missingAccountFunds)
+        payPrefund(missingAccountFunds_)
         returns (uint256 validationData)
     {
-        bytes memory signature = _preValidationStateSync(_userOp.signature);
+        bytes memory signature = _preValidationStateSync(userOp_.signature);
 
         UserOpSignature memory userOpSignature = abi.decode(signature, (UserOpSignature));
 
         if (userOpSignature.sigType == UserOpSignatureType.Single) {
-            return _validateSingleUserOp(_userOp, _userOpHash, userOpSignature.signature);
+            return _validateSingleUserOp(userOp_, userOpHash_, userOpSignature.signature);
         } else if (userOpSignature.sigType == UserOpSignatureType.Multi) {
-            return _validateMultiUserOp(_userOp, _userOpHash, userOpSignature.signature);
+            return _validateMultiUserOp(userOp_, userOpHash_, userOpSignature.signature);
         }
         revert InvalidUserOpSignatureType();
     }
@@ -271,12 +272,12 @@ contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, 
      *
      * @dev Can only be called by the Entrypoint or a root owner of this account.
      *
-     * @param _target The address to call.
-     * @param _value  The value to send with the call.
-     * @param _data   The data of the call.
+     * @param target_ The address to call.
+     * @param value_  The value to send with the call.
+     * @param data_   The data of the call.
      */
-    function execute(address _target, uint256 _value, bytes calldata _data) external payable onlyEntryPointOrOwner {
-        _call(_target, _value, _data);
+    function execute(address target_, uint256 value_, bytes calldata data_) external payable onlyEntryPointOrOwner {
+        _call(target_, value_, data_);
     }
 
     /**
@@ -284,11 +285,12 @@ contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, 
      *
      * @dev Can only be called by the Entrypoint or a root owner of this account.
      *
-     * @param _calls The list of `Call`s to execute.
+     * @param calls_ The list of `Call`s to execute.
      */
-    function executeBatch(Call[] calldata _calls) external payable onlyEntryPointOrOwner {
-        for (uint256 i; i < _calls.length; i++) {
-            _call(_calls[i].target, _calls[i].value, _calls[i].data);
+    function executeBatch(Call[] calldata calls_) external payable onlyEntryPointOrOwner {
+        uint256 numCalls = calls_.length;
+        for (uint256 i; i < numCalls; i++) {
+            _call(calls_[i].target, calls_[i].value, calls_[i].data);
         }
     }
 
@@ -300,11 +302,11 @@ contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, 
     /**
      * @notice Returns the implementation of the ERC1967 proxy.
      *
-     * @return implementation_ The address of implementation contract.
+     * @return implementation The address of implementation contract.
      */
-    function getImplementation() public view returns (address implementation_) {
+    function getImplementation() public view returns (address implementation) {
         assembly {
-            implementation_ := sload(_ERC1967_IMPLEMENTATION_SLOT)
+            implementation := sload(_ERC1967_IMPLEMENTATION_SLOT)
         }
     }
 
@@ -314,12 +316,12 @@ contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, 
      * bytecode `initCode` and `msg.value` as inputs. In order to save deployment costs,
      * we do not sanity check the `initCode` length. Note that if `msg.value` is non-zero,
      * `initCode` must have a `payable` constructor.
-     * @param _initCode The creation bytecode.
+     * @param initCode_ The creation bytecode.
      * @return newContract The 20-byte address where the contract was deployed.
      */
-    function deployCreate(bytes memory _initCode) public payable onlySelfOrOwner returns (address newContract) {
+    function deployCreate(bytes memory initCode_) public payable onlySelfOrOwner returns (address newContract) {
         assembly ("memory-safe") {
-            newContract := create(callvalue(), add(_initCode, 0x20), mload(_initCode))
+            newContract := create(callvalue(), add(initCode_, 0x20), mload(initCode_))
         }
 
         if (newContract == address(0) || newContract.code.length == 0) {
@@ -334,12 +336,12 @@ contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, 
     /**
      * @notice Get light user op hash for the giver userOp
      */
-    function _getLightUserOpHash(IAccount.PackedUserOperation calldata _userOp) internal view returns (bytes32) {
-        return keccak256(abi.encode(_userOp.hashLight(), entryPoint(), block.chainid));
+    function _getLightUserOpHash(IAccount.PackedUserOperation calldata userOp_) internal view returns (bytes32) {
+        return keccak256(abi.encode(userOp_.hashLight(), entryPoint(), block.chainid));
     }
 
-    function _call(address _target, uint256 _value, bytes memory _data) internal {
-        (bool success, bytes memory result) = _target.call{ value: _value }(_data);
+    function _call(address target_, uint256 value_, bytes memory data_) internal {
+        (bool success, bytes memory result) = target_.call{ value: value_ }(data_);
         if (!success) {
             assembly ("memory-safe") {
                 revert(add(result, 32), mload(result))
@@ -354,8 +356,8 @@ contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, 
     /**
      * @notice validates if the given hash was signed by the signers.
      */
-    function _isValidSignature(bytes32 _hash, bytes calldata _signature) internal view override returns (bool) {
-        Signature memory rootSignature = abi.decode(_signature, (Signature));
+    function _isValidSignature(bytes32 hash_, bytes calldata signature_) internal view override returns (bool) {
+        Signature memory rootSignature = abi.decode(signature_, (Signature));
 
         if (rootSignature.sigType == SignatureType.LightSync) {
             LightSyncSignature memory stateSyncSignature = abi.decode(rootSignature.signature, (LightSyncSignature));
@@ -363,23 +365,23 @@ contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, 
 
             UserOpSignature memory userOpSignature = abi.decode(stateSyncSignature.userOpSignature, (UserOpSignature));
             return MultiSignerSignatureLib.isValidSignature({
-                $: _getMultiSignerStorage(),
-                _signers: signers,
-                _threshold: threshold,
-                _hash: _hash,
-                _signature: userOpSignature.signature
+                $_: _getMultiSignerStorage(),
+                signers_: signers,
+                threshold_: threshold,
+                hash_: hash_,
+                signature_: userOpSignature.signature
             });
         } else if (rootSignature.sigType == SignatureType.UserOp) {
             UserOpSignature memory userOpSignature = abi.decode(rootSignature.signature, (UserOpSignature));
-            return MultiSignerSignatureLib.isValidSignature(_getMultiSignerStorage(), _hash, userOpSignature.signature);
+            return MultiSignerSignatureLib.isValidSignature(_getMultiSignerStorage(), hash_, userOpSignature.signature);
         } else {
             revert InvalidSignatureType();
         }
     }
 
     /// @notice decodes signature, updates state and returns the user op signature
-    function _preValidationStateSync(bytes memory _signature) internal returns (bytes memory) {
-        Signature memory rootSignature = abi.decode(_signature, (Signature));
+    function _preValidationStateSync(bytes memory signature_) internal returns (bytes memory) {
+        Signature memory rootSignature = abi.decode(signature_, (Signature));
 
         if (rootSignature.sigType == SignatureType.LightSync) {
             LightSyncSignature memory stateSyncSignature = abi.decode(rootSignature.signature, (LightSyncSignature));
@@ -395,45 +397,45 @@ contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, 
     /// @notice Validates a single user operation. First n-1 signatures are verified against a light user op hash of
     /// `_userOp`. The nth signature is verified against `_userOpHash`.
     function _validateSingleUserOp(
-        IAccount.PackedUserOperation calldata _userOp,
-        bytes32 _userOpHash,
-        bytes memory _signature
+        IAccount.PackedUserOperation calldata userOp_,
+        bytes32 userOpHash_,
+        bytes memory signature_
     )
         internal
         view
         returns (uint256 validationData)
     {
-        return _validateSignature(_getLightUserOpHash(_userOp), _userOpHash, _signature);
+        return _validateSignature(_getLightUserOpHash(userOp_), userOpHash_, signature_);
     }
 
     /// @notice Validates a multi user op signature using merkleProofs.
     function _validateMultiUserOp(
-        IAccount.PackedUserOperation calldata _userOp,
-        bytes32 _userOpHash,
-        bytes memory _signature
+        IAccount.PackedUserOperation calldata userOp_,
+        bytes32 userOpHash_,
+        bytes memory signature_
     )
         internal
         view
         returns (uint256 validationData)
     {
-        MultiOpSignature memory signature = abi.decode(_signature, (MultiOpSignature));
-        bytes32 lightHash = _getLightUserOpHash(_userOp);
+        MultiOpSignature memory signature = abi.decode(signature_, (MultiOpSignature));
+        bytes32 lightHash = _getLightUserOpHash(userOp_);
 
         if (signature.lightMerkleTreeRoot != bytes32(0)) {
             if (!MerkleProof.verify(signature.lightMerkleProof, signature.lightMerkleTreeRoot, lightHash)) {
                 revert InvalidMerkleProof();
             }
         }
-        if (!MerkleProof.verify(signature.merkleProof, signature.merkleTreeRoot, _userOpHash)) {
+        if (!MerkleProof.verify(signature.merkleProof, signature.merkleTreeRoot, userOpHash_)) {
             revert InvalidMerkleProof();
         }
         return _validateSignature(signature.lightMerkleTreeRoot, signature.merkleTreeRoot, signature.normalSignature);
     }
 
     function _validateSignature(
-        bytes32 _lightHash,
-        bytes32 _hash,
-        bytes memory _signature
+        bytes32 lightHash_,
+        bytes32 hash_,
+        bytes memory signature_
     )
         internal
         view
@@ -441,7 +443,7 @@ contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, 
     {
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
         MultiSignerSignatureLib.SignatureWrapper[] memory sigWrappers =
-            abi.decode(_signature, (MultiSignerSignatureLib.Signature)).signature;
+            abi.decode(signature_, (MultiSignerSignatureLib.Signature)).signature;
 
         uint8 threshold = $.threshold;
 
@@ -457,7 +459,7 @@ contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, 
             mask = (1 << signerIndex);
             if (alreadySigned & mask != 0) return UserOperationLib.INVALID_SIGNATURE;
 
-            isValid = MultiSignerLib.isValidSignature(_lightHash, $.signers[signerIndex], sigWrappers[i].signatureData);
+            isValid = MultiSignerLib.isValidSignature(lightHash_, $.signers[signerIndex], sigWrappers[i].signatureData);
 
             if (isValid) {
                 alreadySigned |= mask;
@@ -471,7 +473,7 @@ contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, 
         mask = (1 << signerIndex);
         if (alreadySigned & mask != 0) return UserOperationLib.INVALID_SIGNATURE;
 
-        return MultiSignerLib.isValidSignature(_hash, $.signers[signerIndex], sigWrappers[threshold - 1].signatureData)
+        return MultiSignerLib.isValidSignature(hash_, $.signers[signerIndex], sigWrappers[threshold - 1].signatureData)
             ? UserOperationLib.VALID_SIGNATURE
             : UserOperationLib.INVALID_SIGNATURE;
     }

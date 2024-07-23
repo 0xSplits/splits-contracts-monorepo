@@ -37,7 +37,7 @@ abstract contract ERC1271 is EIP712 {
     /**
      * @dev Initializes the {EIP712} domain separator.
      */
-    constructor(string memory _name, string memory _version) EIP712(_name, _version) { }
+    constructor(string memory name_, string memory version_) EIP712(name_, version_) { }
 
     /* -------------------------------------------------------------------------- */
     /*                              PUBLIC FUNCTIONS                              */
@@ -49,12 +49,12 @@ abstract contract ERC1271 is EIP712 {
      * @dev IMPORTANT: Signature verification is performed on the hash produced AFTER applying the anti
      *      cross-account-replay layer on the given `hash` (i.e., verification is run on the replay-safe
      *      hash version).
-     * @param _hash      The original hash.
-     * @param _signature The signature of the replay-safe hash to validate.
+     * @param hash_      The original hash.
+     * @param signature_ The signature of the replay-safe hash to validate.
      * @return result `0x1626ba7e` if validation succeeded, else `0xffffffff`.
      */
-    function isValidSignature(bytes32 _hash, bytes calldata _signature) public view virtual returns (bytes4) {
-        if (_isValidSignature(replaySafeHash(_hash), _signature)) {
+    function isValidSignature(bytes32 hash_, bytes calldata signature_) public view virtual returns (bytes4) {
+        if (_isValidSignature(replaySafeHash(hash_), signature_)) {
             // bytes4(keccak256("isValidSignature(bytes32,bytes)"))
             return 0x1626ba7e;
         }
@@ -73,8 +73,8 @@ abstract contract ERC1271 is EIP712 {
      *      }))
      *  )
      */
-    function replaySafeHash(bytes32 _hash) public view virtual returns (bytes32) {
-        return _hashTypedDataV4(keccak256(abi.encode(_MESSAGE_TYPEHASH, _hash)));
+    function replaySafeHash(bytes32 hash_) public view virtual returns (bytes32) {
+        return _hashTypedDataV4(keccak256(abi.encode(_MESSAGE_TYPEHASH, hash_)));
     }
 
     /* -------------------------------------------------------------------------- */
@@ -84,9 +84,9 @@ abstract contract ERC1271 is EIP712 {
     /**
      * @notice Validates the `signature` against the given `hash`.
      * @dev MUST be defined by the implementation.
-     * @param _hash      The hash whose signature has been performed on.
-     * @param _signature The signature associated with `hash`.
+     * @param hash_      The hash whose signature has been performed on.
+     * @param signature_ The signature associated with `hash`.
      * @return `true` is the signature is valid, else `false`.
      */
-    function _isValidSignature(bytes32 _hash, bytes calldata _signature) internal view virtual returns (bool);
+    function _isValidSignature(bytes32 hash_, bytes calldata signature_) internal view virtual returns (bool);
 }

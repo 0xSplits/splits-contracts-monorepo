@@ -44,20 +44,20 @@ contract SmartVaultFactory {
      *
      * @dev Deployed as a ERC-1967 proxy that's implementation is `this.implementation`.
      *
-     * @param _owner Root owner of the smart vault.
-     * @param _signers Array of initial signers. Each item should be an ABI encoded address or 64 byte public key.
-     * @param _threshold Number of approvals needed for a valid user op/hash.
-     * @param _salt  The salt of the account, a caller defined value which allows multiple accounts
+     * @param owner_ Root owner of the smart vault.
+     * @param signers_ Array of initial signers. Each item should be an ABI encoded address or 64 byte public key.
+     * @param threshold_ Number of approvals needed for a valid user op/hash.
+     * @param salt_  The salt of the account, a caller defined value which allows multiple accounts
      *               with the same `signers` to exist at different addresses.
      *
      * @return account The address of the ERC-1967 proxy created with inputs `owners`, `nonce`, and
      *                 `this.implementation`.
      */
     function createAccount(
-        address _owner,
-        bytes[] calldata _signers,
-        uint8 _threshold,
-        uint256 _salt
+        address owner_,
+        bytes[] calldata signers_,
+        uint8 threshold_,
+        uint256 salt_
     )
         external
         payable
@@ -65,20 +65,20 @@ contract SmartVaultFactory {
         returns (SmartVault account)
     {
         (bool alreadyDeployed, address accountAddress) = LibClone.createDeterministicERC1967(
-            msg.value, IMPLEMENTATION, _getSalt(_owner, _signers, _threshold, _salt)
+            msg.value, IMPLEMENTATION, _getSalt(owner_, signers_, threshold_, salt_)
         );
 
         account = SmartVault(payable(accountAddress));
 
         if (!alreadyDeployed) {
-            account.initialize(_owner, _signers, _threshold);
+            account.initialize(owner_, signers_, threshold_);
 
             emit SmartVaultCreated({
                 vault: accountAddress,
-                owner: _owner,
-                signers: _signers,
-                threshold: _threshold,
-                salt: _salt
+                owner: owner_,
+                signers: signers_,
+                threshold: threshold_,
+                salt: salt_
             });
         }
     }
@@ -88,26 +88,26 @@ contract SmartVaultFactory {
      *
      * @dev Reverts when the initial configuration of signers is invalid.
      *
-     * @param _owner Root owner of the smart vault.
-     * @param _signers Array of initial signers. Each item should be an ABI encoded address or 64 byte public key.
-     * @param _threshold Number of approvals needed for a valid user op/hash.
-     * @param _salt  The salt provided to `createAccount()`.
+     * @param owner_ Root owner of the smart vault.
+     * @param signers_ Array of initial signers. Each item should be an ABI encoded address or 64 byte public key.
+     * @param threshold_ Number of approvals needed for a valid user op/hash.
+     * @param salt_  The salt provided to `createAccount()`.
      *
      * @return The predicted account deployment address.
      */
     function getAddress(
-        address _owner,
-        bytes[] calldata _signers,
-        uint8 _threshold,
-        uint256 _salt
+        address owner_,
+        bytes[] calldata signers_,
+        uint8 threshold_,
+        uint256 salt_
     )
         external
         view
         returns (address)
     {
-        MultiSignerLib.validateSigners(_signers, _threshold);
+        MultiSignerLib.validateSigners(signers_, threshold_);
         return LibClone.predictDeterministicAddress(
-            initCodeHash(), _getSalt(_owner, _signers, _threshold, _salt), address(this)
+            initCodeHash(), _getSalt(owner_, signers_, threshold_, salt_), address(this)
         );
     }
 
@@ -123,15 +123,15 @@ contract SmartVaultFactory {
 
     /// @notice Returns the create2 salt for `LibClone.predictDeterministicAddress`
     function _getSalt(
-        address _owner,
-        bytes[] calldata _signers,
-        uint8 _threshold,
-        uint256 _salt
+        address owner_,
+        bytes[] calldata signers_,
+        uint8 threshold_,
+        uint256 salt_
     )
         internal
         pure
         returns (bytes32)
     {
-        return keccak256(abi.encode(_owner, _signers, _threshold, _salt));
+        return keccak256(abi.encode(owner_, signers_, threshold_, salt_));
     }
 }
