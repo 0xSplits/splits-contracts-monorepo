@@ -82,11 +82,14 @@ abstract contract LightSyncMultiSigner is MultiSigner {
     /// @notice reverts if validation fails
     function _validateSignerSetUpdate(SignerSetUpdate memory signerUpdate_) internal view {
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
-        if (
-            !MultiSignerSignatureLib.isValidSignature(
-                $, _getSignerUpdateHash(signerUpdate_, $.nonce), signerUpdate_.normalSignature
-            )
-        ) revert SignerSetUpdateValidationFailed(signerUpdate_);
+        (bool isValid,) = MultiSignerSignatureLib.isValidSignature({
+            $_: $,
+            threshold_: $.threshold,
+            hash_: _getSignerUpdateHash(signerUpdate_, $.nonce),
+            signatures_: abi.decode(signerUpdate_.normalSignature, (MultiSignerSignatureLib.Signature)).signature,
+            alreadySigned_: 0
+        });
+        if (!isValid) revert SignerSetUpdateValidationFailed(signerUpdate_);
     }
 
     function _processSignerSetUpdate(SignerSetUpdate memory signerUpdate_) internal {
@@ -122,15 +125,16 @@ abstract contract LightSyncMultiSigner is MultiSigner {
         view
     {
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
-        if (
-            !MultiSignerSignatureLib.isValidSignature({
-                $_: $,
-                signers_: signers_,
-                threshold_: threshold_,
-                hash_: _getSignerUpdateHash(signerUpdate_, nonce_),
-                signature_: signerUpdate_.normalSignature
-            })
-        ) {
+
+        (bool isValid,) = MultiSignerSignatureLib.isValidSignature({
+            $_: $,
+            signers_: signers_,
+            threshold_: threshold_,
+            hash_: _getSignerUpdateHash(signerUpdate_, nonce_),
+            signatures_: abi.decode(signerUpdate_.normalSignature, (MultiSignerSignatureLib.Signature)).signature,
+            alreadySigned_: 0
+        });
+        if (!isValid) {
             revert SignerSetUpdateValidationFailed(signerUpdate_);
         }
     }

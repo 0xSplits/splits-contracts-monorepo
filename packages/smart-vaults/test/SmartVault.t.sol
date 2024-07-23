@@ -331,7 +331,7 @@ contract SmartVaultTest is BaseTest {
         vault.validateUserOp(_userOp, _hash, _missingAccountsFund);
     }
 
-    function testFuzz_validateUserOp_WhenNumberOfSignaturesLessThanThreshold(
+    function testFuzz_validateUserOp_RevertsWhen_numberOfSignaturesLessThanThreshold(
         IAccount.PackedUserOperation memory _userOp,
         bytes32 _hash,
         uint256 _missingAccountsFund
@@ -349,8 +349,9 @@ contract SmartVaultTest is BaseTest {
         sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
         _userOp.signature = getRootSignature(sigs);
 
+        vm.expectRevert();
         vm.prank(ENTRY_POINT);
-        assertEq(vault.validateUserOp(_userOp, _hash, _missingAccountsFund), 1);
+        vault.validateUserOp(_userOp, _hash, _missingAccountsFund);
     }
 
     function testFuzz_validateUserOp_RevertsWhenDuplicateSigner(
@@ -563,8 +564,9 @@ contract SmartVaultTest is BaseTest {
         IAccount.PackedUserOperation memory userOp = _userOp;
         userOp.signature = getRootSignature(signerUpdates, sigs);
 
+        vm.expectRevert();
         vm.prank(ENTRY_POINT);
-        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 1);
+        vault.validateUserOp(userOp, hash, _missingAccountsFund);
     }
 
     /* -------------------------------------------------------------------------- */

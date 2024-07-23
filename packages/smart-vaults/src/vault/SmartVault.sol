@@ -356,7 +356,15 @@ contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, 
     /**
      * @notice validates if the given hash was signed by the signers.
      */
-    function _isValidSignature(bytes32 hash_, bytes calldata signature_) internal view override returns (bool) {
+    function _isValidSignature(
+        bytes32 hash_,
+        bytes calldata signature_
+    )
+        internal
+        view
+        override
+        returns (bool isValid)
+    {
         Signature memory rootSignature = abi.decode(signature_, (Signature));
 
         if (rootSignature.sigType == SignatureType.LightSync) {
@@ -364,16 +372,25 @@ contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, 
             (bytes[256] memory signers, uint8 threshold) = _processSignerSetUpdatesMemory(stateSyncSignature.updates);
 
             UserOpSignature memory userOpSignature = abi.decode(stateSyncSignature.userOpSignature, (UserOpSignature));
-            return MultiSignerSignatureLib.isValidSignature({
+            (isValid,) = MultiSignerSignatureLib.isValidSignature({
                 $_: _getMultiSignerStorage(),
                 signers_: signers,
                 threshold_: threshold,
                 hash_: hash_,
-                signature_: userOpSignature.signature
+                signatures_: abi.decode(userOpSignature.signature, (MultiSignerSignatureLib.Signature)).signature,
+                alreadySigned_: 0
             });
         } else if (rootSignature.sigType == SignatureType.UserOp) {
             UserOpSignature memory userOpSignature = abi.decode(rootSignature.signature, (UserOpSignature));
-            return MultiSignerSignatureLib.isValidSignature(_getMultiSignerStorage(), hash_, userOpSignature.signature);
+            MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
+
+            (isValid,) = MultiSignerSignatureLib.isValidSignature({
+                $_: $,
+                threshold_: $.threshold,
+                hash_: hash_,
+                signatures_: abi.decode(userOpSignature.signature, (MultiSignerSignatureLib.Signature)).signature,
+                alreadySigned_: 0
+            });
         } else {
             revert InvalidSignatureType();
         }
@@ -442,39 +459,35 @@ contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, 
         returns (uint256 validationData)
     {
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
-        MultiSignerSignatureLib.SignatureWrapper[] memory sigWrappers =
-            abi.decode(signature_, (MultiSignerSignatureLib.Signature)).signature;
 
+        MultiSignerSignatureLib.SignatureWrapper[] memory signatures =
+            abi.decode(signature_, (MultiSignerSignatureLib.Signature)).signature;
         uint8 threshold = $.threshold;
 
-        uint256 alreadySigned;
-        uint256 mask;
-        uint8 signerIndex;
-        bool isValid;
-
-        for (uint256 i; i < threshold - 1; i++) {
-            isValid = false;
-            signerIndex = sigWrappers[i].signerIndex;
-
-            mask = (1 << signerIndex);
-            if (alreadySigned & mask != 0) return UserOperationLib.INVALID_SIGNATURE;
-
-            isValid = MultiSignerLib.isValidSignature(lightHash_, $.signers[signerIndex], sigWrappers[i].signatureData);
-
-            if (isValid) {
-                alreadySigned |= mask;
-            } else {
-                return UserOperationLib.INVALID_SIGNATURE;
-            }
+        if (threshold == 1) {
+            return MultiSignerSignatureLib.isValidSignature({
+                $_: $,
+                hash_: hash_,
+                signature_: signatures[0],
+                alreadySigned_: 0
+            }) ? UserOperationLib.VALID_SIGNATURE : UserOperationLib.INVALID_SIGNATURE;
         }
 
-        signerIndex = sigWrappers[threshold - 1].signerIndex;
+        (bool isLightHashValid, uint256 alreadySigned) = MultiSignerSignatureLib.isValidSignature({
+            $_: $,
+            hash_: lightHash_,
+            threshold_: threshold - 1,
+            signatures_: signatures,
+            alreadySigned_: 0
+        });
 
-        mask = (1 << signerIndex);
-        if (alreadySigned & mask != 0) return UserOperationLib.INVALID_SIGNATURE;
+        bool isValid = MultiSignerSignatureLib.isValidSignature({
+            $_: $,
+            hash_: hash_,
+            signature_: signatures[threshold - 1],
+            alreadySigned_: alreadySigned
+        });
 
-        return MultiSignerLib.isValidSignature(hash_, $.signers[signerIndex], sigWrappers[threshold - 1].signatureData)
-            ? UserOperationLib.VALID_SIGNATURE
-            : UserOperationLib.INVALID_SIGNATURE;
+        return isLightHashValid && isValid ? UserOperationLib.VALID_SIGNATURE : UserOperationLib.INVALID_SIGNATURE;
     }
 }
