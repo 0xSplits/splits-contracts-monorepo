@@ -32,7 +32,7 @@ library MultiSignerSignatureLib {
 
     /// signature data required to verify if given data is signed by the signer set present in MultiSigner.
     struct Signature {
-        SignatureWrapper[] signature;
+        SignatureWrapper[] signatures;
     }
 
     /* -------------------------------------------------------------------------- */
@@ -52,10 +52,12 @@ library MultiSignerSignatureLib {
     )
         internal
         view
-        returns (bool)
+        returns (bool isValid)
     {
+        isValid = true;
+
         Signature memory signature = abi.decode(signature_, (Signature));
-        SignatureWrapper[] memory sigWrappers = signature.signature;
+        SignatureWrapper[] memory signatures = signature.signatures;
 
         uint8 threshold = $_.threshold;
 
@@ -63,17 +65,18 @@ library MultiSignerSignatureLib {
         uint256 mask;
         uint8 signerIndex;
         for (uint256 i; i < threshold; i++) {
-            signerIndex = sigWrappers[i].signerIndex;
+            signerIndex = signatures[i].signerIndex;
             mask = (1 << signerIndex);
-            if (alreadySigned & mask != 0) return false;
 
-            if (MultiSignerLib.isValidSignature(hash_, $_.signers[signerIndex], sigWrappers[i].signatureData)) {
+            if (
+                MultiSignerLib.isValidSignature(hash_, $_.signers[signerIndex], signatures[i].signatureData)
+                    && alreadySigned & mask == 0
+            ) {
                 alreadySigned |= mask;
             } else {
-                return false;
+                isValid = false;
             }
         }
-        return true;
     }
 
     /**
@@ -94,33 +97,35 @@ library MultiSignerSignatureLib {
     )
         internal
         view
-        returns (bool)
+        returns (bool isValid)
     {
+        isValid = true;
+
         Signature memory signature = abi.decode(signature_, (Signature));
-        SignatureWrapper[] memory sigWrappers = signature.signature;
+        SignatureWrapper[] memory signatures = signature.signatures;
 
         uint256 alreadySigned;
         uint256 mask;
         uint8 signerIndex;
         bytes memory signer;
         for (uint256 i; i < threshold_; i++) {
-            signerIndex = sigWrappers[i].signerIndex;
+            signerIndex = signatures[i].signerIndex;
             mask = (1 << signerIndex);
-            if (alreadySigned & mask != 0) return false;
 
             signer = signers_[signerIndex];
             if (signer.length == 0) {
                 signer = $_.signers[signerIndex];
             } else if (bytes32(signer) == SIGNER_REMOVED) {
-                return false;
+                isValid = false;
             }
 
-            if (MultiSignerLib.isValidSignature(hash_, signer, sigWrappers[i].signatureData)) {
+            if (
+                MultiSignerLib.isValidSignature(hash_, signer, signatures[i].signatureData) && alreadySigned & mask == 0
+            ) {
                 alreadySigned |= mask;
             } else {
-                return false;
+                isValid = false;
             }
         }
-        return true;
     }
 }

@@ -70,21 +70,28 @@ abstract contract LightSyncMultiSigner is MultiSigner {
 
     function _processSignerSetUpdates(SignerSetUpdate[] memory signerUpdates_) internal {
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
+        uint256 nonce = $.nonce;
         uint256 numUpdates = signerUpdates_.length;
         for (uint256 i; i < numUpdates; i++) {
-            _validateSignerSetUpdate(signerUpdates_[i]);
-            $.nonce += 1;
-            emit updateNonce($.nonce);
+            _validateSignerSetUpdate($, signerUpdates_[i], nonce++);
             _processSignerSetUpdate(signerUpdates_[i]);
         }
+        $.nonce = nonce;
+        emit updateNonce(nonce);
     }
 
     /// @notice reverts if validation fails
-    function _validateSignerSetUpdate(SignerSetUpdate memory signerUpdate_) internal view {
-        MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
+    function _validateSignerSetUpdate(
+        MultiSignerLib.MultiSignerStorage storage $_,
+        SignerSetUpdate memory signerUpdate_,
+        uint256 nonce_
+    )
+        internal
+        view
+    {
         if (
             !MultiSignerSignatureLib.isValidSignature(
-                $, _getSignerUpdateHash(signerUpdate_, $.nonce), signerUpdate_.normalSignature
+                $_, _getSignerUpdateHash(signerUpdate_, nonce_), signerUpdate_.normalSignature
             )
         ) revert SignerSetUpdateValidationFailed(signerUpdate_);
     }
