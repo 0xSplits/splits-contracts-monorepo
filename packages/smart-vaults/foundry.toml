@@ -1,6 +1,6 @@
 [profile.default]
 auto_detect_solc = false
-gas_reports = []
+gas_reports = ["SmartVault"]
 optimizer = true
 optimizer_runs = 5_000_000
 out = "out"
