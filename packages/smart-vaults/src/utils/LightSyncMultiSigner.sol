@@ -107,12 +107,14 @@ abstract contract LightSyncMultiSigner is MultiSigner {
     function _processSignerSetUpdatesMemory(SignerSetUpdate[] memory signerUpdates_)
         internal
         view
-        returns (bytes[256] memory signers, uint8 threshold)
+        returns (bytes memory signers, uint8 threshold)
     {
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
         uint256 nonce = $.nonce;
         threshold = $.threshold;
         uint256 numUpdates = signerUpdates_.length;
+        signers = new bytes(256 * MultiSignerSignatureLib.SIGNER_SIZE);
+
         for (uint256 i; i < numUpdates; i++) {
             _validateSignerSetUpdateMemory({
                 $_: $,
@@ -129,7 +131,7 @@ abstract contract LightSyncMultiSigner is MultiSigner {
     function _validateSignerSetUpdateMemory(
         MultiSignerLib.MultiSignerStorage storage $_,
         SignerSetUpdate memory signerUpdate_,
-        bytes[256] memory signers_,
+        bytes memory signers_,
         uint8 threshold_,
         uint256 nonce_
     )
@@ -151,12 +153,12 @@ abstract contract LightSyncMultiSigner is MultiSigner {
 
     function _processSignerSetUpdateMemory(
         SignerSetUpdate memory signerUpdate_,
-        bytes[256] memory signers_,
+        bytes memory signers_,
         uint8 threshold_
     )
         internal
         view
-        returns (bytes[256] memory, uint8)
+        returns (bytes memory, uint8)
     {
         SignerUpdateParam[] memory updateParams = signerUpdate_.updateParams;
         uint256 numUpdates = updateParams.length;
@@ -167,10 +169,30 @@ abstract contract LightSyncMultiSigner is MultiSigner {
             if (signerUpdateParam.updateType == SignerUpdateType.AddSigner) {
                 (bytes memory signer, uint8 index) = abi.decode(signerUpdateParam.data, (bytes, uint8));
                 MultiSignerLib.validateSigner(signer);
-                signers_[index] = signer;
+
+                uint8 signerType;
+                if (signer.length == 32) {
+                    signerType = MultiSignerSignatureLib.EOA_SIGNER_TYPE;
+                } else {
+                    signerType = MultiSignerSignatureLib.PASSKEY_SIGNER_TYPE;
+                }
+
+                uint256 start = uint256(index) * 65;
+                assembly {
+                    let dataPtr := add(signers_, add(32, start))
+                    mstore8(dataPtr, signerType)
+                    let newDataPtr := add(signer, 32)
+                    mstore(add(dataPtr, 1), mload(newDataPtr))
+                }
             } else if (signerUpdateParam.updateType == SignerUpdateType.RemoveSigner) {
                 uint8 index = abi.decode(signerUpdateParam.data, (uint8));
-                signers_[index] = bytes.concat(MultiSignerSignatureLib.SIGNER_REMOVED);
+                uint8 signerType = MultiSignerSignatureLib.REMOVED_SIGNER_TYPE;
+
+                uint256 start = uint256(index) * 65;
+                assembly {
+                    let dataPtr := add(signers_, add(32, start))
+                    mstore8(dataPtr, signerType)
+                }
             } else if (signerUpdateParam.updateType == SignerUpdateType.UpdateThreshold) {
                 threshold_ = abi.decode(signerUpdateParam.data, (uint8));
             } else {

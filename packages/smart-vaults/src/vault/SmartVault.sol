@@ -364,7 +364,7 @@ contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, 
             return MultiSignerSignatureLib.isValidSignature(_getMultiSignerStorage(), hash_, userOpSignature.signature);
         } else if (rootSignature.sigType == SignatureType.LightSync) {
             LightSyncSignature memory stateSyncSignature = abi.decode(rootSignature.signature, (LightSyncSignature));
-            (bytes[256] memory signers, uint8 threshold) = _processSignerSetUpdatesMemory(stateSyncSignature.updates);
+            (bytes memory signers, uint8 threshold) = _processSignerSetUpdatesMemory(stateSyncSignature.updates);
 
             UserOpSignature memory userOpSignature = abi.decode(stateSyncSignature.userOpSignature, (UserOpSignature));
             return MultiSignerSignatureLib.isValidSignature({

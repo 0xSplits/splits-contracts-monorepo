@@ -706,7 +706,7 @@ contract SmartVaultTest is BaseTest {
         assertTrue(vault.isValidSignature(_hash, getRootSignature(signerUpdates, sigs)) == 0x1626ba7e);
     }
 
-    function testFuzz_erc1271_newSigner_RevertsWhen_invalidNonce(bytes32 _hash) public {
+    function testFuzz_erc1271_newSiger_RevertsWhen_invalidNonce(bytes32 _hash) public {
         address newSigner = CAROL.addr;
 
         LightSyncMultiSigner.SignerUpdateParam[] memory updates = new LightSyncMultiSigner.SignerUpdateParam[](1);

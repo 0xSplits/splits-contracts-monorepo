@@ -12,9 +12,17 @@ library MultiSignerSignatureLib {
     /*                                  CONSTANTS                                 */
     /* -------------------------------------------------------------------------- */
 
-    /// @notice Identify if the signer has been removed from the signer set.
-    /// @dev keccak256("removed")
-    bytes32 public constant SIGNER_REMOVED = 0xb04ab4afa2f1583231336fc5be76c590578027387608a6a8dc2e65a46dbe66d3;
+    uint256 public constant SIGNER_SIZE = 65;
+    uint8 public constant EMPTY_SIGNER_TYPE = 0;
+    uint8 public constant EOA_SIGNER_TYPE = 1;
+    uint8 public constant PASSKEY_SIGNER_TYPE = 2;
+    uint8 public constant REMOVED_SIGNER_TYPE = 3;
+
+    /* -------------------------------------------------------------------------- */
+    /*                                   ERRORS                                   */
+    /* -------------------------------------------------------------------------- */
+
+    error InvalidSignerType(uint8 signerType);
 
     /* -------------------------------------------------------------------------- */
     /*                                   STRUCTS                                  */
@@ -90,7 +98,7 @@ library MultiSignerSignatureLib {
      */
     function isValidSignature(
         MultiSignerLib.MultiSignerStorage storage $_,
-        bytes[256] memory signers_,
+        bytes memory signers_,
         uint8 threshold_,
         bytes32 hash_,
         bytes memory signature_
@@ -108,14 +116,16 @@ library MultiSignerSignatureLib {
         uint256 mask;
         uint8 signerIndex;
         bytes memory signer;
+        uint8 signerType;
         for (uint256 i; i < threshold_; i++) {
             signerIndex = signatures[i].signerIndex;
             mask = (1 << signerIndex);
 
-            signer = signers_[signerIndex];
-            if (signer.length == 0) {
+            (signer, signerType) = getSignerAtIndex(signers_, signatures[i].signerIndex);
+
+            if (signerType == EMPTY_SIGNER_TYPE) {
                 signer = $_.signers[signerIndex];
-            } else if (bytes32(signer) == SIGNER_REMOVED) {
+            } else if (signerType == REMOVED_SIGNER_TYPE) {
                 isValid = false;
             }
 
@@ -127,5 +137,41 @@ library MultiSignerSignatureLib {
                 isValid = false;
             }
         }
+    }
+
+    function getSignerAtIndex(bytes memory signers_, uint8 index_) internal pure returns (bytes memory, uint8) {
+        uint256 start = uint256(index_) * 65;
+
+        uint8 signerType;
+        assembly {
+            signerType := byte(0, mload(add(signers_, add(32, start))))
+        }
+
+        uint256 returnLength;
+        if (signerType == EMPTY_SIGNER_TYPE || signerType == REMOVED_SIGNER_TYPE) {
+            return (new bytes(0), signerType);
+        } else if (signerType == EOA_SIGNER_TYPE) {
+            returnLength = 32;
+        } else if (signerType == PASSKEY_SIGNER_TYPE) {
+            returnLength = 64;
+        } else {
+            revert InvalidSignerType(signerType);
+        }
+
+        bytes memory signer = new bytes(returnLength);
+
+        assembly {
+            let dataPtr := add(add(signers_, 33), start)
+            let itemPtr := add(signer, 32)
+
+            switch returnLength
+            case 32 { mstore(itemPtr, mload(dataPtr)) }
+            case 64 {
+                mstore(itemPtr, mload(dataPtr))
+                mstore(add(itemPtr, 32), mload(add(dataPtr, 32)))
+            }
+        }
+
+        return (signer, signerType);
     }
 }
