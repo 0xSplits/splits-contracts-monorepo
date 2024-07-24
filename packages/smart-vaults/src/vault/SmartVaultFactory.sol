@@ -40,7 +40,7 @@ contract SmartVaultFactory {
 
     /**
      * @notice Returns the deterministic address for a Splits Smart Vault created with `root`, `signers`, 'threshold',
-     * `nonce` deploys and initializes contract if it has not yet been created.
+     * `salt` deploys and initializes contract if it has not yet been created.
      *
      * @dev Deployed as a ERC-1967 proxy that's implementation is `this.implementation`.
      *
@@ -50,8 +50,7 @@ contract SmartVaultFactory {
      * @param salt_  The salt of the account, a caller defined value which allows multiple accounts
      *               with the same `signers` to exist at different addresses.
      *
-     * @return account The address of the ERC-1967 proxy created with inputs `owners`, `nonce`, and
-     *                 `this.implementation`.
+     * @return account The address of the ERC-1967 proxy created.
      */
     function createAccount(
         address owner_,

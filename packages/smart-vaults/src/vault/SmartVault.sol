@@ -425,8 +425,11 @@ contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, 
         }
 
         if (signature.lightMerkleTreeRoot != bytes32(0)) {
-            bytes32 lightHash = _getLightUserOpHash(userOp_);
-            if (!MerkleProof.verify(signature.lightMerkleProof, signature.lightMerkleTreeRoot, lightHash)) {
+            if (
+                !MerkleProof.verify(
+                    signature.lightMerkleProof, signature.lightMerkleTreeRoot, _getLightUserOpHash(userOp_)
+                )
+            ) {
                 revert InvalidMerkleProof();
             }
         }
