@@ -177,7 +177,7 @@ abstract contract LightSyncMultiSigner is MultiSigner {
                     signerType = MultiSignerSignatureLib.PASSKEY_SIGNER_TYPE;
                 }
 
-                uint256 start = uint256(index) * 65;
+                uint256 start = uint256(index) * MultiSignerSignatureLib.SIGNER_SIZE;
                 assembly {
                     let dataPtr := add(signers_, add(32, start))
                     mstore8(dataPtr, signerType)
@@ -188,7 +188,7 @@ abstract contract LightSyncMultiSigner is MultiSigner {
                 uint8 index = abi.decode(signerUpdateParam.data, (uint8));
                 uint8 signerType = MultiSignerSignatureLib.REMOVED_SIGNER_TYPE;
 
-                uint256 start = uint256(index) * 65;
+                uint256 start = uint256(index) * MultiSignerSignatureLib.SIGNER_SIZE;
                 assembly {
                     let dataPtr := add(signers_, add(32, start))
                     mstore8(dataPtr, signerType)
