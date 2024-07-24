@@ -109,17 +109,25 @@ abstract contract LightSyncMultiSigner is MultiSigner {
         view
         returns (bytes[256] memory signers, uint8 threshold)
     {
-        uint256 nonce = _getMultiSignerStorage().nonce;
+        MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
+        uint256 nonce = $.nonce;
+        threshold = $.threshold;
         uint256 numUpdates = signerUpdates_.length;
-        threshold = getThreshold();
         for (uint256 i; i < numUpdates; i++) {
-            _validateSignerSetUpdateMemory(signerUpdates_[i], signers, threshold, nonce++);
+            _validateSignerSetUpdateMemory({
+                $_: $,
+                signerUpdate_: signerUpdates_[i],
+                signers_: signers,
+                threshold_: threshold,
+                nonce_: nonce++
+            });
             (signers, threshold) = _processSignerSetUpdateMemory(signerUpdates_[i], signers, threshold);
         }
     }
 
     /// @notice reverts if validation fails
     function _validateSignerSetUpdateMemory(
+        MultiSignerLib.MultiSignerStorage storage $_,
         SignerSetUpdate memory signerUpdate_,
         bytes[256] memory signers_,
         uint8 threshold_,
@@ -128,10 +136,9 @@ abstract contract LightSyncMultiSigner is MultiSigner {
         internal
         view
     {
-        MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
         if (
             !MultiSignerSignatureLib.isValidSignature({
-                $_: $,
+                $_: $_,
                 signers_: signers_,
                 threshold_: threshold_,
                 hash_: _getSignerUpdateHash(signerUpdate_, nonce_),

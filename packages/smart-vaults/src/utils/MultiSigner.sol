@@ -186,15 +186,15 @@ abstract contract MultiSigner {
     function _initializeSigners(bytes[] calldata signers_, uint8 threshold_) internal virtual {
         if (signers_.length > 255 || signers_.length == 0) revert InvalidNumberOfSigners();
 
-        uint8 numberOfSigners = uint8(signers_.length);
+        uint8 numSigners = uint8(signers_.length);
 
-        if (numberOfSigners < threshold_ || threshold_ < 1) revert InvalidThreshold();
+        if (numSigners < threshold_ || threshold_ < 1) revert InvalidThreshold();
 
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
 
         bytes memory signer;
 
-        for (uint8 i; i < numberOfSigners; i++) {
+        for (uint8 i; i < numSigners; i++) {
             signer = signers_[i];
 
             MultiSignerLib.validateSigner(signer);
@@ -204,8 +204,10 @@ abstract contract MultiSigner {
             emit AddSigner(i, signer);
         }
 
-        $.signerCount = numberOfSigners;
+        $.signerCount = numSigners;
+
         $.threshold = threshold_;
+        emit UpdateThreshold(threshold_);
     }
 
     /// @notice Helper function to get a storage reference to the `MultiSignerStorage` struct.
@@ -217,39 +219,40 @@ abstract contract MultiSigner {
 
     function _authorizeUpdate() internal virtual;
 
-    function _addSigner(bytes memory _signer, uint8 _index) internal {
+    function _addSigner(bytes memory signer_, uint8 index_) internal {
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
 
-        MultiSignerLib.validateSigner(_signer);
+        MultiSignerLib.validateSigner(signer_);
 
-        if ($.signers[_index].length == 0) $.signerCount += 1;
-        $.signers[_index] = _signer;
+        if ($.signers[index_].length == 0) $.signerCount += 1;
+        $.signers[index_] = signer_;
 
-        emit AddSigner(_index, _signer);
+        emit AddSigner(index_, signer_);
     }
 
-    function _removeSigner(uint8 _index) internal {
+    function _removeSigner(uint8 index_) internal {
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
 
         uint256 signerCount_ = $.signerCount;
 
         if (signerCount_ == $.threshold) revert InvalidThreshold();
 
-        bytes memory signer = $.signers[_index];
-        if (signer.length == 0) revert SignerNotPresent(_index);
+        bytes memory signer = $.signers[index_];
+        if (signer.length == 0) revert SignerNotPresent(index_);
 
-        delete $.signers[_index];
+        delete $.signers[index_];
         $.signerCount -= 1;
 
-        emit RemoveSigner(_index, signer);
+        emit RemoveSigner(index_, signer);
     }
 
     function _updateThreshold(uint8 threshold_) internal {
         if (threshold_ == 0) revert InvalidThreshold();
+
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
         if ($.signerCount < threshold_) revert InvalidThreshold();
-        $.threshold = threshold_;
 
+        $.threshold = threshold_;
         emit UpdateThreshold(threshold_);
     }
 }
