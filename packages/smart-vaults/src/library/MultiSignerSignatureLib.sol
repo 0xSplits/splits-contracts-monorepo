@@ -140,7 +140,7 @@ library MultiSignerSignatureLib {
     }
 
     function getSignerAtIndex(bytes memory signers_, uint8 index_) internal pure returns (bytes memory, uint8) {
-        uint256 start = uint256(index_) * 65;
+        uint256 start = uint256(index_) * SIGNER_SIZE;
 
         uint8 signerType;
         assembly {
@@ -151,9 +151,9 @@ library MultiSignerSignatureLib {
         if (signerType == EMPTY_SIGNER_TYPE || signerType == REMOVED_SIGNER_TYPE) {
             return (new bytes(0), signerType);
         } else if (signerType == EOA_SIGNER_TYPE) {
-            returnLength = 32;
+            returnLength = MultiSignerLib.EOA_SIGNER_SIZE;
         } else if (signerType == PASSKEY_SIGNER_TYPE) {
-            returnLength = 64;
+            returnLength = MultiSignerLib.PASSKEY_SIGNER_SIZE;
         } else {
             revert InvalidSignerType(signerType);
         }

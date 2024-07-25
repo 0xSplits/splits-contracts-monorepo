@@ -171,7 +171,7 @@ abstract contract LightSyncMultiSigner is MultiSigner {
                 MultiSignerLib.validateSigner(signer);
 
                 uint8 signerType;
-                if (signer.length == 32) {
+                if (signer.length == MultiSignerLib.EOA_SIGNER_SIZE) {
                     signerType = MultiSignerSignatureLib.EOA_SIGNER_TYPE;
                 } else {
                     signerType = MultiSignerSignatureLib.PASSKEY_SIGNER_TYPE;

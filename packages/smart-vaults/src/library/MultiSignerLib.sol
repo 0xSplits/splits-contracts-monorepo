@@ -10,6 +10,13 @@ import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
  */
 library MultiSignerLib {
     /* -------------------------------------------------------------------------- */
+    /*                                  CONSTANTS                                 */
+    /* -------------------------------------------------------------------------- */
+
+    uint256 public constant EOA_SIGNER_SIZE = 32;
+    uint256 public constant PASSKEY_SIGNER_SIZE = 64;
+
+    /* -------------------------------------------------------------------------- */
     /*                                   STRUCTS                                  */
     /* -------------------------------------------------------------------------- */
 
@@ -83,11 +90,11 @@ library MultiSignerLib {
      * @dev Throws error if signer is invalid address or if address has code.
      */
     function validateSigner(bytes memory signer_) internal view {
-        if (signer_.length != 32 && signer_.length != 64) {
+        if (signer_.length != EOA_SIGNER_SIZE && signer_.length != PASSKEY_SIGNER_SIZE) {
             revert InvalidSignerBytesLength(signer_);
         }
 
-        if (signer_.length == 32) {
+        if (signer_.length == EOA_SIGNER_SIZE) {
             if (uint256(bytes32(signer_)) > type(uint160).max) revert InvalidEthereumAddressOwner(signer_);
             address eoa;
             assembly ("memory-safe") {
@@ -110,9 +117,9 @@ library MultiSignerLib {
         view
         returns (bool isValid)
     {
-        if (signer_.length == 32) {
+        if (signer_.length == EOA_SIGNER_SIZE) {
             isValid = isValidSignatureEOA(hash_, signer_, signature_);
-        } else if (signer_.length == 64) {
+        } else if (signer_.length == PASSKEY_SIGNER_SIZE) {
             isValid = isValidSignaturePasskey(hash_, signer_, signature_);
         }
     }
