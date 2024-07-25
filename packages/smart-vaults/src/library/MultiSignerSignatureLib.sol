@@ -12,17 +12,20 @@ library MultiSignerSignatureLib {
     /*                                  CONSTANTS                                 */
     /* -------------------------------------------------------------------------- */
 
+    // Size in bytes allocated for each signer in the data structure.
     uint256 public constant SIGNER_SIZE = 65;
+
+    // Signer type indicating an empty slot in the signer set.
     uint8 public constant EMPTY_SIGNER_TYPE = 0;
+
+    // Signer type representing an externally owned account (EOA) signer.
     uint8 public constant EOA_SIGNER_TYPE = 1;
+
+    // Signer type representing a passkey-based signer.
     uint8 public constant PASSKEY_SIGNER_TYPE = 2;
+
+    // Signer type indicating a removed signer in the signer set.
     uint8 public constant REMOVED_SIGNER_TYPE = 3;
-
-    /* -------------------------------------------------------------------------- */
-    /*                                   ERRORS                                   */
-    /* -------------------------------------------------------------------------- */
-
-    error InvalidSignerType(uint8 signerType);
 
     /* -------------------------------------------------------------------------- */
     /*                                   STRUCTS                                  */
@@ -38,11 +41,6 @@ library MultiSignerSignatureLib {
         bytes signatureData;
     }
 
-    /// signature data required to verify if given data is signed by the signer set present in MultiSigner.
-    struct Signature {
-        SignatureWrapper[] signatures;
-    }
-
     /* -------------------------------------------------------------------------- */
     /*                                  FUNCTIONS                                 */
     /* -------------------------------------------------------------------------- */
@@ -51,7 +49,7 @@ library MultiSignerSignatureLib {
      * @notice validates if `hash_` was signed by the signer set present in `$_`
      * @param $_ Storage reference to MultiSigner storage.
      * @param hash_ blob of data that needs to be verified.
-     * @param signature_ abi.encode(Signature)
+     * @param signature_ abi.encode(SignatureWrapper[])
      */
     function isValidSignature(
         MultiSignerLib.MultiSignerStorage storage $_,
@@ -64,8 +62,7 @@ library MultiSignerSignatureLib {
     {
         isValid = true;
 
-        Signature memory signature = abi.decode(signature_, (Signature));
-        SignatureWrapper[] memory signatures = signature.signatures;
+        SignatureWrapper[] memory signatures = abi.decode(signature_, (SignatureWrapper[]));
 
         uint8 threshold = $_.threshold;
 
@@ -94,7 +91,7 @@ library MultiSignerSignatureLib {
      * index.
      * @param threshold_ signer set threshold used for verification.
      * @param hash_ blob of data that needs to be verified.
-     * @param signature_ abi.encode(Signature)
+     * @param signature_ abi.encode(SignatureWrapper[]).
      */
     function isValidSignature(
         MultiSignerLib.MultiSignerStorage storage $_,
@@ -109,8 +106,7 @@ library MultiSignerSignatureLib {
     {
         isValid = true;
 
-        Signature memory signature = abi.decode(signature_, (Signature));
-        SignatureWrapper[] memory signatures = signature.signatures;
+        SignatureWrapper[] memory signatures = abi.decode(signature_, (SignatureWrapper[]));
 
         uint256 alreadySigned;
         uint256 mask;
@@ -154,8 +150,6 @@ library MultiSignerSignatureLib {
             returnLength = MultiSignerLib.EOA_SIGNER_SIZE;
         } else if (signerType == PASSKEY_SIGNER_TYPE) {
             returnLength = MultiSignerLib.PASSKEY_SIGNER_SIZE;
-        } else {
-            revert InvalidSignerType(signerType);
         }
 
         bytes memory signer = new bytes(returnLength);

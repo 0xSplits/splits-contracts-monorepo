@@ -35,18 +35,6 @@ abstract contract MultiSigner {
     /// @notice Thrown when number of signers is more than 256.
     error InvalidNumberOfSigners();
 
-    /**
-     * @notice Thrown when trying to overwrite signer at a given index.
-     * @param index Index already has a signer.
-     */
-    error SignerPresentAtIndex(uint8 index);
-
-    /**
-     * @notice Thrown when trying to add the same signer.
-     * @param signer duplicate signer.
-     */
-    error SignerAlreadyAdded(bytes signer);
-
     /// @notice Thrown when setting nonce to less than the current storage nonce.
     error InvalidNonce();
 
@@ -126,9 +114,6 @@ abstract contract MultiSigner {
     /**
      * @notice Adds a `signer` at the `index`.
      *
-     * @dev Reverts if `signer` is already registered.
-     * @dev Reverts if `index` already has a signer.
-     *
      * @param signer_ The owner raw bytes to register.
      * @param index_ The index to register the signer.
      */
@@ -139,6 +124,8 @@ abstract contract MultiSigner {
     /**
      * @notice Removes signer at the given `index`.
      *
+     * @dev Reverts if 'threshold' is equal to signer count.
+     *
      * @param index_ The index of the signer to be removed.
      */
     function removeSigner(uint8 index_) public OnlyAuthorized {
@@ -147,9 +134,11 @@ abstract contract MultiSigner {
 
     /**
      * @notice Updates threshold of the signer set.
-     * @param threshold_ The new signer set threshold.
-     * @dev Reverts if 'threshold' is greater than owner count.
+     *
+     * @dev Reverts if 'threshold' is greater than signer count.
      * @dev Reverts if 'threshold' is 0.
+     *
+     * @param threshold_ The new signer set threshold.
      */
     function updateThreshold(uint8 threshold_) public OnlyAuthorized {
         _updateThreshold(threshold_);
@@ -157,6 +146,9 @@ abstract contract MultiSigner {
 
     /**
      * @notice Updates nonce of the signer set.
+     *
+     * @dev Reverts if `nonce_` less than or equal to current nonce.
+     *
      * @param nonce_ nonce to set.
      */
     function setNonce(uint256 nonce_) public OnlyAuthorized {
@@ -172,6 +164,15 @@ abstract contract MultiSigner {
     /* -------------------------------------------------------------------------- */
     /*                             INTERNAL FUNCTIONS                             */
     /* -------------------------------------------------------------------------- */
+
+    function _authorizeUpdate() internal virtual;
+
+    /// @notice Helper function to get storage reference to the `MultiSignerStorage` struct.
+    function _getMultiSignerStorage() internal pure returns (MultiSignerLib.MultiSignerStorage storage $) {
+        assembly ("memory-safe") {
+            $.slot := _MUTLI_SIGNER_STORAGE_LOCATION
+        }
+    }
 
     /**
      * @notice Initialize the signers of this contract.
@@ -209,15 +210,6 @@ abstract contract MultiSigner {
         $.threshold = threshold_;
         emit UpdateThreshold(threshold_);
     }
-
-    /// @notice Helper function to get a storage reference to the `MultiSignerStorage` struct.
-    function _getMultiSignerStorage() internal pure returns (MultiSignerLib.MultiSignerStorage storage $) {
-        assembly ("memory-safe") {
-            $.slot := _MUTLI_SIGNER_STORAGE_LOCATION
-        }
-    }
-
-    function _authorizeUpdate() internal virtual;
 
     function _addSigner(bytes memory signer_, uint8 index_) internal {
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();

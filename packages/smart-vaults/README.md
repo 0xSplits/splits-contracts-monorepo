@@ -1,5 +1,7 @@
 # Smart Vaults
 
+[Smart accounts signature scheme](SignatureScheme.png)
+
 ## Build
 
 `pnpm build`

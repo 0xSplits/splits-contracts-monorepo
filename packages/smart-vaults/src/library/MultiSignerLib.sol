@@ -13,7 +13,10 @@ library MultiSignerLib {
     /*                                  CONSTANTS                                 */
     /* -------------------------------------------------------------------------- */
 
+    // Size in bytes for an externally owned account (EOA) signer.
     uint256 public constant EOA_SIGNER_SIZE = 32;
+
+    // Size in bytes for a passkey-based signer.
     uint256 public constant PASSKEY_SIGNER_SIZE = 64;
 
     /* -------------------------------------------------------------------------- */

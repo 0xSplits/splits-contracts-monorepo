@@ -9,7 +9,7 @@ import { WebAuthn } from "@web-authn/WebAuthn.sol";
 import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
 
 /**
- * @title Multi Signer with light state sync functionality
+ * @title Multi Signer with light state sync functionality.
  * @author Splits
  */
 abstract contract LightSyncMultiSigner is MultiSigner {
@@ -17,7 +17,7 @@ abstract contract LightSyncMultiSigner is MultiSigner {
     /*                                   STRUCTS                                  */
     /* -------------------------------------------------------------------------- */
 
-    /// @notice Signer Update types
+    /// @notice Signer Update types.
     enum SignerUpdateType {
         /// Adds a new signer to the signer set.
         AddSigner,
@@ -27,9 +27,9 @@ abstract contract LightSyncMultiSigner is MultiSigner {
         UpdateThreshold
     }
 
-    /// @notice Signer Update parameters
+    /// @notice Signer Update parameters.
     struct SignerUpdateParam {
-        /// Type of update
+        /// Type of update.
         SignerUpdateType updateType;
         /**
          * Data can be of the following types:
@@ -40,11 +40,12 @@ abstract contract LightSyncMultiSigner is MultiSigner {
         bytes data;
     }
 
-    /// @notice Signer set update
+    /// @notice Signer set update.
     struct SignerSetUpdate {
         /// List of updates to the signer set.
         SignerUpdateParam[] updateParams;
-        /// abi.encode(MultiSignerSignatureLib.Signature) signature over keccak256(nonce, address(this), updateParams)
+        /// abi.encode(MultiSignerSignatureLib.SignatureWrapper[]) signature over keccak256(nonce, address(this),
+        /// updateParams).
         bytes normalSignature;
     }
 
@@ -80,7 +81,7 @@ abstract contract LightSyncMultiSigner is MultiSigner {
         emit updateNonce(nonce);
     }
 
-    /// @notice reverts if validation fails
+    /// @dev reverts if validation fails.
     function _validateSignerSetUpdate(
         MultiSignerLib.MultiSignerStorage storage $_,
         SignerSetUpdate memory signerUpdate_,

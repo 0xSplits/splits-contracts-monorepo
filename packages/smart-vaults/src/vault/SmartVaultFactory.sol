@@ -7,7 +7,7 @@ import { MultiSignerLib } from "../library/MultiSignerLib.sol";
 import { LibClone } from "solady/utils/LibClone.sol";
 
 /**
- * @title Smart Vault Factory
+ * @title Splits Smart Accounts/Vaults Factory
  *
  * @notice based on Coinbase's Smart Wallet Factory.
  * @author Splits
@@ -39,8 +39,8 @@ contract SmartVaultFactory {
     /* -------------------------------------------------------------------------- */
 
     /**
-     * @notice Returns the deterministic address for a Splits Smart Vault created with `root`, `signers`, 'threshold',
-     * `salt` deploys and initializes contract if it has not yet been created.
+     * @notice Returns the deterministic address for a Splits Smart Vault created with `owner`, `signers`, 'threshold',
+     * `salt`. Deploys and initializes contract if it has not yet been created.
      *
      * @dev Deployed as a ERC-1967 proxy that's implementation is `this.implementation`.
      *

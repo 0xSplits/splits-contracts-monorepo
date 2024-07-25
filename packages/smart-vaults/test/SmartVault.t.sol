@@ -76,9 +76,7 @@ contract SmartVaultTest is BaseTest {
         pure
         returns (SmartVault.UserOpSignature memory userOpSignature)
     {
-        MultiSignerSignatureLib.Signature memory normalSignature = MultiSignerSignatureLib.Signature(sigs);
-
-        userOpSignature = SmartVault.UserOpSignature(SmartVault.UserOpSignatureType.Single, abi.encode(normalSignature));
+        userOpSignature = SmartVault.UserOpSignature(SmartVault.UserOpSignatureType.Single, abi.encode(sigs));
     }
 
     function getUserOpSignature(
@@ -92,12 +90,11 @@ contract SmartVaultTest is BaseTest {
         pure
         returns (SmartVault.UserOpSignature memory userOpSignature)
     {
-        MultiSignerSignatureLib.Signature memory normalSignature = MultiSignerSignatureLib.Signature(sigs);
-        SmartVault.MultiOpSignature memory multiChainSignature =
-            SmartVault.MultiOpSignature(lightRootHash, lightProof, rootHash, proof, abi.encode(normalSignature));
+        SmartVault.BundleOpSignature memory multiChainSignature =
+            SmartVault.BundleOpSignature(lightRootHash, lightProof, rootHash, proof, abi.encode(sigs));
 
         userOpSignature =
-            SmartVault.UserOpSignature(SmartVault.UserOpSignatureType.Multi, abi.encode(multiChainSignature));
+            SmartVault.UserOpSignature(SmartVault.UserOpSignatureType.Bundle, abi.encode(multiChainSignature));
     }
 
     function getRootSignature(MultiSignerSignatureLib.SignatureWrapper[] memory sigs)
@@ -429,8 +426,7 @@ contract SmartVaultTest is BaseTest {
         sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         LightSyncMultiSigner.SignerSetUpdate[] memory signerUpdates = new LightSyncMultiSigner.SignerSetUpdate[](1);
-        signerUpdates[0] =
-            LightSyncMultiSigner.SignerSetUpdate(updates, abi.encode(MultiSignerSignatureLib.Signature(sigs)));
+        signerUpdates[0] = LightSyncMultiSigner.SignerSetUpdate(updates, abi.encode(sigs));
 
         vm.deal(address(vault), _missingAccountsFund);
 
@@ -470,8 +466,7 @@ contract SmartVaultTest is BaseTest {
         sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         LightSyncMultiSigner.SignerSetUpdate[] memory signerUpdates = new LightSyncMultiSigner.SignerSetUpdate[](1);
-        signerUpdates[0] =
-            LightSyncMultiSigner.SignerSetUpdate(updates, abi.encode(MultiSignerSignatureLib.Signature(sigs)));
+        signerUpdates[0] = LightSyncMultiSigner.SignerSetUpdate(updates, abi.encode(sigs));
 
         vm.deal(address(vault), _missingAccountsFund);
 
@@ -517,8 +512,7 @@ contract SmartVaultTest is BaseTest {
         sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         LightSyncMultiSigner.SignerSetUpdate[] memory signerUpdates = new LightSyncMultiSigner.SignerSetUpdate[](1);
-        signerUpdates[0] =
-            LightSyncMultiSigner.SignerSetUpdate(updates, abi.encode(MultiSignerSignatureLib.Signature(sigs)));
+        signerUpdates[0] = LightSyncMultiSigner.SignerSetUpdate(updates, abi.encode(sigs));
 
         vm.deal(address(vault), _missingAccountsFund);
 
@@ -552,8 +546,7 @@ contract SmartVaultTest is BaseTest {
         sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         LightSyncMultiSigner.SignerSetUpdate[] memory signerUpdates = new LightSyncMultiSigner.SignerSetUpdate[](1);
-        signerUpdates[0] =
-            LightSyncMultiSigner.SignerSetUpdate(updates, abi.encode(MultiSignerSignatureLib.Signature(sigs)));
+        signerUpdates[0] = LightSyncMultiSigner.SignerSetUpdate(updates, abi.encode(sigs));
 
         vm.deal(address(vault), _missingAccountsFund);
 
@@ -625,8 +618,7 @@ contract SmartVaultTest is BaseTest {
         sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         LightSyncMultiSigner.SignerSetUpdate[] memory signerUpdates = new LightSyncMultiSigner.SignerSetUpdate[](1);
-        signerUpdates[0] =
-            LightSyncMultiSigner.SignerSetUpdate(updates, abi.encode(MultiSignerSignatureLib.Signature(sigs)));
+        signerUpdates[0] = LightSyncMultiSigner.SignerSetUpdate(updates, abi.encode(sigs));
 
         bytes32 hash1 = getUserOpHash(_userOp1);
         bytes32 hash2 = getUserOpHash(_userOp2);
@@ -696,8 +688,7 @@ contract SmartVaultTest is BaseTest {
         sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         LightSyncMultiSigner.SignerSetUpdate[] memory signerUpdates = new LightSyncMultiSigner.SignerSetUpdate[](1);
-        signerUpdates[0] =
-            LightSyncMultiSigner.SignerSetUpdate(updates, abi.encode(MultiSignerSignatureLib.Signature(sigs)));
+        signerUpdates[0] = LightSyncMultiSigner.SignerSetUpdate(updates, abi.encode(sigs));
 
         (v, r, s) = vm.sign(CAROL.key, vault.replaySafeHash(_hash));
         sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(3), abi.encodePacked(r, s, v));
@@ -721,8 +712,7 @@ contract SmartVaultTest is BaseTest {
         sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         LightSyncMultiSigner.SignerSetUpdate[] memory signerUpdates = new LightSyncMultiSigner.SignerSetUpdate[](1);
-        signerUpdates[0] =
-            LightSyncMultiSigner.SignerSetUpdate(updates, abi.encode(MultiSignerSignatureLib.Signature(sigs)));
+        signerUpdates[0] = LightSyncMultiSigner.SignerSetUpdate(updates, abi.encode(sigs));
 
         (v, r, s) = vm.sign(CAROL.key, vault.replaySafeHash(_hash));
         sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(3), abi.encodePacked(r, s, v));
@@ -747,8 +737,7 @@ contract SmartVaultTest is BaseTest {
         sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         LightSyncMultiSigner.SignerSetUpdate[] memory signerUpdates = new LightSyncMultiSigner.SignerSetUpdate[](1);
-        signerUpdates[0] =
-            LightSyncMultiSigner.SignerSetUpdate(updates, abi.encode(MultiSignerSignatureLib.Signature(sigs)));
+        signerUpdates[0] = LightSyncMultiSigner.SignerSetUpdate(updates, abi.encode(sigs));
 
         (v, r, s) = vm.sign(BOB.key, vault.replaySafeHash(_hash));
         sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
@@ -770,8 +759,7 @@ contract SmartVaultTest is BaseTest {
         sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         LightSyncMultiSigner.SignerSetUpdate[] memory signerUpdates = new LightSyncMultiSigner.SignerSetUpdate[](1);
-        signerUpdates[0] =
-            LightSyncMultiSigner.SignerSetUpdate(updates, abi.encode(MultiSignerSignatureLib.Signature(sigs)));
+        signerUpdates[0] = LightSyncMultiSigner.SignerSetUpdate(updates, abi.encode(sigs));
 
         (v, r, s) = vm.sign(ALICE.key, vault.replaySafeHash(_hash));
         sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
@@ -793,8 +781,7 @@ contract SmartVaultTest is BaseTest {
         sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         LightSyncMultiSigner.SignerSetUpdate[] memory signerUpdates = new LightSyncMultiSigner.SignerSetUpdate[](1);
-        signerUpdates[0] =
-            LightSyncMultiSigner.SignerSetUpdate(updates, abi.encode(MultiSignerSignatureLib.Signature(sigs)));
+        signerUpdates[0] = LightSyncMultiSigner.SignerSetUpdate(updates, abi.encode(sigs));
 
         (v, r, s) = vm.sign(ALICE.key, vault.replaySafeHash(_hash));
         sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
