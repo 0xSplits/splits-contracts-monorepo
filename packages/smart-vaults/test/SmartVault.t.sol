@@ -48,6 +48,10 @@ contract SmartVaultTest is BaseTest {
     error InvalidSignerBytesLength(bytes signer);
     error MissingSignatures(uint256 signaturesSupplied, uint8 threshold);
     error DuplicateSigner(uint8 signerIndex);
+    error InvalidNumberOfSigners();
+    error InvalidThreshold();
+    error InvalidNonce();
+    error InvalidEthereumAddressOwner(bytes signer);
 
     function setUp() public override {
         super.setUp();
@@ -192,6 +196,69 @@ contract SmartVaultTest is BaseTest {
     /*                                 INITIALIZE                                 */
     /* -------------------------------------------------------------------------- */
 
+    function test_initialize() public {
+        vm.prank(address(smartVaultFactory));
+        vault.initialize(BOB.addr, signers, 2);
+
+        assertEq(vault.owner(), BOB.addr);
+        assertEq(vault.getThreshold(), 2);
+    }
+
+    function test_initialize_RevertsWhen_signersIsZero() public {
+        vm.expectRevert(abi.encodeWithSelector(InvalidNumberOfSigners.selector));
+        vm.prank(address(smartVaultFactory));
+        vault.initialize(root, new bytes[](0), 1);
+    }
+
+    function test_initialize_RevertsWhen_signersIsGreaterThan255() public {
+        vm.expectRevert(abi.encodeWithSelector(InvalidNumberOfSigners.selector));
+        vm.prank(address(smartVaultFactory));
+        vault.initialize(root, new bytes[](256), 1);
+    }
+
+    function test_initialize_RevertsWhen_thresholdIsZero() public {
+        vm.expectRevert(abi.encodeWithSelector(InvalidThreshold.selector));
+        vm.prank(address(smartVaultFactory));
+        vault.initialize(root, signers, 0);
+    }
+
+    function test_initialize_RevertsWhen_thresholdIsGreaterThanSigners() public {
+        vm.expectRevert(abi.encodeWithSelector(InvalidThreshold.selector));
+        vm.prank(address(smartVaultFactory));
+        vault.initialize(root, signers, 4);
+    }
+
+    function testFuzz_initialize_RevertsWhen_invalidSignerBytesLength(bytes memory signer_) public {
+        vm.assume(signer_.length != 32 && signer_.length != 64);
+
+        bytes[] memory signers__ = new bytes[](1);
+        signers__[0] = signer_;
+
+        vm.expectRevert(abi.encodeWithSelector(InvalidSignerBytesLength.selector, signer_));
+        vm.prank(address(smartVaultFactory));
+        vault.initialize(root, signers__, 1);
+    }
+
+    function testFuzz_initialize_RevertsWhen_invalidEthereumAddressOwner(uint256 signer_) public {
+        vm.assume(signer_ > type(uint160).max);
+
+        bytes[] memory signers__ = new bytes[](1);
+        signers__[0] = abi.encode(signer_);
+
+        vm.expectRevert(abi.encodeWithSelector(InvalidEthereumAddressOwner.selector, signers__[0]));
+        vm.prank(address(smartVaultFactory));
+        vault.initialize(root, signers__, 1);
+    }
+
+    function test_initialize_RevertsWhen_signerHasCode() public {
+        bytes[] memory signers__ = new bytes[](1);
+        signers__[0] = abi.encode(address(this));
+
+        vm.expectRevert(abi.encodeWithSelector(InvalidEthereumAddressOwner.selector, signers__[0]));
+        vm.prank(address(smartVaultFactory));
+        vault.initialize(root, signers__, 1);
+    }
+
     function test_initialize_RevertsWhen_notFactory() public {
         vm.expectRevert(abi.encodeWithSelector(OnlyFactory.selector));
         vault.initialize(root, signers, 1);
@@ -202,7 +269,7 @@ contract SmartVaultTest is BaseTest {
     }
 
     /* -------------------------------------------------------------------------- */
-    /*                               VALIDATE USEROP                              */
+    /*                               VALIDATE USER OP                              */
     /* -------------------------------------------------------------------------- */
 
     function testFuzz_validateUserOp_RevertsWhen_callerNotEntryPoint(
