@@ -420,7 +420,7 @@ contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, 
         return _validateSignature(_getLightUserOpHash(userOp_), userOpHash_, signature_);
     }
 
-    /// @notice Validates a bundle of user ops using merkleProofs.
+    /// @notice Validates a bundle of user op using merkleProofs.
     function _validateBundledUserOp(
         IAccount.PackedUserOperation calldata userOp_,
         bytes32 userOpHash_,

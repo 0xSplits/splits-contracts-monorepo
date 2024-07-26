@@ -52,6 +52,7 @@ contract SmartVaultTest is BaseTest {
     error InvalidThreshold();
     error InvalidNonce();
     error InvalidEthereumAddressOwner(bytes signer);
+    error InvalidMerkleProof();
 
     function setUp() public override {
         super.setUp();
@@ -269,7 +270,7 @@ contract SmartVaultTest is BaseTest {
     }
 
     /* -------------------------------------------------------------------------- */
-    /*                               VALIDATE USER OP                              */
+    /*                               VALIDATE USER OP                             */
     /* -------------------------------------------------------------------------- */
 
     function testFuzz_validateUserOp_RevertsWhen_callerNotEntryPoint(
@@ -282,7 +283,23 @@ contract SmartVaultTest is BaseTest {
         vault.validateUserOp(userOp, hash, 1);
     }
 
-    function testFuzz_validateUserOp_singleEOA(
+    function testFuzz_validateUserOp_RevertsWhen_badSignature(
+        IAccount.PackedUserOperation memory _userOp,
+        bytes32 _hash,
+        uint256 _missingAccountsFund
+    )
+        public
+    {
+        vm.expectRevert();
+        vm.prank(ENTRY_POINT);
+        vault.validateUserOp(_userOp, _hash, _missingAccountsFund);
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*                           VALIDATE SINGLE USER OP                          */
+    /* -------------------------------------------------------------------------- */
+
+    function testFuzz_validateUserOp_singleUserOp_singleEOA(
         IAccount.PackedUserOperation calldata _userOp,
         uint256 _missingAccountsFund
     )
@@ -303,7 +320,7 @@ contract SmartVaultTest is BaseTest {
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
     }
 
-    function testFuzz_validateUserOp_multipleEOA(
+    function testFuzz_validateUserOp_singleUserOp_multipleEOA(
         IAccount.PackedUserOperation calldata _userOp,
         uint256 _missingAccountsFund
     )
@@ -332,7 +349,7 @@ contract SmartVaultTest is BaseTest {
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
     }
 
-    function testFuzz_validateUserOp_singlePasskey(
+    function testFuzz_validateUserOp_singleUserOp_singlePasskey(
         IAccount.PackedUserOperation calldata _userOp,
         uint256 _missingAccountsFund
     )
@@ -367,19 +384,7 @@ contract SmartVaultTest is BaseTest {
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
     }
 
-    function testFuzz_validateUserOp_RevertsWhen_badSignature(
-        IAccount.PackedUserOperation memory _userOp,
-        bytes32 _hash,
-        uint256 _missingAccountsFund
-    )
-        public
-    {
-        vm.expectRevert();
-        vm.prank(ENTRY_POINT);
-        assertEq(vault.validateUserOp(_userOp, _hash, _missingAccountsFund), 0);
-    }
-
-    function testFuzz_validateUserOp_RevertsWhenEmptySignatures(
+    function testFuzz_validateUserOp_singleUserOp_RevertsWhen_emptySignatures(
         IAccount.PackedUserOperation memory _userOp,
         bytes32 _hash,
         uint256 _missingAccountsFund
@@ -395,7 +400,7 @@ contract SmartVaultTest is BaseTest {
         vault.validateUserOp(_userOp, _hash, _missingAccountsFund);
     }
 
-    function testFuzz_validateUserOp_WhenNumberOfSignaturesLessThanThreshold(
+    function testFuzz_validateUserOp_singleUserOp_RevertsWhen_numberOfSignaturesLessThanThreshold(
         IAccount.PackedUserOperation memory _userOp,
         bytes32 _hash,
         uint256 _missingAccountsFund
@@ -418,7 +423,7 @@ contract SmartVaultTest is BaseTest {
         vault.validateUserOp(_userOp, _hash, _missingAccountsFund);
     }
 
-    function testFuzz_validateUserOp_RevertsWhenDuplicateSigner(
+    function testFuzz_validateUserOp_singleUserOp_duplicateSigner(
         IAccount.PackedUserOperation calldata _userOp,
         uint256 _missingAccountsFund
     )
@@ -448,7 +453,7 @@ contract SmartVaultTest is BaseTest {
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 1);
     }
 
-    function testFuzz_validateUserOp_RevertsWhenBadEOASigner(
+    function testFuzz_validateUserOp_singleUserOp_incorrectSignerIndex(
         IAccount.PackedUserOperation calldata _userOp,
         uint256 _missingAccountsFund
     )
@@ -469,11 +474,301 @@ contract SmartVaultTest is BaseTest {
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 1);
     }
 
+    function testFuzz_validateUserOp_singleUserOp_WhenThresholdIs2_incorrectSignerIndexLightHash(
+        IAccount.PackedUserOperation calldata _userOp,
+        uint256 _missingAccountsFund
+    )
+        public
+    {
+        vm.prank(ALICE.addr);
+        vault.updateThreshold(2);
+
+        bytes32 hash = getUserOpHash(_userOp);
+        bytes32 lightHash = getLightUserOpHash(_userOp);
+
+        vm.deal(address(vault), _missingAccountsFund);
+
+        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](2);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(BOB.key, lightHash);
+        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        (v, r, s) = vm.sign(ALICE.key, hash);
+        sigs[1] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        IAccount.PackedUserOperation memory userOp = _userOp;
+
+        userOp.signature = getRootSignature(sigs);
+
+        vm.prank(ENTRY_POINT);
+        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 1);
+    }
+
+    function testFuzz_validateUserOp_singleUserOp_WhenThresholdIs2_incorrectSignerIndex(
+        IAccount.PackedUserOperation calldata _userOp,
+        uint256 _missingAccountsFund
+    )
+        public
+    {
+        vm.prank(ALICE.addr);
+        vault.updateThreshold(2);
+
+        bytes32 hash = getUserOpHash(_userOp);
+        bytes32 lightHash = getLightUserOpHash(_userOp);
+
+        vm.deal(address(vault), _missingAccountsFund);
+
+        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](2);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(BOB.key, lightHash);
+        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
+
+        (v, r, s) = vm.sign(ALICE.key, hash);
+        sigs[1] = MultiSignerSignatureLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
+
+        IAccount.PackedUserOperation memory userOp = _userOp;
+
+        userOp.signature = getRootSignature(sigs);
+
+        vm.prank(ENTRY_POINT);
+        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 1);
+    }
+
+    function testFuzz_validateUserOp_singleUserOp_fakedSignature(
+        IAccount.PackedUserOperation calldata _userOp,
+        uint256 _missingAccountsFund,
+        bytes32 _hash
+    )
+        public
+    {
+        bytes32 hash = getUserOpHash(_userOp);
+        vm.deal(address(vault), _missingAccountsFund);
+
+        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](1);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(BOB.key, _hash);
+        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
+
+        IAccount.PackedUserOperation memory userOp = _userOp;
+
+        userOp.signature = getRootSignature(sigs);
+
+        vm.prank(ENTRY_POINT);
+        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 1);
+    }
+
+    function testFuzz_validateUserOp_singleUserOp_WhenThresholdIs2_fakedSignatureLight(
+        IAccount.PackedUserOperation calldata _userOp,
+        uint256 _missingAccountsFund
+    )
+        public
+    {
+        vm.prank(ALICE.addr);
+        vault.updateThreshold(2);
+
+        bytes32 hash = getUserOpHash(_userOp);
+
+        vm.deal(address(vault), _missingAccountsFund);
+
+        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](2);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(BOB.key, hash);
+        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
+
+        (v, r, s) = vm.sign(ALICE.key, hash);
+        sigs[1] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        IAccount.PackedUserOperation memory userOp = _userOp;
+
+        userOp.signature = getRootSignature(sigs);
+
+        vm.prank(ENTRY_POINT);
+        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 1);
+    }
+
+    function testFuzz_validateUserOp_singleUserOp_WhenThresholdIs2_fakedSignature(
+        IAccount.PackedUserOperation calldata _userOp,
+        uint256 _missingAccountsFund
+    )
+        public
+    {
+        vm.prank(ALICE.addr);
+        vault.updateThreshold(2);
+
+        bytes32 hash = getUserOpHash(_userOp);
+        bytes32 lightHash = getLightUserOpHash(_userOp);
+
+        vm.deal(address(vault), _missingAccountsFund);
+
+        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](2);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(BOB.key, lightHash);
+        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
+
+        (v, r, s) = vm.sign(ALICE.key, lightHash);
+        sigs[1] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        IAccount.PackedUserOperation memory userOp = _userOp;
+
+        userOp.signature = getRootSignature(sigs);
+
+        vm.prank(ENTRY_POINT);
+        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 1);
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*                           VALIDATE BUNDLE USER OP                          */
+    /* -------------------------------------------------------------------------- */
+
+    function testFuzz_validateBundleUserOp_whenThresholdIs1(
+        IAccount.PackedUserOperation calldata _userOp1,
+        IAccount.PackedUserOperation calldata _userOp2
+    )
+        public
+    {
+        bytes32 hash1 = getUserOpHash(_userOp1);
+        bytes32 hash2 = getUserOpHash(_userOp2);
+
+        bytes32 rootHash = hashPair(hash1, hash2);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, rootHash);
+
+        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](1);
+        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        bytes32[] memory proof = new bytes32[](1);
+        proof[0] = hash2;
+
+        IAccount.PackedUserOperation memory userOp = _userOp1;
+        userOp.signature = getRootSignature(sigs, proof, new bytes32[](0), rootHash, bytes32(0));
+
+        vm.prank(ENTRY_POINT);
+        assertEq(vault.validateUserOp(userOp, hash1, 0), 0);
+
+        proof[0] = hash1;
+
+        userOp = _userOp2;
+        userOp.signature = getRootSignature(sigs, proof, new bytes32[](0), rootHash, bytes32(0));
+
+        vm.prank(ENTRY_POINT);
+        assertEq(vault.validateUserOp(userOp, hash2, 0), 0);
+    }
+
+    function testFuzz_validateBundleUserOp_whenThresholdIs1_RevertsWhen_InvalidProof(
+        IAccount.PackedUserOperation calldata _userOp1,
+        IAccount.PackedUserOperation calldata _userOp2
+    )
+        public
+    {
+        bytes32 hash1 = getUserOpHash(_userOp1);
+        bytes32 hash2 = getUserOpHash(_userOp2);
+
+        bytes32 rootHash = hashPair(hash1, hash2);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, rootHash);
+
+        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](1);
+        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        bytes32[] memory proof = new bytes32[](1);
+        proof[0] = hash1;
+
+        IAccount.PackedUserOperation memory userOp = _userOp1;
+        userOp.signature = getRootSignature(sigs, proof, new bytes32[](0), rootHash, bytes32(0));
+
+        vm.expectRevert(abi.encodeWithSelector(InvalidMerkleProof.selector));
+        vm.prank(ENTRY_POINT);
+        vault.validateUserOp(userOp, hash1, 0);
+    }
+
+    function testFuzz_validateMultiUserOp_whenThresholdIs2(
+        IAccount.PackedUserOperation calldata _userOp1,
+        IAccount.PackedUserOperation calldata _userOp2
+    )
+        public
+    {
+        vm.prank(ALICE.addr);
+        vault.updateThreshold(2);
+
+        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](2);
+
+        bytes32 hash1 = getUserOpHash(_userOp1);
+        bytes32 hash2 = getUserOpHash(_userOp2);
+
+        bytes32 lightHash1 = getLightUserOpHash(_userOp1);
+        bytes32 lightHash2 = getLightUserOpHash(_userOp2);
+
+        bytes32 rootHash = hashPair(hash1, hash2);
+        bytes32 lightRootHash = hashPair(lightHash1, lightHash2);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, lightRootHash);
+        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        (v, r, s) = vm.sign(BOB.key, rootHash);
+        sigs[1] = MultiSignerSignatureLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
+
+        bytes32[] memory proof = new bytes32[](1);
+        proof[0] = hash2;
+
+        bytes32[] memory lightProof = new bytes32[](1);
+        lightProof[0] = lightHash2;
+
+        IAccount.PackedUserOperation memory userOp = _userOp1;
+        userOp.signature = getRootSignature(sigs, proof, lightProof, rootHash, lightRootHash);
+
+        vm.prank(ENTRY_POINT);
+        assertEq(vault.validateUserOp(userOp, hash1, 0), 0);
+
+        proof[0] = hash1;
+        lightProof[0] = lightHash1;
+
+        userOp = _userOp2;
+        userOp.signature = getRootSignature(sigs, proof, lightProof, rootHash, lightRootHash);
+
+        vm.prank(ENTRY_POINT);
+        assertEq(vault.validateUserOp(userOp, hash2, 0), 0);
+    }
+
+    function testFuzz_validateMultiUserOp_whenThresholdIs2_RevertsWhen_InvalidProofLight(
+        IAccount.PackedUserOperation calldata _userOp1,
+        IAccount.PackedUserOperation calldata _userOp2
+    )
+        public
+    {
+        vm.prank(ALICE.addr);
+        vault.updateThreshold(2);
+
+        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](2);
+
+        bytes32 hash1 = getUserOpHash(_userOp1);
+        bytes32 hash2 = getUserOpHash(_userOp2);
+
+        bytes32 lightHash1 = getLightUserOpHash(_userOp1);
+        bytes32 lightHash2 = getLightUserOpHash(_userOp2);
+
+        bytes32 rootHash = hashPair(hash1, hash2);
+        bytes32 lightRootHash = hashPair(lightHash1, lightHash2);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, lightRootHash);
+        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        (v, r, s) = vm.sign(BOB.key, rootHash);
+        sigs[1] = MultiSignerSignatureLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
+
+        bytes32[] memory proof = new bytes32[](1);
+        proof[0] = hash2;
+
+        bytes32[] memory lightProof = new bytes32[](1);
+        lightProof[0] = lightHash1;
+
+        IAccount.PackedUserOperation memory userOp = _userOp1;
+        userOp.signature = getRootSignature(sigs, proof, lightProof, rootHash, lightRootHash);
+
+        vm.expectRevert(abi.encodeWithSelector(InvalidMerkleProof.selector));
+        vm.prank(ENTRY_POINT);
+        vault.validateUserOp(userOp, hash1, 0);
+    }
+
     /* -------------------------------------------------------------------------- */
     /*                   VALIDATE USER OP WITH LIGHT STATE SYNC                   */
     /* -------------------------------------------------------------------------- */
 
-    function testFuzz_validateUserOpWithLightStateSync_newSigner(
+    function testFuzz_validateUserOpWithLightStateSync_addNewSigner(
         IAccount.PackedUserOperation calldata _userOp,
         uint256 _missingAccountsFund
     )
@@ -627,103 +922,6 @@ contract SmartVaultTest is BaseTest {
         vm.expectRevert();
         vm.prank(ENTRY_POINT);
         vault.validateUserOp(userOp, hash, _missingAccountsFund);
-    }
-
-    /* -------------------------------------------------------------------------- */
-    /*                        VALIDATE MULTI USER OP                        */
-    /* -------------------------------------------------------------------------- */
-
-    function testFuzz_validateMultiUserOp(
-        IAccount.PackedUserOperation calldata _userOp1,
-        IAccount.PackedUserOperation calldata _userOp2
-    )
-        public
-    {
-        bytes32 hash1 = getUserOpHash(_userOp1);
-        bytes32 hash2 = getUserOpHash(_userOp2);
-
-        bytes32 rootHash = hashPair(hash1, hash2);
-
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, rootHash);
-
-        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](1);
-        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
-
-        bytes32[] memory proof = new bytes32[](1);
-        proof[0] = hash2;
-
-        IAccount.PackedUserOperation memory userOp = _userOp1;
-        userOp.signature = getRootSignature(sigs, proof, new bytes32[](0), rootHash, bytes32(0));
-
-        vm.prank(ENTRY_POINT);
-        assertEq(vault.validateUserOp(userOp, hash1, 0), 0);
-
-        proof[0] = hash1;
-
-        userOp = _userOp2;
-        userOp.signature = getRootSignature(sigs, proof, new bytes32[](0), rootHash, bytes32(0));
-
-        vm.prank(ENTRY_POINT);
-        assertEq(vault.validateUserOp(userOp, hash2, 0), 0);
-    }
-
-    function testFuzz_validateMultiUserOp_withMultipleSigners(
-        IAccount.PackedUserOperation calldata _userOp1,
-        IAccount.PackedUserOperation calldata _userOp2
-    )
-        public
-    {
-        LightSyncMultiSigner.SignerUpdateParam[] memory updates = new LightSyncMultiSigner.SignerUpdateParam[](1);
-        updates[0] = LightSyncMultiSigner.SignerUpdateParam(
-            LightSyncMultiSigner.SignerUpdateType.UpdateThreshold, abi.encode(uint8(2))
-        );
-
-        bytes32 hash = keccak256(abi.encode(0, address(vault), updates));
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, hash);
-
-        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](1);
-        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
-
-        LightSyncMultiSigner.SignerSetUpdate[] memory signerUpdates = new LightSyncMultiSigner.SignerSetUpdate[](1);
-        signerUpdates[0] = LightSyncMultiSigner.SignerSetUpdate(updates, abi.encode(sigs));
-
-        bytes32 hash1 = getUserOpHash(_userOp1);
-        bytes32 hash2 = getUserOpHash(_userOp2);
-
-        bytes32 lightHash1 = getLightUserOpHash(_userOp1);
-        bytes32 lightHash2 = getLightUserOpHash(_userOp2);
-
-        bytes32 rootHash = hashPair(hash1, hash2);
-        bytes32 lightRootHash = hashPair(lightHash1, lightHash2);
-
-        sigs = new MultiSignerSignatureLib.SignatureWrapper[](2);
-
-        (v, r, s) = vm.sign(ALICE.key, lightRootHash);
-        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
-
-        (v, r, s) = vm.sign(BOB.key, rootHash);
-        sigs[1] = MultiSignerSignatureLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
-
-        bytes32[] memory proof = new bytes32[](1);
-        proof[0] = hash2;
-
-        bytes32[] memory lightProof = new bytes32[](1);
-        lightProof[0] = lightHash2;
-
-        IAccount.PackedUserOperation memory userOp = _userOp1;
-        userOp.signature = getRootSignature(signerUpdates, sigs, proof, lightProof, rootHash, lightRootHash);
-
-        vm.prank(ENTRY_POINT);
-        assertEq(vault.validateUserOp(userOp, hash1, 0), 0);
-
-        proof[0] = hash1;
-        lightProof[0] = lightHash1;
-
-        userOp = _userOp2;
-        userOp.signature = getRootSignature(sigs, proof, lightProof, rootHash, lightRootHash);
-
-        vm.prank(ENTRY_POINT);
-        assertEq(vault.validateUserOp(userOp, hash2, 0), 0);
     }
 
     /* -------------------------------------------------------------------------- */
