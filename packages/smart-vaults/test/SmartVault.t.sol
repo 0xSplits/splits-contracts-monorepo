@@ -768,6 +768,25 @@ contract SmartVaultTest is BaseTest {
     /*                   VALIDATE USER OP WITH LIGHT STATE SYNC                   */
     /* -------------------------------------------------------------------------- */
 
+    function testFuzz_validateUserOpWithLightStateSync_RevertsWhen_badLightSyncSignature(
+        IAccount.PackedUserOperation calldata _userOp,
+        uint256 _missingAccountsFund,
+        bytes calldata _sig
+    )
+        public
+    {
+        bytes32 hash = getUserOpHash(_userOp);
+
+        bytes memory sig = abi.encode(SmartVault.Signature(SmartVault.SignatureType.LightSync, abi.encode(_sig)));
+
+        IAccount.PackedUserOperation memory userOp = _userOp;
+        userOp.signature = sig;
+
+        vm.expectRevert();
+        vm.prank(ENTRY_POINT);
+        vault.validateUserOp(userOp, hash, _missingAccountsFund);
+    }
+
     function testFuzz_validateUserOpWithLightStateSync_addNewSigner(
         IAccount.PackedUserOperation calldata _userOp,
         uint256 _missingAccountsFund
@@ -847,6 +866,119 @@ contract SmartVaultTest is BaseTest {
         sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(3), abi.encodePacked(r, s, v));
 
         userOp = _userOp2;
+        userOp.signature = getRootSignature(signerUpdates, sigs);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(LightSyncMultiSigner.SignerSetUpdateValidationFailed.selector, signerUpdates[0])
+        );
+        vm.prank(ENTRY_POINT);
+        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
+    }
+
+    function testFuzz_validateUserOpWithLightStateSync_RevertsWhen_duplicateSigner(
+        IAccount.PackedUserOperation calldata _userOp1,
+        uint256 _missingAccountsFund
+    )
+        public
+    {
+        vm.prank(ALICE.addr);
+        vault.updateThreshold(2);
+
+        address newSigner = CAROL.addr;
+
+        LightSyncMultiSigner.SignerUpdateParam[] memory updates = new LightSyncMultiSigner.SignerUpdateParam[](1);
+        updates[0] = LightSyncMultiSigner.SignerUpdateParam(
+            LightSyncMultiSigner.SignerUpdateType.AddSigner, abi.encode(abi.encode(newSigner), uint8(3))
+        );
+
+        bytes32 hash = keccak256(abi.encode(0, address(vault), updates));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, hash);
+
+        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](2);
+        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+        sigs[1] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        LightSyncMultiSigner.SignerSetUpdate[] memory signerUpdates = new LightSyncMultiSigner.SignerSetUpdate[](1);
+        signerUpdates[0] = LightSyncMultiSigner.SignerSetUpdate(updates, abi.encode(sigs));
+
+        vm.deal(address(vault), _missingAccountsFund);
+
+        hash = getUserOpHash(_userOp1);
+
+        IAccount.PackedUserOperation memory userOp = _userOp1;
+        userOp.signature = getRootSignature(signerUpdates, sigs);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(LightSyncMultiSigner.SignerSetUpdateValidationFailed.selector, signerUpdates[0])
+        );
+        vm.prank(ENTRY_POINT);
+        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
+    }
+
+    function testFuzz_validateUserOpWithLightStateSync_RevertsWhen_missingSigners(
+        IAccount.PackedUserOperation calldata _userOp1,
+        uint256 _missingAccountsFund
+    )
+        public
+    {
+        vm.prank(ALICE.addr);
+        vault.updateThreshold(2);
+
+        address newSigner = CAROL.addr;
+
+        LightSyncMultiSigner.SignerUpdateParam[] memory updates = new LightSyncMultiSigner.SignerUpdateParam[](1);
+        updates[0] = LightSyncMultiSigner.SignerUpdateParam(
+            LightSyncMultiSigner.SignerUpdateType.AddSigner, abi.encode(abi.encode(newSigner), uint8(3))
+        );
+
+        bytes32 hash = keccak256(abi.encode(0, address(vault), updates));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, hash);
+
+        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](1);
+        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        LightSyncMultiSigner.SignerSetUpdate[] memory signerUpdates = new LightSyncMultiSigner.SignerSetUpdate[](1);
+        signerUpdates[0] = LightSyncMultiSigner.SignerSetUpdate(updates, abi.encode(sigs));
+
+        vm.deal(address(vault), _missingAccountsFund);
+
+        hash = getUserOpHash(_userOp1);
+
+        IAccount.PackedUserOperation memory userOp = _userOp1;
+        userOp.signature = getRootSignature(signerUpdates, sigs);
+
+        vm.expectRevert();
+        vm.prank(ENTRY_POINT);
+        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
+    }
+
+    function testFuzz_validateUserOpWithLightStateSync_RevertsWhen_incorrectSigner(
+        IAccount.PackedUserOperation calldata _userOp1,
+        uint256 _missingAccountsFund
+    )
+        public
+    {
+        address newSigner = CAROL.addr;
+
+        LightSyncMultiSigner.SignerUpdateParam[] memory updates = new LightSyncMultiSigner.SignerUpdateParam[](1);
+        updates[0] = LightSyncMultiSigner.SignerUpdateParam(
+            LightSyncMultiSigner.SignerUpdateType.AddSigner, abi.encode(abi.encode(newSigner), uint8(3))
+        );
+
+        bytes32 hash = keccak256(abi.encode(0, address(vault), updates));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, hash);
+
+        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](1);
+        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
+
+        LightSyncMultiSigner.SignerSetUpdate[] memory signerUpdates = new LightSyncMultiSigner.SignerSetUpdate[](1);
+        signerUpdates[0] = LightSyncMultiSigner.SignerSetUpdate(updates, abi.encode(sigs));
+
+        vm.deal(address(vault), _missingAccountsFund);
+
+        hash = getUserOpHash(_userOp1);
+
+        IAccount.PackedUserOperation memory userOp = _userOp1;
         userOp.signature = getRootSignature(signerUpdates, sigs);
 
         vm.expectRevert(
@@ -938,7 +1070,20 @@ contract SmartVaultTest is BaseTest {
         assertTrue(vault.isValidSignature(_hash, getRootSignature(sigs)) == 0x1626ba7e);
     }
 
-    function testFuzz_erc1271_newSigner(bytes32 _hash) public {
+    function testFuzz_erc1271_RevertsWhen_bundleUserOp(bytes32 _hash) public {
+        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](1);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, vault.replaySafeHash(_hash));
+        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        vm.expectRevert();
+        vm.prank(ENTRY_POINT);
+        vault.isValidSignature(
+            _hash, getRootSignature(sigs, new bytes32[](0), new bytes32[](0), bytes32(0), bytes32(0))
+        );
+    }
+
+    function testFuzz_erc1271_WithLightSync_addNewSigner(bytes32 _hash) public {
         address newSigner = CAROL.addr;
 
         LightSyncMultiSigner.SignerUpdateParam[] memory updates = new LightSyncMultiSigner.SignerUpdateParam[](1);
@@ -962,7 +1107,44 @@ contract SmartVaultTest is BaseTest {
         assertTrue(vault.isValidSignature(_hash, getRootSignature(signerUpdates, sigs)) == 0x1626ba7e);
     }
 
-    function testFuzz_erc1271_newSiger_RevertsWhen_invalidNonce(bytes32 _hash) public {
+    function testFuzz_erc1271_WithLightSync_addNewSigner_passkey(bytes32 _hash) public {
+        LightSyncMultiSigner.SignerUpdateParam[] memory updates = new LightSyncMultiSigner.SignerUpdateParam[](1);
+        updates[0] = LightSyncMultiSigner.SignerUpdateParam(
+            LightSyncMultiSigner.SignerUpdateType.AddSigner, abi.encode(passkeyOwner, uint8(3))
+        );
+
+        bytes32 hash = keccak256(abi.encode(0, address(vault), updates));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, hash);
+
+        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](1);
+        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        LightSyncMultiSigner.SignerSetUpdate[] memory signerUpdates = new LightSyncMultiSigner.SignerSetUpdate[](1);
+        signerUpdates[0] = LightSyncMultiSigner.SignerSetUpdate(updates, abi.encode(sigs));
+
+        WebAuthnInfo memory webAuthn = Utils.getWebAuthnStruct(vault.replaySafeHash(_hash));
+        (r, s) = vm.signP256(passkeyPrivateKey, webAuthn.messageHash);
+        s = bytes32(Utils.normalizeS(uint256(s)));
+
+        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(
+            3,
+            abi.encode(
+                WebAuthn.WebAuthnAuth({
+                    authenticatorData: webAuthn.authenticatorData,
+                    clientDataJSON: webAuthn.clientDataJSON,
+                    typeIndex: 1,
+                    challengeIndex: 23,
+                    r: uint256(r),
+                    s: uint256(s)
+                })
+            )
+        );
+
+        vm.prank(ENTRY_POINT);
+        assertTrue(vault.isValidSignature(_hash, getRootSignature(signerUpdates, sigs)) == 0x1626ba7e);
+    }
+
+    function testFuzz_erc1271_WithLightSync_RevertsWhen_invalidNonce(bytes32 _hash) public {
         address newSigner = CAROL.addr;
 
         LightSyncMultiSigner.SignerUpdateParam[] memory updates = new LightSyncMultiSigner.SignerUpdateParam[](1);
@@ -1011,7 +1193,7 @@ contract SmartVaultTest is BaseTest {
         assertTrue(vault.isValidSignature(_hash, getRootSignature(signerUpdates, sigs)) == 0x1626ba7e);
     }
 
-    function testFuzz_erc1271_removeSigner_RevertsWhen_signerAlreadyRemoved(bytes32 _hash) public {
+    function testFuzz_erc1271_removeSigner_signerAlreadyRemoved(bytes32 _hash) public {
         LightSyncMultiSigner.SignerUpdateParam[] memory updates = new LightSyncMultiSigner.SignerUpdateParam[](1);
         updates[0] = LightSyncMultiSigner.SignerUpdateParam(
             LightSyncMultiSigner.SignerUpdateType.RemoveSigner, abi.encode(uint8(0))
@@ -1031,6 +1213,32 @@ contract SmartVaultTest is BaseTest {
 
         vm.prank(ENTRY_POINT);
         assertTrue(vault.isValidSignature(_hash, getRootSignature(signerUpdates, sigs)) == 0xffffffff);
+    }
+
+    function testFuzz_erc1271_removeSigner_addSigner(bytes32 _hash) public {
+        LightSyncMultiSigner.SignerUpdateParam[] memory updates = new LightSyncMultiSigner.SignerUpdateParam[](2);
+        updates[0] = LightSyncMultiSigner.SignerUpdateParam(
+            LightSyncMultiSigner.SignerUpdateType.RemoveSigner, abi.encode(uint8(0))
+        );
+
+        updates[1] = LightSyncMultiSigner.SignerUpdateParam(
+            LightSyncMultiSigner.SignerUpdateType.AddSigner, abi.encode(abi.encode(ALICE.addr), uint8(0))
+        );
+
+        bytes32 hash = keccak256(abi.encode(0, address(vault), updates));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, hash);
+
+        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](1);
+        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        LightSyncMultiSigner.SignerSetUpdate[] memory signerUpdates = new LightSyncMultiSigner.SignerSetUpdate[](1);
+        signerUpdates[0] = LightSyncMultiSigner.SignerSetUpdate(updates, abi.encode(sigs));
+
+        (v, r, s) = vm.sign(ALICE.key, vault.replaySafeHash(_hash));
+        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        vm.prank(ENTRY_POINT);
+        assertTrue(vault.isValidSignature(_hash, getRootSignature(signerUpdates, sigs)) == 0x1626ba7e);
     }
 
     function testFuzz_erc1271_updateThreshold_RevertsWhen_signaturesLessThanThreshold(bytes32 _hash) public {

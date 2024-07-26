@@ -182,8 +182,11 @@ abstract contract LightSyncMultiSigner is MultiSigner {
                 assembly {
                     let dataPtr := add(signers_, add(32, start))
                     mstore8(dataPtr, signerType)
+
                     let newDataPtr := add(signer, 32)
                     mstore(add(dataPtr, 1), mload(newDataPtr))
+
+                    if eq(signerType, 2) { mstore(add(dataPtr, 33), mload(add(newDataPtr, 32))) }
                 }
             } else if (signerUpdateParam.updateType == SignerUpdateType.RemoveSigner) {
                 uint8 index = abi.decode(signerUpdateParam.data, (uint8));
