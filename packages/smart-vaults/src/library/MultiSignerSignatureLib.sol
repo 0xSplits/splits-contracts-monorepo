@@ -13,7 +13,7 @@ library MultiSignerSignatureLib {
     /* -------------------------------------------------------------------------- */
 
     /**
-     * @notice Thrown when trying to remove an empty signer.
+     * @notice Thrown when trying to access an empty signer.
      * @param index Index of the empty signer.
      */
     error SignerNotPresent(uint8 index);
