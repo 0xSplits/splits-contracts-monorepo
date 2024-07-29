@@ -137,18 +137,20 @@ library MultiSignerSignatureLib {
     function getSignerAtIndex(bytes memory signerUpdates_, uint8 index_) internal pure returns (bytes memory) {
         uint256 numUpdates = signerUpdates_.length;
 
+        uint8 currentIndex;
         for (uint256 i = 0; i < numUpdates; i += SIGNER_SIZE) {
-            uint256 start = i;
-
-            uint8 currentIndex;
-            uint8 signerType;
             assembly {
-                currentIndex := byte(0, mload(add(signerUpdates_, add(32, start))))
-                signerType := byte(0, mload(add(add(signerUpdates_, add(32, start)), 1)))
+                currentIndex := byte(0, mload(add(signerUpdates_, add(32, i))))
             }
 
             if (currentIndex == index_) {
+                uint8 signerType;
                 uint256 returnLength;
+
+                assembly {
+                    signerType := byte(0, mload(add(add(signerUpdates_, add(32, i)), 1)))
+                }
+
                 if (signerType == EOA_SIGNER_TYPE) {
                     returnLength = MultiSignerLib.EOA_SIGNER_SIZE;
                 } else if (signerType == PASSKEY_SIGNER_TYPE) {
@@ -157,11 +159,14 @@ library MultiSignerSignatureLib {
 
                 bytes memory signer = new bytes(returnLength);
                 assembly {
-                    let dataPtr := add(add(signerUpdates_, start), 34)
+                    let dataPtr := add(add(signerUpdates_, i), 34) // Skip index and signer type bytes
                     let destPtr := add(signer, 32)
 
-                    for { let offset := 0 } lt(offset, returnLength) { offset := add(offset, 32) } {
-                        mstore(add(destPtr, offset), mload(add(dataPtr, offset)))
+                    switch returnLength
+                    case 32 { mstore(destPtr, mload(dataPtr)) }
+                    case 64 {
+                        mstore(destPtr, mload(dataPtr))
+                        mstore(add(destPtr, 32), mload(add(dataPtr, 32)))
                     }
                 }
                 return signer;

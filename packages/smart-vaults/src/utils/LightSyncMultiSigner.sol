@@ -147,17 +147,18 @@ abstract contract LightSyncMultiSigner is MultiSigner {
             signerType = MultiSignerSignatureLib.PASSKEY_SIGNER_TYPE;
         }
 
-        uint256 signerLength = signer.length;
-
         assembly {
             let destPtr := add(add(signerUpdates_, 32), mul(insertIndex_, 66))
             mstore8(destPtr, index)
             mstore8(add(destPtr, 1), signerType)
-            let dataPtr := add(signer, 32)
-            let endPtr := add(destPtr, signerLength)
 
-            for { let offset := 2 } lt(add(destPtr, offset), endPtr) { offset := add(offset, 32) } {
-                mstore(add(destPtr, offset), mload(add(dataPtr, sub(offset, 2))))
+            let dataPtr := add(signer, 32)
+
+            switch signerType
+            case 1 { mstore(add(destPtr, 2), mload(dataPtr)) }
+            case 2 {
+                mstore(add(destPtr, 2), mload(dataPtr)) // Copy first 32 bytes
+                mstore(add(destPtr, 34), mload(add(dataPtr, 32))) // Copy second 32 bytes
             }
         }
 
