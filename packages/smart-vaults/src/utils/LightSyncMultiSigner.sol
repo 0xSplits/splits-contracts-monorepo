@@ -17,33 +17,12 @@ abstract contract LightSyncMultiSigner is MultiSigner {
     /*                                   STRUCTS                                  */
     /* -------------------------------------------------------------------------- */
 
-    /// @notice Signer Update types.
-    enum SignerUpdateType {
-        /// Adds a new signer to the signer set.
-        AddSigner,
-        /// Removes a signer from the signer set.
-        RemoveSigner,
-        /// Updates signer set threshold.
-        UpdateThreshold
-    }
-
-    /// @notice Signer Update parameters.
-    struct SignerUpdateParam {
-        /// Type of update.
-        SignerUpdateType updateType;
-        /**
-         * Data can be of the following types:
-         *  AddSigner: abi.encode(bytes signer, uint8 index)
-         *  RemoveSigner: abi.encode(uint8 index)
-         *  UpdateThreshold: abi.encode(uint8 threshold)
-         */
-        bytes data;
-    }
-
     /// @notice Signer set update.
     struct SignerSetUpdate {
-        /// List of updates to the signer set.
-        SignerUpdateParam[] updateParams;
+        /**
+         * AddSigner: abi.encode(uint8 index, uint8 signerType, bytes signer)
+         */
+        bytes data;
         /// abi.encode(MultiSignerSignatureLib.SignatureWrapper[]) signature over keccak256(nonce, address(this),
         /// updateParams).
         bytes normalSignature;
@@ -58,12 +37,6 @@ abstract contract LightSyncMultiSigner is MultiSigner {
      * @param _signerSetUpdate Signer set update that failed validation.
      */
     error SignerSetUpdateValidationFailed(SignerSetUpdate _signerSetUpdate);
-
-    /**
-     * @notice Thrown when signer update param is of invalid type.
-     * @param _signerSetUpdateParam Signer set update param with invalid type.
-     */
-    error InvalidSignerUpdateParam(SignerUpdateParam _signerSetUpdateParam);
 
     /* -------------------------------------------------------------------------- */
     /*                             INTERNAL FUNCTIONS                             */
@@ -84,7 +57,7 @@ abstract contract LightSyncMultiSigner is MultiSigner {
     /// @dev reverts if validation fails.
     function _validateSignerSetUpdate(
         MultiSignerLib.MultiSignerStorage storage $_,
-        SignerSetUpdate memory signerUpdate_,
+        SignerSetUpdate memory signerSetUpdate_,
         uint256 nonce_
     )
         internal
@@ -92,48 +65,45 @@ abstract contract LightSyncMultiSigner is MultiSigner {
     {
         if (
             !MultiSignerSignatureLib.isValidSignature(
-                $_, _getSignerUpdateHash(signerUpdate_, nonce_), signerUpdate_.normalSignature
+                $_, _getSignerUpdateHash(signerSetUpdate_, nonce_), signerSetUpdate_.normalSignature
             )
-        ) revert SignerSetUpdateValidationFailed(signerUpdate_);
+        ) revert SignerSetUpdateValidationFailed(signerSetUpdate_);
     }
 
-    function _processSignerSetUpdate(SignerSetUpdate memory signerUpdate_) internal {
-        SignerUpdateParam[] memory updateParams = signerUpdate_.updateParams;
-        uint256 numUpdates = updateParams.length;
-        for (uint256 i; i < numUpdates; i++) {
-            _processSignerUpdateParam(updateParams[i]);
-        }
+    function _processSignerSetUpdate(SignerSetUpdate memory signerSetUpdate_) internal {
+        (bytes memory signer, uint8 index) = abi.decode(signerSetUpdate_.data, (bytes, uint8));
+        _addSigner(signer, index);
     }
 
-    function _processSignerSetUpdatesMemory(SignerSetUpdate[] memory signerUpdates_)
+    function _processSignerSetUpdatesMemory(SignerSetUpdate[] memory signerSetUpdates_)
         internal
         view
-        returns (bytes memory signers, uint8 threshold)
+        returns (bytes memory signerUpdates)
     {
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
         uint256 nonce = $.nonce;
-        threshold = $.threshold;
-        uint256 numUpdates = signerUpdates_.length;
-        signers = new bytes(256 * MultiSignerSignatureLib.SIGNER_SIZE);
+
+        uint256 numUpdates = signerSetUpdates_.length;
+        signerUpdates = new bytes(66 * numUpdates);
+
+        uint256 memorySignerSet;
 
         for (uint256 i; i < numUpdates; i++) {
             _validateSignerSetUpdateMemory({
                 $_: $,
-                signerUpdate_: signerUpdates_[i],
-                signers_: signers,
-                threshold_: threshold,
+                signerSetUpdate_: signerSetUpdates_[i],
+                signerUpdates_: signerUpdates,
                 nonce_: nonce++
             });
-            (signers, threshold) = _processSignerSetUpdateMemory(signerUpdates_[i], signers, threshold);
+            memorySignerSet = _processSignerSetUpdateMemory(i, signerSetUpdates_[i], memorySignerSet, signerUpdates);
         }
     }
 
     /// @notice reverts if validation fails
     function _validateSignerSetUpdateMemory(
         MultiSignerLib.MultiSignerStorage storage $_,
-        SignerSetUpdate memory signerUpdate_,
-        bytes memory signers_,
-        uint8 threshold_,
+        SignerSetUpdate memory signerSetUpdate_,
+        bytes memory signerUpdates_,
         uint256 nonce_
     )
         internal
@@ -142,84 +112,56 @@ abstract contract LightSyncMultiSigner is MultiSigner {
         if (
             !MultiSignerSignatureLib.isValidSignature({
                 $_: $_,
-                signers_: signers_,
-                threshold_: threshold_,
-                hash_: _getSignerUpdateHash(signerUpdate_, nonce_),
-                signature_: signerUpdate_.normalSignature
+                signerUpdates_: signerUpdates_,
+                hash_: _getSignerUpdateHash(signerSetUpdate_, nonce_),
+                signature_: signerSetUpdate_.normalSignature
             })
         ) {
-            revert SignerSetUpdateValidationFailed(signerUpdate_);
+            revert SignerSetUpdateValidationFailed(signerSetUpdate_);
         }
     }
 
     function _processSignerSetUpdateMemory(
-        SignerSetUpdate memory signerUpdate_,
-        bytes memory signers_,
-        uint8 threshold_
+        uint256 insertIndex_,
+        SignerSetUpdate memory signerSetUpdate_,
+        uint256 memorySignerSet_,
+        bytes memory signerUpdates_
     )
         internal
         view
-        returns (bytes memory, uint8)
+        returns (uint256)
     {
-        SignerUpdateParam[] memory updateParams = signerUpdate_.updateParams;
-        uint256 numUpdates = updateParams.length;
+        (bytes memory signer, uint8 index) = abi.decode(signerSetUpdate_.data, (bytes, uint8));
+        MultiSignerLib.validateSigner(signer);
 
-        SignerUpdateParam memory signerUpdateParam;
-        for (uint256 i; i < numUpdates; i++) {
-            signerUpdateParam = updateParams[i];
-            if (signerUpdateParam.updateType == SignerUpdateType.AddSigner) {
-                (bytes memory signer, uint8 index) = abi.decode(signerUpdateParam.data, (bytes, uint8));
-                MultiSignerLib.validateSigner(signer);
+        uint256 bitMask = 1 << index;
+        if (memorySignerSet_ & bitMask != 0) {
+            revert SignerAlreadyPresent(index);
+        }
+        memorySignerSet_ = memorySignerSet_ | bitMask;
 
-                uint8 signerType;
-                if (signer.length == MultiSignerLib.EOA_SIGNER_SIZE) {
-                    signerType = MultiSignerSignatureLib.EOA_SIGNER_TYPE;
-                } else {
-                    signerType = MultiSignerSignatureLib.PASSKEY_SIGNER_TYPE;
-                }
+        uint8 signerType;
+        if (signer.length == MultiSignerLib.EOA_SIGNER_SIZE) {
+            signerType = MultiSignerSignatureLib.EOA_SIGNER_TYPE;
+        } else if (signer.length == MultiSignerLib.PASSKEY_SIGNER_SIZE) {
+            signerType = MultiSignerSignatureLib.PASSKEY_SIGNER_TYPE;
+        }
 
-                uint256 start = uint256(index) * MultiSignerSignatureLib.SIGNER_SIZE;
-                assembly {
-                    let dataPtr := add(signers_, add(32, start))
-                    mstore8(dataPtr, signerType)
+        uint256 signerLength = signer.length;
 
-                    let newDataPtr := add(signer, 32)
-                    mstore(add(dataPtr, 1), mload(newDataPtr))
+        assembly {
+            let destPtr := add(add(signerUpdates_, 32), mul(insertIndex_, 66))
+            mstore8(destPtr, index)
+            mstore8(add(destPtr, 1), signerType)
+            let dataPtr := add(signer, 32)
+            let endPtr := add(destPtr, signerLength)
 
-                    if eq(signerType, 2) { mstore(add(dataPtr, 33), mload(add(newDataPtr, 32))) }
-                }
-            } else if (signerUpdateParam.updateType == SignerUpdateType.RemoveSigner) {
-                uint8 index = abi.decode(signerUpdateParam.data, (uint8));
-                uint8 signerType = MultiSignerSignatureLib.REMOVED_SIGNER_TYPE;
-
-                uint256 start = uint256(index) * MultiSignerSignatureLib.SIGNER_SIZE;
-                assembly {
-                    let dataPtr := add(signers_, add(32, start))
-                    mstore8(dataPtr, signerType)
-                }
-            } else if (signerUpdateParam.updateType == SignerUpdateType.UpdateThreshold) {
-                threshold_ = abi.decode(signerUpdateParam.data, (uint8));
-            } else {
-                revert InvalidSignerUpdateParam(signerUpdateParam);
+            for { let offset := 2 } lt(add(destPtr, offset), endPtr) { offset := add(offset, 32) } {
+                mstore(add(destPtr, offset), mload(add(dataPtr, sub(offset, 2))))
             }
         }
 
-        return (signers_, threshold_);
-    }
-
-    function _processSignerUpdateParam(SignerUpdateParam memory signerUpdateParam_) internal {
-        if (signerUpdateParam_.updateType == SignerUpdateType.AddSigner) {
-            (bytes memory signer, uint8 index) = abi.decode(signerUpdateParam_.data, (bytes, uint8));
-            _addSigner(signer, index);
-        } else if (signerUpdateParam_.updateType == SignerUpdateType.RemoveSigner) {
-            uint8 index = abi.decode(signerUpdateParam_.data, (uint8));
-            _removeSigner(index);
-        } else if (signerUpdateParam_.updateType == SignerUpdateType.UpdateThreshold) {
-            uint8 threshold_ = abi.decode(signerUpdateParam_.data, (uint8));
-            _updateThreshold(threshold_);
-        } else {
-            revert InvalidSignerUpdateParam(signerUpdateParam_);
-        }
+        return memorySignerSet_;
     }
 
     function _getSignerUpdateHash(
@@ -230,6 +172,6 @@ abstract contract LightSyncMultiSigner is MultiSigner {
         view
         returns (bytes32)
     {
-        return keccak256(abi.encode(nonce_, address(this), signerSetUpdate_.updateParams));
+        return keccak256(abi.encode(nonce_, address(this), signerSetUpdate_.data));
     }
 }
