@@ -44,6 +44,12 @@ abstract contract MultiSigner {
      */
     error SignerNotPresent(uint8 index);
 
+    /**
+     * @notice Thrown when trying to replace an existing signer.
+     * @param index Index of the existing signer.
+     */
+    error SignerAlreadyPresent(uint8 index);
+
     /* -------------------------------------------------------------------------- */
     /*                                   EVENTS                                   */
     /* -------------------------------------------------------------------------- */
@@ -216,7 +222,9 @@ abstract contract MultiSigner {
 
         MultiSignerLib.validateSigner(signer_);
 
-        if ($.signers[index_].length == 0) $.signerCount += 1;
+        if ($.signers[index_].length != 0) revert SignerAlreadyPresent(index_);
+
+        $.signerCount += 1;
         $.signers[index_] = signer_;
 
         emit AddSigner(index_, signer_);

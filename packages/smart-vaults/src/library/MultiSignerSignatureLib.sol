@@ -9,23 +9,27 @@ import { MultiSignerLib } from "./MultiSignerLib.sol";
  */
 library MultiSignerSignatureLib {
     /* -------------------------------------------------------------------------- */
+    /*                                   ERRORS                                   */
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @notice Thrown when trying to access an empty signer.
+     * @param index Index of the empty signer.
+     */
+    error SignerNotPresent(uint8 index);
+
+    /* -------------------------------------------------------------------------- */
     /*                                  CONSTANTS                                 */
     /* -------------------------------------------------------------------------- */
 
     // Size in bytes allocated for each signer in the data structure.
-    uint256 public constant SIGNER_SIZE = 65;
-
-    // Signer type indicating an empty slot in the signer set.
-    uint8 public constant EMPTY_SIGNER_TYPE = 0;
+    uint256 public constant SIGNER_SIZE = 66;
 
     // Signer type representing an externally owned account (EOA) signer.
     uint8 public constant EOA_SIGNER_TYPE = 1;
 
     // Signer type representing a passkey-based signer.
     uint8 public constant PASSKEY_SIGNER_TYPE = 2;
-
-    // Signer type indicating a removed signer in the signer set.
-    uint8 public constant REMOVED_SIGNER_TYPE = 3;
 
     /* -------------------------------------------------------------------------- */
     /*                                   STRUCTS                                  */
@@ -87,16 +91,13 @@ library MultiSignerSignatureLib {
     /**
      * @notice validates if `hash_` was signed by the signer set present in `$` and 'signers_`.
      * @param $_ Storage reference to MultiSigner storage.
-     * @param signers_ list of 256 possible signers. Has higher preference over signers present in storage at a given
-     * index.
-     * @param threshold_ signer set threshold used for verification.
+     * @param signerUpdates_ list of signer additions made to the signer set.
      * @param hash_ blob of data that needs to be verified.
      * @param signature_ abi.encode(SignatureWrapper[]).
      */
     function isValidSignature(
         MultiSignerLib.MultiSignerStorage storage $_,
-        bytes memory signers_,
-        uint8 threshold_,
+        bytes memory signerUpdates_,
         bytes32 hash_,
         bytes memory signature_
     )
@@ -108,21 +109,19 @@ library MultiSignerSignatureLib {
 
         SignatureWrapper[] memory signatures = abi.decode(signature_, (SignatureWrapper[]));
 
+        uint8 threshold = $_.threshold;
         uint256 alreadySigned;
         uint256 mask;
         uint8 signerIndex;
         bytes memory signer;
-        uint8 signerType;
-        for (uint256 i; i < threshold_; i++) {
+        for (uint256 i; i < threshold; i++) {
             signerIndex = signatures[i].signerIndex;
             mask = (1 << signerIndex);
 
-            (signer, signerType) = getSignerAtIndex(signers_, signatures[i].signerIndex);
+            signer = $_.signers[signerIndex];
 
-            if (signerType == EMPTY_SIGNER_TYPE) {
-                signer = $_.signers[signerIndex];
-            } else if (signerType == REMOVED_SIGNER_TYPE) {
-                isValid = false;
+            if (signer.length == 0) {
+                signer = getSignerAtIndex(signerUpdates_, signatures[i].signerIndex);
             }
 
             if (
@@ -135,37 +134,45 @@ library MultiSignerSignatureLib {
         }
     }
 
-    function getSignerAtIndex(bytes memory signers_, uint8 index_) internal pure returns (bytes memory, uint8) {
-        uint256 start = uint256(index_) * SIGNER_SIZE;
+    function getSignerAtIndex(bytes memory signerUpdates_, uint8 index_) internal pure returns (bytes memory signer) {
+        uint256 numUpdates = signerUpdates_.length;
 
-        uint8 signerType;
-        assembly {
-            signerType := byte(0, mload(add(signers_, add(32, start))))
-        }
+        uint8 currentIndex;
+        for (uint256 i = 0; i < numUpdates; i += SIGNER_SIZE) {
+            assembly {
+                currentIndex := byte(0, mload(add(signerUpdates_, add(32, i))))
+            }
 
-        uint256 returnLength;
-        if (signerType == EMPTY_SIGNER_TYPE || signerType == REMOVED_SIGNER_TYPE) {
-            return (new bytes(0), signerType);
-        } else if (signerType == EOA_SIGNER_TYPE) {
-            returnLength = MultiSignerLib.EOA_SIGNER_SIZE;
-        } else if (signerType == PASSKEY_SIGNER_TYPE) {
-            returnLength = MultiSignerLib.PASSKEY_SIGNER_SIZE;
-        }
+            if (currentIndex == index_) {
+                uint8 signerType;
+                uint256 returnLength;
 
-        bytes memory signer = new bytes(returnLength);
+                assembly {
+                    signerType := byte(0, mload(add(add(signerUpdates_, add(32, i)), 1)))
+                }
 
-        assembly {
-            let dataPtr := add(add(signers_, 33), start)
-            let itemPtr := add(signer, 32)
+                if (signerType == EOA_SIGNER_TYPE) {
+                    returnLength = MultiSignerLib.EOA_SIGNER_SIZE;
+                } else if (signerType == PASSKEY_SIGNER_TYPE) {
+                    returnLength = MultiSignerLib.PASSKEY_SIGNER_SIZE;
+                }
 
-            switch returnLength
-            case 32 { mstore(itemPtr, mload(dataPtr)) }
-            case 64 {
-                mstore(itemPtr, mload(dataPtr))
-                mstore(add(itemPtr, 32), mload(add(dataPtr, 32)))
+                signer = new bytes(returnLength);
+                assembly {
+                    let dataPtr := add(add(signerUpdates_, i), 34) // Skip index and signer type bytes
+                    let destPtr := add(signer, 32)
+
+                    switch returnLength
+                    case 32 { mstore(destPtr, mload(dataPtr)) }
+                    case 64 {
+                        mstore(destPtr, mload(dataPtr))
+                        mstore(add(destPtr, 32), mload(add(dataPtr, 32)))
+                    }
+                }
+                return signer;
             }
         }
 
-        return (signer, signerType);
+        revert SignerNotPresent(index_);
     }
 }

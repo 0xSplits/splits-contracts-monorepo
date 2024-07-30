@@ -7,3 +7,4 @@ solady/=node_modules/solady/src
 openzeppelin-contracts/=node_modules/@openzeppelin/contracts/
 FreshCryptoLib/=node_modules/FreshCryptoLib/solidity/src/
 src/=src/
+account-abstraction/=node_modules/account-abstraction/contracts/
