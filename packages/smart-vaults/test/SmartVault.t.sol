@@ -43,7 +43,7 @@ contract SmartVaultTest is BaseTest {
 
     error OnlyEntryPoint();
     error OnlyFactory();
-    error OnlySelfOrOwner();
+    error OnlySelf();
     error Unauthorized();
     error InvalidSignerBytesLength(bytes signer);
     error MissingSignatures(uint256 signaturesSupplied, uint8 threshold);
@@ -344,7 +344,7 @@ contract SmartVaultTest is BaseTest {
         PackedUserOperation memory userOp = _userOp;
         userOp.signature = getRootSignature(sigs);
 
-        vm.prank(ALICE.addr);
+        vm.prank(address(vault));
         vault.updateThreshold(2);
 
         vm.prank(ENTRY_POINT);
@@ -409,7 +409,7 @@ contract SmartVaultTest is BaseTest {
     )
         public
     {
-        vm.prank(ALICE.addr);
+        vm.prank(address(vault));
         vault.updateThreshold(2);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, _hash);
@@ -433,7 +433,7 @@ contract SmartVaultTest is BaseTest {
     {
         vm.deal(address(vault), _missingAccountsFund);
 
-        vm.prank(ALICE.addr);
+        vm.prank(address(vault));
         vault.updateThreshold(2);
 
         vm.deal(address(vault), _missingAccountsFund);
@@ -482,7 +482,7 @@ contract SmartVaultTest is BaseTest {
     )
         public
     {
-        vm.prank(ALICE.addr);
+        vm.prank(address(vault));
         vault.updateThreshold(2);
 
         bytes32 hash = getUserOpHash(_userOp);
@@ -511,7 +511,7 @@ contract SmartVaultTest is BaseTest {
     )
         public
     {
-        vm.prank(ALICE.addr);
+        vm.prank(address(vault));
         vault.updateThreshold(2);
 
         bytes32 hash = getUserOpHash(_userOp);
@@ -562,7 +562,7 @@ contract SmartVaultTest is BaseTest {
     )
         public
     {
-        vm.prank(ALICE.addr);
+        vm.prank(address(vault));
         vault.updateThreshold(2);
 
         bytes32 hash = getUserOpHash(_userOp);
@@ -590,7 +590,7 @@ contract SmartVaultTest is BaseTest {
     )
         public
     {
-        vm.prank(ALICE.addr);
+        vm.prank(address(vault));
         vault.updateThreshold(2);
 
         bytes32 hash = getUserOpHash(_userOp);
@@ -684,7 +684,7 @@ contract SmartVaultTest is BaseTest {
     )
         public
     {
-        vm.prank(ALICE.addr);
+        vm.prank(address(vault));
         vault.updateThreshold(2);
 
         MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](2);
@@ -732,7 +732,7 @@ contract SmartVaultTest is BaseTest {
     )
         public
     {
-        vm.prank(ALICE.addr);
+        vm.prank(address(vault));
         vault.updateThreshold(2);
 
         MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](2);
@@ -873,7 +873,7 @@ contract SmartVaultTest is BaseTest {
     )
         public
     {
-        vm.prank(ALICE.addr);
+        vm.prank(address(vault));
         vault.updateThreshold(2);
 
         bytes memory newSigner = abi.encode(abi.encode(CAROL.addr), uint8(3));
@@ -908,7 +908,7 @@ contract SmartVaultTest is BaseTest {
     )
         public
     {
-        vm.prank(ALICE.addr);
+        vm.prank(address(vault));
         vault.updateThreshold(2);
 
         bytes memory newSigner = abi.encode(abi.encode(CAROL.addr), uint8(3));
@@ -1251,7 +1251,7 @@ contract SmartVaultTest is BaseTest {
     }
 
     function test_deployCreate_RevertsWhen_callerNotAccount() public {
-        vm.expectRevert(OnlySelfOrOwner.selector);
+        vm.expectRevert(OnlySelf.selector);
         vm.prank(ENTRY_POINT);
         vault.deployCreate(abi.encodePacked(type(SmartVault).creationCode, abi.encode(root)));
     }
@@ -1278,38 +1278,38 @@ contract SmartVaultTest is BaseTest {
     /*                             SIGNER SET UPDATES                             */
     /* -------------------------------------------------------------------------- */
 
-    function testFuzz_addSigner_RevertWhen_callerNotOwner(bytes memory _signer, address _caller) public {
-        vm.assume(_caller != ALICE.addr && _caller != address(vault));
+    function testFuzz_addSigner_RevertWhen_callerNotAccount(bytes memory _signer, address _caller) public {
+        vm.assume(_caller != address(vault));
 
         vm.startPrank(_caller);
-        vm.expectRevert(OnlySelfOrOwner.selector);
+        vm.expectRevert(OnlySelf.selector);
         vault.addSigner(_signer, 0);
         vm.stopPrank();
     }
 
-    function testFuzz_removeSigner_RevertWhen_callerNotOwner(uint8 _index, address _caller) public {
-        vm.assume(_caller != ALICE.addr && _caller != address(vault));
+    function testFuzz_removeSigner_RevertWhen_callerNotAccount(uint8 _index, address _caller) public {
+        vm.assume(_caller != address(vault));
 
         vm.startPrank(_caller);
-        vm.expectRevert(OnlySelfOrOwner.selector);
+        vm.expectRevert(OnlySelf.selector);
         vault.removeSigner(_index);
         vm.stopPrank();
     }
 
-    function testFuzz_updateThreshold_RevertWhen_callerNotOwner(uint8 _threshold, address _caller) public {
-        vm.assume(_caller != ALICE.addr && _caller != address(vault));
+    function testFuzz_updateThreshold_RevertWhen_callerNotAccount(uint8 _threshold, address _caller) public {
+        vm.assume(_caller != address(vault));
 
         vm.startPrank(_caller);
-        vm.expectRevert(OnlySelfOrOwner.selector);
+        vm.expectRevert(OnlySelf.selector);
         vault.updateThreshold(_threshold);
         vm.stopPrank();
     }
 
-    function testFuzz_setNonce_RevertWhen_callerNotOwner(uint8 _nonce, address _caller) public {
-        vm.assume(_caller != ALICE.addr && _caller != address(vault));
+    function testFuzz_setNonce_RevertWhen_callerNotAccount(uint8 _nonce, address _caller) public {
+        vm.assume(_caller != address(vault));
 
         vm.startPrank(_caller);
-        vm.expectRevert(OnlySelfOrOwner.selector);
+        vm.expectRevert(OnlySelf.selector);
         vault.setNonce(_nonce);
         vm.stopPrank();
     }

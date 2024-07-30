@@ -124,9 +124,6 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
     /// @notice Thrown when caller is not address(this).
     error OnlySelf();
 
-    /// @notice Thrown when caller is not owner or address(this).
-    error OnlySelfOrOwner();
-
     /// @notice Thrown when contract creation has failed.
     error FailedContractCreation();
 
@@ -165,12 +162,6 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
             revert OnlySelf();
         }
         _;
-    }
-
-    /// @notice Reverts when caller is not this account or owner.
-    modifier onlySelfOrOwner() virtual {
-        if (msg.sender == address(this) || msg.sender == owner()) _;
-        else revert OnlySelfOrOwner();
     }
 
     /**
@@ -330,7 +321,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
      * @param initCode_ The creation bytecode.
      * @return newContract The 20-byte address where the contract was deployed.
      */
-    function deployCreate(bytes memory initCode_) public payable onlySelfOrOwner returns (address newContract) {
+    function deployCreate(bytes memory initCode_) public payable onlySelf returns (address newContract) {
         assembly ("memory-safe") {
             newContract := create(callvalue(), add(initCode_, 0x20), mload(initCode_))
         }
@@ -348,7 +339,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
     function _authorizeUpgrade(address) internal view virtual override(UUPSUpgradeable) onlyOwner { }
 
     /// @dev authorized caller to update the signer set.
-    function _authorizeUpdate() internal view override(MultiSigner) onlySelfOrOwner { }
+    function _authorizeUpdate() internal view override(MultiSigner) onlySelf { }
 
     /// @dev Get light user op hash of the Packed user operation.
     function _getLightUserOpHash(PackedUserOperation calldata userOp_) internal view returns (bytes32) {
