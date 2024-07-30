@@ -5,13 +5,14 @@ import { MultiSignerLib } from "../library/MultiSignerLib.sol";
 import { MultiSignerSignatureLib } from "../library/MultiSignerSignatureLib.sol";
 import { UserOperationLib } from "../library/UserOperationLib.sol";
 import { ERC1271 } from "../utils/ERC1271.sol";
+
+import { FallbackManager } from "../utils/FallbackManager.sol";
 import { LightSyncMultiSigner } from "../utils/LightSyncMultiSigner.sol";
 import { MultiSigner } from "../utils/MultiSigner.sol";
 
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { IAccount } from "account-abstraction/interfaces/IAccount.sol";
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
-import { Receiver } from "solady/accounts/Receiver.sol";
 import { Ownable } from "solady/auth/Ownable.sol";
 import { UUPSUpgradeable } from "solady/utils/UUPSUpgradeable.sol";
 
@@ -21,7 +22,7 @@ import { UUPSUpgradeable } from "solady/utils/UUPSUpgradeable.sol";
  * @notice Based on Coinbase's Smart Wallet (https://github.com/coinbase/smart-wallet) and Solady's Smart Wallet.
  * @author Splits
  */
-contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, Receiver {
+contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, FallbackManager {
     using UserOperationLib for PackedUserOperation;
 
     /* -------------------------------------------------------------------------- */
@@ -338,8 +339,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
     /// @dev authorizes caller to upgrade the implementation of this contract.
     function _authorizeUpgrade(address) internal view virtual override(UUPSUpgradeable) onlyOwner { }
 
-    /// @dev authorized caller to update the signer set.
-    function _authorizeUpdate() internal view override(MultiSigner) onlySelf { }
+    function _authorize() internal view override(MultiSigner, FallbackManager) onlySelf { }
 
     /// @dev Get light user op hash of the Packed user operation.
     function _getLightUserOpHash(PackedUserOperation calldata userOp_) internal view returns (bytes32) {
