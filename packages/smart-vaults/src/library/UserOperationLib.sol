@@ -47,7 +47,13 @@ library UserOperationLib {
 
     /**
      * @notice Pack the light user operation data into bytes for hashing.
-     * @dev Does not include the initCode.
+     * @dev Does not include the following properties of the User Op.
+     *  - initCode
+     *  - accountGasLimits
+     *  - preVerificationGas
+     *  - gasFees
+     *  - paymasterAndData
+     *  - signature
      * @param userOp_ - The user operation data.
      */
     function encodeLight(PackedUserOperation calldata userOp_) internal pure returns (bytes memory ret) {
