@@ -23,8 +23,7 @@ abstract contract LightSyncMultiSigner is MultiSigner {
          * AddSigner: abi.encode(uint8 index, uint8 signerType, bytes signer)
          */
         bytes data;
-        /// abi.encode(MultiSignerSignatureLib.SignatureWrapper[]) signature over keccak256(nonce, address(this),
-        /// updateParams).
+        /// abi.encode(MultiSignerSignatureLib.SignatureWrapper[]) signature over keccak256(nonce, address(this), data).
         bytes normalSignature;
     }
 
@@ -42,12 +41,13 @@ abstract contract LightSyncMultiSigner is MultiSigner {
     /*                             INTERNAL FUNCTIONS                             */
     /* -------------------------------------------------------------------------- */
 
+    /// @dev only called when there is a light sync state update. It is expected that signerUpdates_.length > 0.
     function _processSignerSetUpdates(SignerSetUpdate[] memory signerUpdates_) internal {
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
         uint256 nonce = $.nonce;
         uint256 numUpdates = signerUpdates_.length;
         for (uint256 i; i < numUpdates; i++) {
-            _validateSignerSetUpdate($, signerUpdates_[i], nonce++);
+            _isValidSignerSetUpdateSignature($, signerUpdates_[i], nonce++);
             _processSignerSetUpdate(signerUpdates_[i]);
         }
         $.nonce = nonce;
@@ -55,7 +55,7 @@ abstract contract LightSyncMultiSigner is MultiSigner {
     }
 
     /// @dev reverts if validation fails.
-    function _validateSignerSetUpdate(
+    function _isValidSignerSetUpdateSignature(
         MultiSignerLib.MultiSignerStorage storage $_,
         SignerSetUpdate memory signerSetUpdate_,
         uint256 nonce_
@@ -84,23 +84,28 @@ abstract contract LightSyncMultiSigner is MultiSigner {
         uint256 nonce = $.nonce;
 
         uint256 numUpdates = signerSetUpdates_.length;
-        signerUpdates = new bytes(66 * numUpdates);
+        signerUpdates = new bytes(MultiSignerSignatureLib.SIGNER_SIZE * numUpdates);
 
-        uint256 memorySignerSet;
+        uint256 signerAddedBitMap;
 
         for (uint256 i; i < numUpdates; i++) {
-            _validateSignerSetUpdateMemory({
+            _isValidSignerSetUpdateSignature({
                 $_: $,
                 signerSetUpdate_: signerSetUpdates_[i],
                 signerUpdates_: signerUpdates,
                 nonce_: nonce++
             });
-            memorySignerSet = _processSignerSetUpdateMemory(i, signerSetUpdates_[i], memorySignerSet, signerUpdates);
+            signerAddedBitMap = _processSignerSetUpdateMemory({
+                insertIndex_: i,
+                signerSetUpdate_: signerSetUpdates_[i],
+                signerAddedBitMap_: signerAddedBitMap,
+                signerUpdates_: signerUpdates
+            });
         }
     }
 
     /// @notice reverts if validation fails
-    function _validateSignerSetUpdateMemory(
+    function _isValidSignerSetUpdateSignature(
         MultiSignerLib.MultiSignerStorage storage $_,
         SignerSetUpdate memory signerSetUpdate_,
         bytes memory signerUpdates_,
@@ -124,7 +129,7 @@ abstract contract LightSyncMultiSigner is MultiSigner {
     function _processSignerSetUpdateMemory(
         uint256 insertIndex_,
         SignerSetUpdate memory signerSetUpdate_,
-        uint256 memorySignerSet_,
+        uint256 signerAddedBitMap_,
         bytes memory signerUpdates_
     )
         internal
@@ -135,10 +140,10 @@ abstract contract LightSyncMultiSigner is MultiSigner {
         MultiSignerLib.validateSigner(signer);
 
         uint256 bitMask = 1 << index;
-        if (memorySignerSet_ & bitMask != 0) {
+        if (signerAddedBitMap_ & bitMask != 0) {
             revert SignerAlreadyPresent(index);
         }
-        memorySignerSet_ = memorySignerSet_ | bitMask;
+        signerAddedBitMap_ = signerAddedBitMap_ | bitMask;
 
         uint8 signerType;
         if (signer.length == MultiSignerLib.EOA_SIGNER_SIZE) {
@@ -162,7 +167,7 @@ abstract contract LightSyncMultiSigner is MultiSigner {
             }
         }
 
-        return memorySignerSet_;
+        return signerAddedBitMap_;
     }
 
     function _getSignerUpdateHash(

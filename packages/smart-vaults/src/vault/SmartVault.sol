@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import { IAccount } from "../interfaces/IAccount.sol";
-
 import { MultiSignerLib } from "../library/MultiSignerLib.sol";
 import { MultiSignerSignatureLib } from "../library/MultiSignerSignatureLib.sol";
 import { UserOperationLib } from "../library/UserOperationLib.sol";
@@ -11,6 +9,8 @@ import { LightSyncMultiSigner } from "../utils/LightSyncMultiSigner.sol";
 import { MultiSigner } from "../utils/MultiSigner.sol";
 
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import { IAccount } from "account-abstraction/interfaces/IAccount.sol";
+import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { Receiver } from "solady/accounts/Receiver.sol";
 import { Ownable } from "solady/auth/Ownable.sol";
 import { UUPSUpgradeable } from "solady/utils/UUPSUpgradeable.sol";
@@ -21,8 +21,8 @@ import { UUPSUpgradeable } from "solady/utils/UUPSUpgradeable.sol";
  * @notice Based on Coinbase's Smart Wallet (https://github.com/coinbase/smart-wallet) and Solady's Smart Wallet.
  * @author Splits
  */
-contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, Receiver {
-    using UserOperationLib for IAccount.PackedUserOperation;
+contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, Receiver {
+    using UserOperationLib for PackedUserOperation;
 
     /* -------------------------------------------------------------------------- */
     /*                                   STRUCTS                                  */
@@ -254,7 +254,7 @@ contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, 
      *                              Note that the validation code cannot use block.timestamp (or block.number) directly.
      */
     function validateUserOp(
-        IAccount.PackedUserOperation calldata userOp_,
+        PackedUserOperation calldata userOp_,
         bytes32 userOpHash_,
         uint256 missingAccountFunds_
     )
@@ -351,7 +351,7 @@ contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, 
     function _authorizeUpdate() internal view override(MultiSigner) onlySelfOrOwner { }
 
     /// @dev Get light user op hash of the Packed user operation.
-    function _getLightUserOpHash(IAccount.PackedUserOperation calldata userOp_) internal view returns (bytes32) {
+    function _getLightUserOpHash(PackedUserOperation calldata userOp_) internal view returns (bytes32) {
         return keccak256(abi.encode(userOp_.hashLight(), entryPoint(), block.chainid));
     }
 
@@ -408,7 +408,7 @@ contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, 
     /// @dev Validates a single user operation. First n-1 signatures are verified against a light user op hash of
     /// `_userOp`. The nth signature is verified against `_userOpHash`.
     function _validateSingleUserOp(
-        IAccount.PackedUserOperation calldata userOp_,
+        PackedUserOperation calldata userOp_,
         bytes32 userOpHash_,
         bytes memory signature_
     )
@@ -421,7 +421,7 @@ contract SmartVault is Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, 
 
     /// @notice Validates a bundle of user op using merkleProofs.
     function _validateBundledUserOp(
-        IAccount.PackedUserOperation calldata userOp_,
+        PackedUserOperation calldata userOp_,
         bytes32 userOpHash_,
         bytes memory signature_
     )

@@ -134,7 +134,7 @@ library MultiSignerSignatureLib {
         }
     }
 
-    function getSignerAtIndex(bytes memory signerUpdates_, uint8 index_) internal pure returns (bytes memory) {
+    function getSignerAtIndex(bytes memory signerUpdates_, uint8 index_) internal pure returns (bytes memory signer) {
         uint256 numUpdates = signerUpdates_.length;
 
         uint8 currentIndex;
@@ -157,7 +157,7 @@ library MultiSignerSignatureLib {
                     returnLength = MultiSignerLib.PASSKEY_SIGNER_SIZE;
                 }
 
-                bytes memory signer = new bytes(returnLength);
+                signer = new bytes(returnLength);
                 assembly {
                     let dataPtr := add(add(signerUpdates_, i), 34) // Skip index and signer type bytes
                     let destPtr := add(signer, 32)

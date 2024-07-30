@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.23;
 
-import { IAccount } from "../interfaces/IAccount.sol";
+import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 
 /**
  * @title User operation Library
  * @notice Forked from
  * https://github.com/eth-infinitism/account-abstraction/blob/develop/contracts/core/UserOperationLib.sol
- * @dev Light here refers to the subset of user op params not related to gas or gas price in the userOp.
+ * @dev Light here refers to the subset of user op params not related to gas, gas price or initCode in the userOp.
  */
 library UserOperationLib {
     /* -------------------------------------------------------------------------- */
@@ -19,7 +19,7 @@ library UserOperationLib {
     uint256 public constant INVALID_SIGNATURE = 1;
 
     /**
-     * keccak function over calldata.
+     * @notice keccak function over calldata.
      * @dev copy calldata into memory, do keccak and drop allocated memory. Strangely, this is more efficient than
      * letting solidity do it.
      */
@@ -33,10 +33,10 @@ library UserOperationLib {
     }
 
     /**
-     * Get sender from user operation data.
+     * @notice Get sender from user operation data.
      * @param userOp_ - The user operation data.
      */
-    function getSender(IAccount.PackedUserOperation calldata userOp_) internal pure returns (address) {
+    function getSender(PackedUserOperation calldata userOp_) internal pure returns (address) {
         address data;
         //read sender from userOp, which is first userOp member (saves 800 gas...)
         assembly {
@@ -46,10 +46,11 @@ library UserOperationLib {
     }
 
     /**
-     * Pack the light user operation data into bytes for hashing.
+     * @notice Pack the light user operation data into bytes for hashing.
+     * @dev Does not include the initCode.
      * @param userOp_ - The user operation data.
      */
-    function encodeLight(IAccount.PackedUserOperation calldata userOp_) internal pure returns (bytes memory ret) {
+    function encodeLight(PackedUserOperation calldata userOp_) internal pure returns (bytes memory ret) {
         address sender = getSender(userOp_);
         uint256 nonce = userOp_.nonce;
         bytes32 hashCallData = calldataKeccak(userOp_.callData);
@@ -58,18 +59,18 @@ library UserOperationLib {
     }
 
     /**
-     * Hash light user operation data.
+     * @notice Hash light user operation data.
      * @param userOp_ - The user operation data.
      */
-    function hashLight(IAccount.PackedUserOperation calldata userOp_) internal pure returns (bytes32) {
+    function hashLight(PackedUserOperation calldata userOp_) internal pure returns (bytes32) {
         return keccak256(encodeLight(userOp_));
     }
 
     /**
-     * Pack the user operation data into bytes for hashing.
+     * @notice Pack the user operation data into bytes for hashing.
      * @param userOp_ - The user operation data.
      */
-    function encode(IAccount.PackedUserOperation calldata userOp_) internal pure returns (bytes memory ret) {
+    function encode(PackedUserOperation calldata userOp_) internal pure returns (bytes memory ret) {
         address sender = getSender(userOp_);
         uint256 nonce = userOp_.nonce;
         bytes32 hashInitCode = calldataKeccak(userOp_.initCode);
@@ -97,7 +98,7 @@ library UserOperationLib {
      * Hash the user operation data.
      * @param userOp_ - The user operation data.
      */
-    function hash(IAccount.PackedUserOperation calldata userOp_) internal pure returns (bytes32) {
+    function hash(PackedUserOperation calldata userOp_) internal pure returns (bytes32) {
         return keccak256(encode(userOp_));
     }
 }
