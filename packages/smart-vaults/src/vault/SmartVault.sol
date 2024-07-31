@@ -7,6 +7,7 @@ import { UserOperationLib } from "../library/UserOperationLib.sol";
 import { ERC1271 } from "../utils/ERC1271.sol";
 import { FallbackManager } from "../utils/FallbackManager.sol";
 import { MultiSigner } from "../utils/MultiSigner.sol";
+import { OperatorManager } from "../utils/OperatorManager.sol";
 
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { IAccount } from "account-abstraction/interfaces/IAccount.sol";
@@ -20,22 +21,12 @@ import { UUPSUpgradeable } from "solady/utils/UUPSUpgradeable.sol";
  * @notice Based on Coinbase's Smart Wallet (https://github.com/coinbase/smart-wallet) and Solady's Smart Wallet.
  * @author Splits
  */
-contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271, FallbackManager {
+contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271, FallbackManager, OperatorManager {
     using UserOperationLib for PackedUserOperation;
 
     /* -------------------------------------------------------------------------- */
     /*                                   STRUCTS                                  */
     /* -------------------------------------------------------------------------- */
-
-    /// @notice Represents a call to make.
-    struct Call {
-        /// @dev The address to call.
-        address target;
-        /// @dev The value to send when making the call.
-        uint256 value;
-        /// @dev The data of the call.
-        bytes data;
-    }
 
     /// @notice Primary Signature types
     enum SignatureTypes {
@@ -313,20 +304,11 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
     /// @dev authorizes caller to upgrade the implementation of this contract.
     function _authorizeUpgrade(address) internal view virtual override(UUPSUpgradeable) onlyOwner { }
 
-    function _authorize() internal view override(MultiSigner, FallbackManager) onlySelf { }
+    function _authorize() internal view override(MultiSigner, FallbackManager, OperatorManager) onlySelf { }
 
     /// @dev Get light user op hash of the Packed user operation.
     function _getLightUserOpHash(PackedUserOperation calldata userOp_) internal view returns (bytes32) {
         return keccak256(abi.encode(userOp_.hashLight(), entryPoint(), block.chainid));
-    }
-
-    function _call(address target_, uint256 value_, bytes memory data_) internal {
-        (bool success, bytes memory result) = target_.call{ value: value_ }(data_);
-        if (!success) {
-            assembly ("memory-safe") {
-                revert(add(result, 32), mload(result))
-            }
-        }
     }
 
     /// @dev validates if the given hash (ERC1271) was signed by the signers.

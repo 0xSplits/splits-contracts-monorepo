@@ -11,6 +11,8 @@ import { UserOperationLib } from "src/library/UserOperationLib.sol";
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { Ownable } from "solady/auth/Ownable.sol";
 import { MultiSigner } from "src/utils/MultiSigner.sol";
+
+import { Caller } from "src/utils/Caller.sol";
 import { SmartVault } from "src/vault/SmartVault.sol";
 
 import { MockERC721 } from "./mocks/MockERC721.sol";
@@ -746,8 +748,8 @@ contract SmartVaultTest is BaseTest {
         assumeNotPrecompile(target);
         vm.deal(address(vault), value);
 
-        SmartVault.Call[] memory calls = new SmartVault.Call[](1);
-        calls[0] = SmartVault.Call(target, value, "0x");
+        Caller.Call[] memory calls = new Caller.Call[](1);
+        calls[0] = Caller.Call(target, value, "0x");
 
         vm.prank(_root ? root : ENTRY_POINT);
         vault.executeBatch(calls);
@@ -755,15 +757,15 @@ contract SmartVaultTest is BaseTest {
 
     function test_executeBatch_revertsWhenNotRootOrEntryPoint() public {
         vm.expectRevert(abi.encodeWithSelector(Unauthorized.selector));
-        vault.executeBatch(new SmartVault.Call[](0));
+        vault.executeBatch(new Caller.Call[](0));
     }
 
     function testFuzz_executeBatch_revertsWhenBadCall(address target, uint256 value, bytes memory data) public {
         vm.assume(target.code.length == 0 && value > 0);
         vm.expectRevert();
 
-        SmartVault.Call[] memory calls = new SmartVault.Call[](1);
-        calls[0] = SmartVault.Call(target, value, data);
+        Caller.Call[] memory calls = new Caller.Call[](1);
+        calls[0] = Caller.Call(target, value, data);
 
         vm.prank(ENTRY_POINT);
         vault.executeBatch(calls);
