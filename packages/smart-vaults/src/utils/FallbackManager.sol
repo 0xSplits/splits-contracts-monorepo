@@ -37,6 +37,9 @@ abstract contract FallbackManager is Receiver {
     /// @notice Event emitted when a new Fallback Handler is registered.
     event UpdatedFallbackHandler(bytes4 indexed sig, address indexed handler);
 
+    /// @notice Event emitted when this contract receives ETH.
+    event ReceiveEth(address indexed sender, uint256 amount);
+
     /* -------------------------------------------------------------------------- */
     /*                                   ERRORS                                   */
     /* -------------------------------------------------------------------------- */
@@ -71,6 +74,11 @@ abstract contract FallbackManager is Receiver {
         assembly ("memory-safe") {
             return(add(result, 0x20), mload(result))
         }
+    }
+
+    /// @notice Receive function that logs the amount of ETH sent.
+    receive() external payable override {
+        emit ReceiveEth(msg.sender, msg.value);
     }
 
     /**

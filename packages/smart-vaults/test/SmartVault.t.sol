@@ -61,6 +61,7 @@ contract SmartVaultTest is BaseTest {
     error FunctionNotSupported(bytes4 sig);
 
     event UpdatedFallbackHandler(bytes4 indexed sig, address indexed handler);
+    event ReceiveEth(address indexed sender, uint256 amount);
 
     MockERC721 nft;
 
@@ -1378,5 +1379,14 @@ contract SmartVaultTest is BaseTest {
         vault.setFallbackHandler(IERC7211Receiver.onERC7211Received.selector, fallbackHandler);
 
         erc7211.transfer(from_, address(vault), tokenId_);
+    }
+
+    function testFuzz_FallbackHandler_receiveEth(address sender_, uint256 amount_) public {
+        vm.deal(sender_, amount_);
+
+        vm.expectEmit();
+        emit ReceiveEth(sender_, amount_);
+        vm.prank(sender_);
+        payable(address(vault)).call{ value: amount_ }("");
     }
 }
