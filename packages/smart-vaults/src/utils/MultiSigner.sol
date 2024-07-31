@@ -85,7 +85,7 @@ abstract contract MultiSigner {
     /* -------------------------------------------------------------------------- */
 
     modifier OnlyAuthorized() {
-        _authorizeUpdate();
+        _authorize();
         _;
     }
 
@@ -171,7 +171,7 @@ abstract contract MultiSigner {
     /*                             INTERNAL FUNCTIONS                             */
     /* -------------------------------------------------------------------------- */
 
-    function _authorizeUpdate() internal virtual;
+    function _authorize() internal virtual;
 
     /// @notice Helper function to get storage reference to the `MultiSignerStorage` struct.
     function _getMultiSignerStorage() internal pure returns (MultiSignerLib.MultiSignerStorage storage $) {

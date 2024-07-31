@@ -34,5 +34,5 @@ contract MultiSignerMock is MultiSigner, Ownable {
         _initializeSigners(_signers, _threshold);
     }
 
-    function _authorizeUpdate() internal view override(MultiSigner) onlyOwner { }
+    function _authorize() internal view override(MultiSigner) onlyOwner { }
 }

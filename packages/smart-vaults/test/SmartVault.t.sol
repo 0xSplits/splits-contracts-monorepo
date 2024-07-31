@@ -14,7 +14,10 @@ import { LightSyncMultiSigner } from "src/utils/LightSyncMultiSigner.sol";
 import { MultiSigner } from "src/utils/MultiSigner.sol";
 import { SmartVault } from "src/vault/SmartVault.sol";
 
+import { MockERC721 } from "./mocks/MockERC721.sol";
 import { console } from "forge-std/console.sol";
+
+import { ERC7211FallbackHandler, IERC7211Receiver, MockERC7211 } from "./mocks/MockERC7211.sol";
 
 contract SmartVaultTest is BaseTest {
     using UserOperationLib for PackedUserOperation;
@@ -55,6 +58,12 @@ contract SmartVaultTest is BaseTest {
     error InvalidMerkleProof();
     error SignerAlreadyPresent(uint8 index);
     error SignerNotPresent(uint8 index);
+    error FunctionNotSupported(bytes4 sig);
+
+    event UpdatedFallbackHandler(bytes4 indexed sig, address indexed handler);
+    event ReceiveEth(address indexed sender, uint256 amount);
+
+    MockERC721 nft;
 
     function setUp() public override {
         super.setUp();
@@ -68,6 +77,8 @@ contract SmartVaultTest is BaseTest {
         signers.push(passkeyOwner);
 
         vault = smartVaultFactory.createAccount(root, signers, 1, 0);
+
+        nft = new MockERC721();
     }
 
     function getUserOpHash(PackedUserOperation calldata userOp) internal view returns (bytes32) {
@@ -1312,5 +1323,70 @@ contract SmartVaultTest is BaseTest {
         vm.expectRevert(OnlySelf.selector);
         vault.setNonce(_nonce);
         vm.stopPrank();
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*                              FALLBACK MANAGER                              */
+    /* -------------------------------------------------------------------------- */
+
+    function testFuzz_setFallbackHandler(bytes4 sig_, address handler_) public {
+        vm.expectEmit();
+        emit UpdatedFallbackHandler(sig_, handler_);
+        vm.prank(address(vault));
+        vault.setFallbackHandler(sig_, handler_);
+
+        assertEq(vault.getFallbackHandler(sig_), handler_);
+    }
+
+    function testFuzz_setFallbackHandler_RevertsWhen_callerNotSelf(
+        bytes4 sig_,
+        address handler_,
+        address caller_
+    )
+        public
+    {
+        vm.assume(caller_ != address(vault));
+
+        vm.expectRevert(OnlySelf.selector);
+        vm.prank(caller_);
+        vault.setFallbackHandler(sig_, handler_);
+    }
+
+    function testFuzz_FallbackHandler_receiveNFT(uint256 id_) public {
+        nft.mint(ALICE.addr, id_);
+
+        vm.prank(ALICE.addr);
+        nft.safeTransferFrom(ALICE.addr, address(vault), id_);
+
+        assertEq(nft.balanceOf(address(vault)), 1);
+    }
+
+    function testFuzz_FallbackHandler_RevertsWhen_receivingERC7211(address from_, uint256 tokenId_) public {
+        MockERC7211 erc7211 = new MockERC7211();
+
+        vm.expectRevert(
+            abi.encodeWithSelector(FunctionNotSupported.selector, IERC7211Receiver.onERC7211Received.selector)
+        );
+        erc7211.transfer(from_, address(vault), tokenId_);
+    }
+
+    function testFuzz_FallbackHandler_receiveERC7211(address from_, uint256 tokenId_) public {
+        MockERC7211 erc7211 = new MockERC7211();
+
+        address fallbackHandler = address(new ERC7211FallbackHandler());
+
+        vm.prank(address(vault));
+        vault.setFallbackHandler(IERC7211Receiver.onERC7211Received.selector, fallbackHandler);
+
+        erc7211.transfer(from_, address(vault), tokenId_);
+    }
+
+    function testFuzz_FallbackHandler_receiveEth(address sender_, uint256 amount_) public {
+        vm.deal(sender_, amount_);
+
+        vm.expectEmit();
+        emit ReceiveEth(sender_, amount_);
+        vm.prank(sender_);
+        payable(address(vault)).call{ value: amount_ }("");
     }
 }
