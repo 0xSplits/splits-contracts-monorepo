@@ -5,7 +5,6 @@ import { MultiSignerLib } from "../library/MultiSignerLib.sol";
 import { MultiSignerSignatureLib } from "../library/MultiSignerSignatureLib.sol";
 import { UserOperationLib } from "../library/UserOperationLib.sol";
 import { ERC1271 } from "../utils/ERC1271.sol";
-
 import { FallbackManager } from "../utils/FallbackManager.sol";
 import { LightSyncMultiSigner } from "../utils/LightSyncMultiSigner.sol";
 import { MultiSigner } from "../utils/MultiSigner.sol";
@@ -368,7 +367,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
             LightSyncSignature memory stateSyncSignature = abi.decode(rootSignature.signature, (LightSyncSignature));
 
             /// Sync state in memory before verification.
-            (bytes memory signerUpdates) = _processSignerSetUpdatesMemory(stateSyncSignature.updates);
+            bytes memory signerUpdates = _processSignerSetUpdatesMemory(stateSyncSignature.updates);
 
             return MultiSignerSignatureLib.isValidSignature({
                 $_: _getMultiSignerStorage(),
