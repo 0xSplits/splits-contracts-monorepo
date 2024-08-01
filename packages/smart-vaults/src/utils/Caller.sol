@@ -2,10 +2,11 @@
 pragma solidity ^0.8.23;
 
 /**
- * @title Caller contract that provides basic functionalities to make external calls from a smart contract.
+ * @title Caller contract
+ * @notice Contract that provides basic functionalities to make external calls from a smart contract.
  */
 contract Caller {
-    /// @notice Represents a call to make.
+    /// @notice Represents a call to execute.
     struct Call {
         /// @dev The address to call.
         address target;
