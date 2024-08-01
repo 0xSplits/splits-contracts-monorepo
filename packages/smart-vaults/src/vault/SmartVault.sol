@@ -63,7 +63,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
     /// @notice User op signature types
     enum UserOpSignatureType {
         Single,
-        Bundle
+        Merkelized
     }
 
     /**
@@ -74,20 +74,20 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
         /**
          * @dev Signature can be of the following types:
          *      Single: abi.encode(MultiSignerSignatureLib.SignatureWrapper[])
-         *      Bundle: abi.encode(BundleOpSignature)
+         *      Merkelized: abi.encode(MerkelizedOpSignature)
          */
         bytes signature;
     }
 
-    /// @notice Bundled user op signature using merkle tree.
-    struct BundleOpSignature {
-        /// @notice merkleRoot of all the light(userOp) in the bundle. If threshold is 1, this will be
+    /// @notice Merkelized user op signature using merkle tree.
+    struct MerkelizedOpSignature {
+        /// @notice merkleRoot of all the light(userOp) in the Merkle Tree. If threshold is 1, this will be
         /// bytes32(0).
         bytes32 lightMerkleTreeRoot;
         /// @notice Proof to verify if the light userOp hash is present in the light merkle tree root. If
         /// threshold is 1, this will be empty.
         bytes32[] lightMerkleProof;
-        /// @notice merkleRoot of all the user ops in the bundle.
+        /// @notice merkleRoot of all the user ops in the Merkle Tree.
         bytes32 merkleTreeRoot;
         /// @notice Proof to verify if the userOp hash is present in the root.
         bytes32[] merkleProof;
@@ -262,8 +262,8 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
 
         if (userOpSignature.sigType == UserOpSignatureType.Single) {
             return _validateSingleUserOp(userOp_, userOpHash_, userOpSignature.signature);
-        } else if (userOpSignature.sigType == UserOpSignatureType.Bundle) {
-            return _validateBundledUserOp(userOp_, userOpHash_, userOpSignature.signature);
+        } else if (userOpSignature.sigType == UserOpSignatureType.Merkelized) {
+            return _validateMerkelizedUserOp(userOp_, userOpHash_, userOpSignature.signature);
         }
         revert InvalidUserOpSignatureType();
     }
@@ -410,8 +410,8 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
         return _validateSignature(_getLightUserOpHash(userOp_), userOpHash_, signature_);
     }
 
-    /// @notice Validates a bundle of user op using merkleProofs.
-    function _validateBundledUserOp(
+    /// @notice Validates a Merkelized user op using merkleProofs.
+    function _validateMerkelizedUserOp(
         PackedUserOperation calldata userOp_,
         bytes32 userOpHash_,
         bytes memory signature_
@@ -420,7 +420,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
         view
         returns (uint256 validationData)
     {
-        BundleOpSignature memory signature = abi.decode(signature_, (BundleOpSignature));
+        MerkelizedOpSignature memory signature = abi.decode(signature_, (MerkelizedOpSignature));
 
         if (!MerkleProof.verify(signature.merkleProof, signature.merkleTreeRoot, userOpHash_)) {
             revert InvalidMerkleProof();

@@ -108,11 +108,11 @@ contract SmartVaultTest is BaseTest {
         pure
         returns (SmartVault.UserOpSignature memory userOpSignature)
     {
-        SmartVault.BundleOpSignature memory multiChainSignature =
-            SmartVault.BundleOpSignature(lightRootHash, lightProof, rootHash, proof, abi.encode(sigs));
+        SmartVault.MerkelizedOpSignature memory multiChainSignature =
+            SmartVault.MerkelizedOpSignature(lightRootHash, lightProof, rootHash, proof, abi.encode(sigs));
 
         userOpSignature =
-            SmartVault.UserOpSignature(SmartVault.UserOpSignatureType.Bundle, abi.encode(multiChainSignature));
+            SmartVault.UserOpSignature(SmartVault.UserOpSignatureType.Merkelized, abi.encode(multiChainSignature));
     }
 
     function getRootSignature(MultiSignerSignatureLib.SignatureWrapper[] memory sigs)
@@ -616,10 +616,10 @@ contract SmartVaultTest is BaseTest {
     }
 
     /* -------------------------------------------------------------------------- */
-    /*                           VALIDATE BUNDLE USER OP                          */
+    /*                           VALIDATE Merkelized USER OP                          */
     /* -------------------------------------------------------------------------- */
 
-    function testFuzz_validateBundleUserOp_whenThresholdIs1(
+    function testFuzz_validateMerkelizedUserOp_whenThresholdIs1(
         PackedUserOperation calldata _userOp1,
         PackedUserOperation calldata _userOp2
     )
@@ -653,7 +653,7 @@ contract SmartVaultTest is BaseTest {
         assertEq(vault.validateUserOp(userOp, hash2, 0), 0);
     }
 
-    function testFuzz_validateBundleUserOp_whenThresholdIs1_RevertsWhen_InvalidProof(
+    function testFuzz_validateMerkelizedUserOp_whenThresholdIs1_RevertsWhen_InvalidProof(
         PackedUserOperation calldata _userOp1,
         PackedUserOperation calldata _userOp2
     )
@@ -981,7 +981,7 @@ contract SmartVaultTest is BaseTest {
         assertTrue(vault.isValidSignature(_hash, getRootSignature(sigs)) == 0x1626ba7e);
     }
 
-    function testFuzz_erc1271_RevertsWhen_bundleUserOp(bytes32 _hash) public {
+    function testFuzz_erc1271_RevertsWhen_MerkelizedUserOp(bytes32 _hash) public {
         MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](1);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, vault.replaySafeHash(_hash));
