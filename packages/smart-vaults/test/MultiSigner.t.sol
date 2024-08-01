@@ -93,10 +93,15 @@ contract MultiSignerTest is BaseTest {
         multiSigner.initialize(ALICE.addr, signers, 1);
     }
 
-    function test_initialize_signers_RevertWhen_EOAHasCode() public {
+    function test_initialize_signers_contract() public {
         signers[0] = abi.encode(address(this));
-        vm.expectRevert(abi.encodeWithSelector(InvalidEthereumAddressOwner.selector, abi.encode(address(this))));
         multiSigner.initialize(ALICE.addr, signers, 1);
+
+        assertEq(multiSigner.getSignerAtIndex(0), abi.encode(address(this)));
+        assertEq(multiSigner.getSignerAtIndex(1), abi.encode(BOB.addr));
+        assertEq(multiSigner.getSignerAtIndex(2), abi.encode(MIKE.x, MIKE.y));
+        assertEq(multiSigner.getSignerCount(), 3);
+        assertEq(multiSigner.getThreshold(), 1);
     }
 
     /* -------------------------------------------------------------------------- */
@@ -236,12 +241,14 @@ contract MultiSignerTest is BaseTest {
         vm.stopPrank();
     }
 
-    function test_addSigner_RevertWhen_EOAHasCode() public {
+    function test_addSigner_contract() public {
         initializeSigners();
+
         vm.startPrank(ALICE.addr);
-        vm.expectRevert(abi.encodeWithSelector(InvalidEthereumAddressOwner.selector, abi.encode(address(this))));
         multiSigner.addSigner(abi.encode((address(this))), 3);
         vm.stopPrank();
+
+        assertEq(multiSigner.getSignerAtIndex(3), abi.encode((address(this))));
     }
 
     function test_addSigner_RevertWhen_MaxSignersReached() public {

@@ -103,8 +103,6 @@ library MultiSignerLib {
             assembly ("memory-safe") {
                 eoa := mload(add(signer_, 32))
             }
-
-            if (eoa.code.length > 0) revert InvalidEthereumAddressOwner(signer_);
         }
     }
 

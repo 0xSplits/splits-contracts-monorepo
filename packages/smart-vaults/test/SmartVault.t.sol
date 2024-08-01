@@ -264,15 +264,6 @@ contract SmartVaultTest is BaseTest {
         vault.initialize(root, signers__, 1);
     }
 
-    function test_initialize_RevertsWhen_signerHasCode() public {
-        bytes[] memory signers__ = new bytes[](1);
-        signers__[0] = abi.encode(address(this));
-
-        vm.expectRevert(abi.encodeWithSelector(InvalidEthereumAddressOwner.selector, signers__[0]));
-        vm.prank(address(smartVaultFactory));
-        vault.initialize(root, signers__, 1);
-    }
-
     function test_initialize_RevertsWhen_notFactory() public {
         vm.expectRevert(abi.encodeWithSelector(OnlyFactory.selector));
         vault.initialize(root, signers, 1);
