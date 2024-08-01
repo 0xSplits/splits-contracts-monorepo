@@ -69,6 +69,9 @@ abstract contract OperatorManager is Caller {
 
     /**
      * @notice Adds operator to the allowlist.
+     *
+     * @dev Can only be called by this account.
+     *
      * @param operator_ address of operator.
      */
     function addOperator(address operator_) public {
@@ -79,11 +82,14 @@ abstract contract OperatorManager is Caller {
 
     /**
      * @notice Adds `operator` to the allowlist and makes a call to the `setupContract` passing `data_`.
+     *
+     * @dev Can only be called by this account.
+     *
      * @param operator_ address of operator.
      * @param setupContract_ address of contract to call to setup operator.
      * @param data_ data passed to the setupContract.
      */
-    function addOperator(address operator_, address setupContract_, bytes calldata data_) public {
+    function addAndSetupOperator(address operator_, address setupContract_, bytes calldata data_) public {
         _authorize();
 
         _addOperator(operator_);
@@ -93,12 +99,32 @@ abstract contract OperatorManager is Caller {
 
     /**
      * @notice Removes operator from the allowlist.
+     *
+     * @dev Can only be called by this account.
+     *
      * @param operator_ address of operator.
      */
     function removeOperator(address operator_) public {
         _authorize();
 
-        _addOperator(operator_);
+        _removeOperator(operator_);
+    }
+
+    /**
+     * @notice Removes `operator` from the allowlist and makes a call to the `teardownContract_` passing `data_`.
+     *
+     * @dev Can only be called by this account.
+     *
+     * @param operator_ address of operator.
+     * @param teardownContract_ address of contract to call to teardown operator.
+     * @param data_ data passed to the setupContract.
+     */
+    function removeAndTeardownOperator(address operator_, address teardownContract_, bytes calldata data_) public {
+        _authorize();
+
+        _removeOperator(operator_);
+
+        _call(teardownContract_, 0, data_);
     }
 
     /**
@@ -140,7 +166,7 @@ abstract contract OperatorManager is Caller {
     }
 
     /**
-     * @notice Returns true if the provided `operator` is enabled otherwise false.
+     * @notice Returns true if the provided `operator` is added otherwise false.
      * @param operator_ address of operator.
      */
     function isOperator(address operator_) public view returns (bool) {
