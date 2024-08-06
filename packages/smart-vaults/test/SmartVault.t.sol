@@ -134,10 +134,10 @@ contract SmartVaultTest is BaseTest {
         pure
         returns (bytes memory)
     {
-        SmartVault.LightSyncSingleUserOp memory sig =
-            SmartVault.LightSyncSingleUserOp(updates, SmartVault.SingleUserOpSignature(sigs));
+        SmartVault.LightSyncSingleUserOpSignature memory sig =
+            SmartVault.LightSyncSingleUserOpSignature(updates, SmartVault.SingleUserOpSignature(sigs));
         bytes memory signature = abi.encode(sig);
-        bytes1 sigType = bytes1(uint8(SmartVault.SignatureTypes.LightSyncSingleUserOp));
+        bytes1 sigType = bytes1(uint8(SmartVault.SignatureTypes.LightSyncSingleUserOpSignature));
         return bytes.concat(sigType, signature);
     }
 

@@ -42,7 +42,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
     enum SignatureTypes {
         SingleUserOp,
         MerkelizedUserOp,
-        LightSyncSingleUserOp,
+        LightSyncSingleUserOpSignature,
         LightSyncMerkelizedUserOpSignature,
         ERC1271,
         LightSyncERC1271
@@ -250,8 +250,8 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
             return _validateSingleUserOp(userOp_, userOpHash_);
         } else if (signatureType == SignatureTypes.MerkelizedUserOp) {
             return _validateMerkelizedUserOp(userOp_, userOpHash_);
-        } else if (signatureType == SignatureTypes.LightSyncSingleUserOp) {
-            return _validateLightSyncSingleUserOp(userOp_, userOpHash_);
+        } else if (signatureType == SignatureTypes.LightSyncSingleUserOpSignature) {
+            return _validateLightSyncSingleUserOpSignature(userOp_, userOpHash_);
         } else if (signatureType == SignatureTypes.MerkelizedUserOp) {
             return _validateLightSyncMerkelizedUserOp(userOp_, userOpHash_);
         } else {
@@ -380,7 +380,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
         );
     }
 
-    function _validateLightSyncSingleUserOp(
+    function _validateLightSyncSingleUserOpSignature(
         PackedUserOperation calldata userOp_,
         bytes32 userOpHash_
     )
