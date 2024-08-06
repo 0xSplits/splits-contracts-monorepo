@@ -134,8 +134,8 @@ contract SmartVaultTest is BaseTest {
         pure
         returns (bytes memory)
     {
-        SmartVault.LightSyncSingleUserOpSignature memory sig =
-            SmartVault.LightSyncSingleUserOpSignature(updates, SmartVault.SingleUserOpSignature(sigs));
+        SmartVault.LightSyncSingleUserOp memory sig =
+            SmartVault.LightSyncSingleUserOp(updates, SmartVault.SingleUserOpSignature(sigs));
         bytes memory signature = abi.encode(sig);
         bytes1 sigType = bytes1(uint8(SmartVault.SignatureTypes.LightSyncSingleUserOp));
         return bytes.concat(sigType, signature);
@@ -172,12 +172,12 @@ contract SmartVaultTest is BaseTest {
         pure
         returns (bytes memory)
     {
-        SmartVault.LightSyncMerkelizedUserOp memory sig = SmartVault.LightSyncMerkelizedUserOp(
+        SmartVault.LightSyncMerkelizedUserOpSignature memory sig = SmartVault.LightSyncMerkelizedUserOpSignature(
             updates, SmartVault.MerkelizedUserOpSignature(lightRootHash, lightProof, rootHash, proof, sigs)
         );
 
         bytes memory signature = abi.encode(sig);
-        bytes1 sigType = bytes1(uint8(SmartVault.SignatureTypes.LightSyncMerkelizedUserOp));
+        bytes1 sigType = bytes1(uint8(SmartVault.SignatureTypes.LightSyncMerkelizedUserOpSignature));
         return bytes.concat(sigType, signature);
     }
 

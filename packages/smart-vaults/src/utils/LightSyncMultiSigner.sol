@@ -35,7 +35,7 @@ abstract contract LightSyncMultiSigner is MultiSigner {
 
     /**
      * @notice Thrown when signer signer set update signature validation fails.
-     * @param lightSyncUpdate Signer set update that failed validation.
+     * @param lightSyncUpdate light sync signature that failed validation.
      */
     error LightSyncUpdateValidationFailed(LightSyncSignature lightSyncUpdate);
 
