@@ -71,7 +71,7 @@ library MultiSignerLib {
      * @param signers_ abi encoded list of signers (passkey/eoa).
      * @param threshold_ minimum number of signers required for approval.
      */
-    function validateSigners(bytes[] calldata signers_, uint8 threshold_) internal view {
+    function validateSigners(bytes[] calldata signers_, uint8 threshold_) internal pure {
         if (signers_.length > 255 || signers_.length == 0) revert InvalidNumberOfSigners();
 
         uint8 numberOfSigners = uint8(signers_.length);
@@ -92,7 +92,7 @@ library MultiSignerLib {
      * @dev Throws error when length of signer is neither 32 or 64.
      * @dev Throws error if signer is invalid address or if address has code.
      */
-    function validateSigner(bytes memory signer_) internal view {
+    function validateSigner(bytes memory signer_) internal pure {
         if (signer_.length != EOA_SIGNER_SIZE && signer_.length != PASSKEY_SIGNER_SIZE) {
             revert InvalidSignerBytesLength(signer_);
         }

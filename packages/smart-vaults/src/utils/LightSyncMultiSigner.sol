@@ -19,12 +19,14 @@ abstract contract LightSyncMultiSigner is MultiSigner {
 
     /// @notice Signer set update.
     struct SignerSetUpdate {
-        /**
-         * AddSigner: abi.encode(uint8 index, uint8 signerType, bytes signer)
-         */
-        bytes data;
-        /// abi.encode(MultiSignerSignatureLib.SignatureWrapper[]) signature over keccak256(nonce, address(this), data).
-        bytes normalSignature;
+        uint8 index;
+        bytes signer;
+    }
+
+    /// @notice Light sync signature
+    struct LightSyncSignature {
+        SignerSetUpdate update;
+        MultiSignerSignatureLib.SignatureWrapper[] signatures;
     }
 
     /* -------------------------------------------------------------------------- */
@@ -33,31 +35,38 @@ abstract contract LightSyncMultiSigner is MultiSigner {
 
     /**
      * @notice Thrown when signer signer set update signature validation fails.
-     * @param _signerSetUpdate Signer set update that failed validation.
+     * @param lightSyncUpdate Signer set update that failed validation.
      */
-    error SignerSetUpdateValidationFailed(SignerSetUpdate _signerSetUpdate);
+    error LightSyncUpdateValidationFailed(LightSyncSignature lightSyncUpdate);
 
     /* -------------------------------------------------------------------------- */
     /*                             INTERNAL FUNCTIONS                             */
     /* -------------------------------------------------------------------------- */
 
-    /// @dev only called when there is a light sync state update. It is expected that signerUpdates_.length > 0.
-    function _processSignerSetUpdates(SignerSetUpdate[] memory signerUpdates_) internal {
-        MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
-        uint256 nonce = $.nonce;
-        uint256 numUpdates = signerUpdates_.length;
-        for (uint256 i; i < numUpdates; i++) {
-            _isValidSignerSetUpdateSignature($, signerUpdates_[i], nonce++);
-            _processSignerSetUpdate(signerUpdates_[i]);
+    function _isValidLightSyncSignature(
+        MultiSignerLib.MultiSignerStorage storage $_,
+        LightSyncSignature memory lightSyncSignature_,
+        uint256 nonce_,
+        bytes memory signerUpdates_
+    )
+        internal
+        view
+    {
+        if (
+            !MultiSignerSignatureLib.isValidSignature(
+                $_,
+                _getAddSignerHash(lightSyncSignature_.update, nonce_),
+                lightSyncSignature_.signatures,
+                signerUpdates_
+            )
+        ) {
+            revert LightSyncUpdateValidationFailed(lightSyncSignature_);
         }
-        $.nonce = nonce;
-        emit updateNonce(nonce);
     }
 
-    /// @dev reverts if validation fails.
-    function _isValidSignerSetUpdateSignature(
+    function _isValidLightSyncSignature(
         MultiSignerLib.MultiSignerStorage storage $_,
-        SignerSetUpdate memory signerSetUpdate_,
+        LightSyncSignature memory lightSyncSignature_,
         uint256 nonce_
     )
         internal
@@ -65,99 +74,83 @@ abstract contract LightSyncMultiSigner is MultiSigner {
     {
         if (
             !MultiSignerSignatureLib.isValidSignature(
-                $_, _getSignerUpdateHash(signerSetUpdate_, nonce_), signerSetUpdate_.normalSignature
+                $_, _getAddSignerHash(lightSyncSignature_.update, nonce_), lightSyncSignature_.signatures
             )
-        ) revert SignerSetUpdateValidationFailed(signerSetUpdate_);
+        ) {
+            revert LightSyncUpdateValidationFailed(lightSyncSignature_);
+        }
     }
 
-    function _processSignerSetUpdate(SignerSetUpdate memory signerSetUpdate_) internal {
-        (bytes memory signer, uint8 index) = abi.decode(signerSetUpdate_.data, (bytes, uint8));
-        _addSigner(signer, index);
-    }
-
-    function _processSignerSetUpdatesMemory(SignerSetUpdate[] memory signerSetUpdates_)
+    function _validateAndProcessLightSyncSignaturesMemory(LightSyncSignature[] memory lightSyncSigs_)
         internal
         view
         returns (bytes memory signerUpdates)
     {
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
         uint256 nonce = $.nonce;
+        uint256 numUpdates = lightSyncSigs_.length;
 
-        uint256 numUpdates = signerSetUpdates_.length;
         signerUpdates = new bytes(MultiSignerSignatureLib.SIGNER_SIZE * numUpdates);
 
         uint256 signerAddedBitMap;
 
         for (uint256 i; i < numUpdates; i++) {
-            _isValidSignerSetUpdateSignature({
-                $_: $,
-                signerSetUpdate_: signerSetUpdates_[i],
-                signerUpdates_: signerUpdates,
-                nonce_: nonce++
-            });
-            signerAddedBitMap = _processSignerSetUpdateMemory({
-                insertIndex_: i,
-                signerSetUpdate_: signerSetUpdates_[i],
-                signerAddedBitMap_: signerAddedBitMap,
-                signerUpdates_: signerUpdates
-            });
+            _isValidLightSyncSignature($, lightSyncSigs_[i], nonce++, signerUpdates);
+
+            signerAddedBitMap = _addSignerMemory(
+                i, lightSyncSigs_[i].update.index, lightSyncSigs_[i].update.signer, signerAddedBitMap, signerUpdates
+            );
         }
     }
 
-    /// @notice reverts if validation fails
-    function _isValidSignerSetUpdateSignature(
-        MultiSignerLib.MultiSignerStorage storage $_,
-        SignerSetUpdate memory signerSetUpdate_,
-        bytes memory signerUpdates_,
-        uint256 nonce_
-    )
-        internal
-        view
-    {
-        if (
-            !MultiSignerSignatureLib.isValidSignature({
-                $_: $_,
-                signerUpdates_: signerUpdates_,
-                hash_: _getSignerUpdateHash(signerSetUpdate_, nonce_),
-                signature_: signerSetUpdate_.normalSignature
-            })
-        ) {
-            revert SignerSetUpdateValidationFailed(signerSetUpdate_);
+    function _validateAndProcessLightSyncSignatures(LightSyncSignature[] memory lightSyncSigs_) internal {
+        MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
+        uint256 nonce = $.nonce;
+        uint256 numUpdates = lightSyncSigs_.length;
+        for (uint256 i; i < numUpdates; i++) {
+            _isValidLightSyncSignature($, lightSyncSigs_[i], nonce++);
+            _addSigner(lightSyncSigs_[i].update);
         }
+        $.nonce = nonce;
+        emit updateNonce(nonce);
     }
 
-    function _processSignerSetUpdateMemory(
+    function _addSigner(SignerSetUpdate memory update_) internal {
+        _addSigner(update_.signer, update_.index);
+    }
+
+    function _addSignerMemory(
         uint256 insertIndex_,
-        SignerSetUpdate memory signerSetUpdate_,
+        uint8 signerIndex_,
+        bytes memory signer_,
         uint256 signerAddedBitMap_,
-        bytes memory signerUpdates_
+        bytes memory addedSigners_
     )
         internal
-        view
+        pure
         returns (uint256)
     {
-        (bytes memory signer, uint8 index) = abi.decode(signerSetUpdate_.data, (bytes, uint8));
-        MultiSignerLib.validateSigner(signer);
+        MultiSignerLib.validateSigner(signer_);
 
-        uint256 bitMask = 1 << index;
+        uint256 bitMask = 1 << signerIndex_;
         if (signerAddedBitMap_ & bitMask != 0) {
-            revert SignerAlreadyPresent(index);
+            revert SignerAlreadyPresent(signerIndex_);
         }
         signerAddedBitMap_ = signerAddedBitMap_ | bitMask;
 
         uint8 signerType;
-        if (signer.length == MultiSignerLib.EOA_SIGNER_SIZE) {
+        if (signer_.length == MultiSignerLib.EOA_SIGNER_SIZE) {
             signerType = MultiSignerSignatureLib.EOA_SIGNER_TYPE;
-        } else if (signer.length == MultiSignerLib.PASSKEY_SIGNER_SIZE) {
+        } else if (signer_.length == MultiSignerLib.PASSKEY_SIGNER_SIZE) {
             signerType = MultiSignerSignatureLib.PASSKEY_SIGNER_TYPE;
         }
 
         assembly {
-            let destPtr := add(add(signerUpdates_, 32), mul(insertIndex_, 66))
-            mstore8(destPtr, index)
+            let destPtr := add(add(addedSigners_, 32), mul(insertIndex_, 66))
+            mstore8(destPtr, signerIndex_)
             mstore8(add(destPtr, 1), signerType)
 
-            let dataPtr := add(signer, 32)
+            let dataPtr := add(signer_, 32)
 
             switch signerType
             case 1 { mstore(add(destPtr, 2), mload(dataPtr)) }
@@ -170,14 +163,7 @@ abstract contract LightSyncMultiSigner is MultiSigner {
         return signerAddedBitMap_;
     }
 
-    function _getSignerUpdateHash(
-        SignerSetUpdate memory signerSetUpdate_,
-        uint256 nonce_
-    )
-        internal
-        view
-        returns (bytes32)
-    {
-        return keccak256(abi.encode(nonce_, address(this), signerSetUpdate_.data));
+    function _getAddSignerHash(SignerSetUpdate memory update_, uint256 nonce_) internal view returns (bytes32) {
+        return keccak256(abi.encode(nonce_, address(this), update_));
     }
 }
