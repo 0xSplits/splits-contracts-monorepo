@@ -449,14 +449,6 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
         uint8 threshold = $.threshold;
 
-        if (threshold == 1) {
-            return (
-                MultiSignerLib.isValidSignature(
-                    hash_, $.signers[signatures[0].signerIndex], signatures[0].signatureData
-                )
-            ) ? UserOperationLib.VALID_SIGNATURE : UserOperationLib.INVALID_SIGNATURE;
-        }
-
         bool isValid = true;
 
         uint256 alreadySigned;
