@@ -252,7 +252,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
             return _validateMerkelizedUserOp(userOp_, userOpHash_);
         } else if (signatureType == SignatureTypes.LightSyncSingleUserOpSignature) {
             return _validateLightSyncSingleUserOpSignature(userOp_, userOpHash_);
-        } else if (signatureType == SignatureTypes.MerkelizedUserOp) {
+        } else if (signatureType == SignatureTypes.LightSyncMerkelizedUserOpSignature) {
             return _validateLightSyncMerkelizedUserOp(userOp_, userOpHash_);
         } else {
             revert InvalidSignatureType();
