@@ -50,7 +50,7 @@ abstract contract LightSyncMultiSigner is MultiSigner {
      * @notice Emitted when nonce is updated.
      * @param nonce The new nonce for the signer set.
      */
-    event updateNonce(uint256 nonce);
+    event UpdateNonce(uint256 nonce);
 
     /* -------------------------------------------------------------------------- */
     /*                            PUBLIC VIEW FUNCTIONS                           */
@@ -72,14 +72,14 @@ abstract contract LightSyncMultiSigner is MultiSigner {
      *
      * @param nonce_ nonce to set.
      */
-    function setNonce(uint256 nonce_) public OnlyAuthorized {
+    function setNonce(uint256 nonce_) public onlyAuthorized {
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
 
         if (nonce_ <= $.nonce) revert InvalidNonce();
 
         $.nonce = nonce_;
 
-        emit updateNonce(nonce_);
+        emit UpdateNonce(nonce_);
     }
 
     /* -------------------------------------------------------------------------- */
@@ -155,7 +155,7 @@ abstract contract LightSyncMultiSigner is MultiSigner {
             _addSigner(lightSyncSigs_[i].update);
         }
         $.nonce = nonce;
-        emit updateNonce(nonce);
+        emit UpdateNonce(nonce);
     }
 
     function _addSigner(SignerSetUpdate memory update_) internal {

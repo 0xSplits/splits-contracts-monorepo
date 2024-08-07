@@ -75,7 +75,7 @@ abstract contract MultiSigner {
     /*                                  MODIFIERS                                 */
     /* -------------------------------------------------------------------------- */
 
-    modifier OnlyAuthorized() {
+    modifier onlyAuthorized() {
         _authorize();
         _;
     }
@@ -109,7 +109,7 @@ abstract contract MultiSigner {
      * @param signer_ The owner raw bytes to register.
      * @param index_ The index to register the signer.
      */
-    function addSigner(bytes calldata signer_, uint8 index_) public OnlyAuthorized {
+    function addSigner(bytes calldata signer_, uint8 index_) public onlyAuthorized {
         _addSigner(signer_, index_);
     }
 
@@ -120,7 +120,7 @@ abstract contract MultiSigner {
      *
      * @param index_ The index of the signer to be removed.
      */
-    function removeSigner(uint8 index_) public OnlyAuthorized {
+    function removeSigner(uint8 index_) public onlyAuthorized {
         _removeSigner(index_);
     }
 
@@ -132,7 +132,7 @@ abstract contract MultiSigner {
      *
      * @param threshold_ The new signer set threshold.
      */
-    function updateThreshold(uint8 threshold_) public OnlyAuthorized {
+    function updateThreshold(uint8 threshold_) public onlyAuthorized {
         _updateThreshold(threshold_);
     }
 
