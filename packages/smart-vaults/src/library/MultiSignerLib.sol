@@ -3,6 +3,8 @@ pragma solidity ^0.8.23;
 
 import { WebAuthn } from "@web-authn/WebAuthn.sol";
 import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
+import { decodeAccountSigner } from "../signers/AccountSigner.sol";
+import { decodePasskeySigner } from "../signers/PasskeySigner.sol";
 
 /**
  * @title Multi Signer Library
@@ -119,42 +121,9 @@ library MultiSignerLib {
         returns (bool isValid)
     {
         if (signer_.length == EOA_SIGNER_SIZE) {
-            isValid = isValidSignatureEOA(hash_, signer_, signature_);
+            isValid = decodeAccountSigner(signer_).isValidSignature(hash_, signature_);
         } else if (signer_.length == PASSKEY_SIGNER_SIZE) {
-            isValid = isValidSignaturePasskey(hash_, signer_, signature_);
+            isValid = decodePasskeySigner(signer_).isValidSignature(hash_, signature_);
         }
-    }
-
-    function isValidSignaturePasskey(
-        bytes32 hash_,
-        bytes memory signer_,
-        bytes memory signature_
-    )
-        internal
-        view
-        returns (bool)
-    {
-        (uint256 x, uint256 y) = abi.decode(signer_, (uint256, uint256));
-
-        WebAuthn.WebAuthnAuth memory auth = abi.decode(signature_, (WebAuthn.WebAuthnAuth));
-
-        return WebAuthn.verify({ challenge: abi.encode(hash_), requireUV: false, webAuthnAuth: auth, x: x, y: y });
-    }
-
-    function isValidSignatureEOA(
-        bytes32 hash_,
-        bytes memory signer_,
-        bytes memory signature_
-    )
-        internal
-        view
-        returns (bool)
-    {
-        address owner;
-        assembly ("memory-safe") {
-            owner := mload(add(signer_, 32))
-        }
-
-        return SignatureCheckerLib.isValidSignatureNow(owner, hash_, signature_);
     }
 }
