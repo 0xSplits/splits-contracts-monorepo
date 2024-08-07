@@ -245,15 +245,20 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
         returns (uint256 validationData)
     {
         SignatureTypes signatureType = _getSignatureType(userOp_.signature[0]);
+        bytes32 lightHash = _getLightUserOpHash(userOp_);
 
         if (signatureType == SignatureTypes.SingleUserOp) {
-            return _validateSingleUserOp(userOp_, userOpHash_);
+            SingleUserOpSignature memory signature = abi.decode(userOp_.signature[1:], (SingleUserOpSignature));
+            return _validateSingleUserOp(lightHash, userOpHash_, signature);
         } else if (signatureType == SignatureTypes.MerkelizedUserOp) {
-            return _validateMerkelizedUserOp(userOp_, userOpHash_);
+            MerkelizedUserOpSignature memory signature = abi.decode(userOp_.signature[1:], (MerkelizedUserOpSignature));
+            return _validateMerkelizedUserOp(lightHash, userOpHash_, signature);
         } else if (signatureType == SignatureTypes.LightSyncSingleUserOpSignature) {
-            return _validateLightSyncSingleUserOpSignature(userOp_, userOpHash_);
+            LightSyncSingleUserOpSignature memory signature = abi.decode(userOp_.signature[1:], (LightSyncSingleUserOpSignature));
+            return _validateLightSyncSingleUserOpSignature(lightHash, userOpHash_, signature);
         } else if (signatureType == SignatureTypes.LightSyncMerkelizedUserOpSignature) {
-            return _validateLightSyncMerkelizedUserOp(userOp_, userOpHash_);
+            LightSyncMerkelizedUserOpSignature memory signature = abi.decode(userOp_.signature[1:], (LightSyncMerkelizedUserOpSignature));
+            return _validateLightSyncMerkelizedUserOp(lightHash, userOpHash_, signature);
         } else {
             revert InvalidSignatureType();
         }
@@ -366,45 +371,43 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
     }
 
     function _validateSingleUserOp(
-        PackedUserOperation calldata userOp_,
-        bytes32 userOpHash_
+        bytes32 lightHash_,
+        bytes32 userOpHash_,
+        SingleUserOpSignature memory signature
     )
         internal
         view
         returns (uint256)
     {
         return _isValidSignature(
-            _getLightUserOpHash(userOp_),
+            lightHash_,
             userOpHash_,
-            abi.decode(userOp_.signature[1:], (SingleUserOpSignature)).signatures
+            signature.signatures
         );
     }
 
     function _validateLightSyncSingleUserOpSignature(
-        PackedUserOperation calldata userOp_,
-        bytes32 userOpHash_
+        bytes32 lightHash_,
+        bytes32 userOpHash_,
+        LightSyncSingleUserOpSignature memory signature
     )
         internal
         returns (uint256)
     {
-        LightSyncSingleUserOpSignature memory signature =
-            abi.decode(userOp_.signature[1:], (LightSyncSingleUserOpSignature));
-
         _validateAndProcessLightSyncSignatures(signature.lightSyncSignatures);
 
-        return _isValidSignature(_getLightUserOpHash(userOp_), userOpHash_, signature.singleUserOpSignature.signatures);
+        return _isValidSignature(lightHash_, userOpHash_, signature.singleUserOpSignature.signatures);
     }
 
     function _validateMerkelizedUserOp(
-        PackedUserOperation calldata userOp_,
-        bytes32 userOpHash_
+        bytes32 lightHash_,
+        bytes32 userOpHash_,
+        MerkelizedUserOpSignature  memory signature
     )
         internal
         view
         returns (uint256 validationData)
     {
-        MerkelizedUserOpSignature memory signature = abi.decode(userOp_.signature[1:], (MerkelizedUserOpSignature));
-
         if (!MerkleProof.verify(signature.merkleProof, signature.merkleTreeRoot, userOpHash_)) {
             revert InvalidMerkleProof();
         }
@@ -412,7 +415,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
         if (signature.lightMerkleTreeRoot != bytes32(0)) {
             if (
                 !MerkleProof.verify(
-                    signature.lightMerkleProof, signature.lightMerkleTreeRoot, _getLightUserOpHash(userOp_)
+                    signature.lightMerkleProof, signature.lightMerkleTreeRoot, lightHash_
                 )
             ) {
                 revert InvalidMerkleProof();
@@ -423,15 +426,13 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
     }
 
     function _validateLightSyncMerkelizedUserOp(
-        PackedUserOperation calldata userOp_,
-        bytes32 userOpHash_
+        bytes32 lightHash_,
+        bytes32 userOpHash_,
+        LightSyncMerkelizedUserOpSignature memory signature
     )
         internal
         returns (uint256 validationData)
     {
-        LightSyncMerkelizedUserOpSignature memory signature =
-            abi.decode(userOp_.signature[1:], (LightSyncMerkelizedUserOpSignature));
-
         _validateAndProcessLightSyncSignatures(signature.lightSyncSignatures);
 
         if (
@@ -447,7 +448,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
                 !MerkleProof.verify(
                     signature.merkelizedSignature.lightMerkleProof,
                     signature.merkelizedSignature.lightMerkleTreeRoot,
-                    _getLightUserOpHash(userOp_)
+                    lightHash_
                 )
             ) {
                 revert InvalidMerkleProof();
