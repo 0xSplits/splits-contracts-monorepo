@@ -434,32 +434,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
         returns (uint256 validationData)
     {
         _validateAndProcessLightSyncSignatures(signature.lightSyncSignatures);
-
-        if (
-            !MerkleProof.verify(
-                signature.merkelizedSignature.merkleProof, signature.merkelizedSignature.merkleTreeRoot, userOpHash_
-            )
-        ) {
-            revert InvalidMerkleProof();
-        }
-
-        if (signature.merkelizedSignature.lightMerkleTreeRoot != bytes32(0)) {
-            if (
-                !MerkleProof.verify(
-                    signature.merkelizedSignature.lightMerkleProof,
-                    signature.merkelizedSignature.lightMerkleTreeRoot,
-                    lightHash_
-                )
-            ) {
-                revert InvalidMerkleProof();
-            }
-        }
-
-        return _isValidSignature(
-            signature.merkelizedSignature.lightMerkleTreeRoot,
-            signature.merkelizedSignature.merkleTreeRoot,
-            signature.merkelizedSignature.signatures
-        );
+        return _validateMerkelizedUserOp(lightHash_, userOpHash_, signature.merkelizedSignature);
     }
 
     function _isValidSignature(
