@@ -447,35 +447,11 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
         returns (uint256 validationData)
     {
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
-        uint8 threshold = $.threshold;
-
-        bool isValid = true;
-
-        uint256 alreadySigned;
-        uint256 mask;
-        uint8 signerIndex;
-
-        for (uint256 i; i < threshold - 1; i++) {
-            signerIndex = signatures[i].signerIndex;
-            mask = (1 << signerIndex);
-
-            if (
-                MultiSignerLib.isValidSignature(lightHash_, $.signers[signerIndex], signatures[i].signatureData)
-                    && alreadySigned & mask == 0
-            ) {
-                alreadySigned |= mask;
-            } else {
-                isValid = false;
-            }
+        if (MultiSignerSignatureLib.isValidSignature($, lightHash_, hash_, signatures)) {
+            return UserOperationLib.VALID_SIGNATURE;
+        } else {
+            return UserOperationLib.INVALID_SIGNATURE;
         }
-
-        signerIndex = signatures[threshold - 1].signerIndex;
-        mask = (1 << signerIndex);
-
-        return (
-            MultiSignerLib.isValidSignature(hash_, $.signers[signerIndex], signatures[threshold - 1].signatureData)
-                && (alreadySigned & mask == 0) && isValid
-        ) ? UserOperationLib.VALID_SIGNATURE : UserOperationLib.INVALID_SIGNATURE;
     }
 
     function _getSignatureType(bytes1 signatureType_) internal pure returns (SignatureTypes) {
