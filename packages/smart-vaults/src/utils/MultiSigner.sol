@@ -35,9 +35,6 @@ abstract contract MultiSigner {
     /// @notice Thrown when number of signers is more than 256.
     error InvalidNumberOfSigners();
 
-    /// @notice Thrown when setting nonce to less than the current storage nonce.
-    error InvalidNonce();
-
     /**
      * @notice Thrown when trying to remove an empty signer.
      * @param index Index of the empty signer.
@@ -74,12 +71,6 @@ abstract contract MultiSigner {
      */
     event UpdateThreshold(uint8 threshold);
 
-    /**
-     * @notice Emitted when nonce is updated.
-     * @param nonce The new nonce for the signer set.
-     */
-    event updateNonce(uint256 nonce);
-
     /* -------------------------------------------------------------------------- */
     /*                                  MODIFIERS                                 */
     /* -------------------------------------------------------------------------- */
@@ -106,11 +97,6 @@ abstract contract MultiSigner {
     /// @notice Returns the threshold
     function getThreshold() public view virtual returns (uint8) {
         return _getMultiSignerStorage().threshold;
-    }
-
-    /// @notice Returns the nonce for the signer set
-    function getNonce() public view virtual returns (uint256) {
-        return _getMultiSignerStorage().nonce;
     }
 
     /* -------------------------------------------------------------------------- */
@@ -148,23 +134,6 @@ abstract contract MultiSigner {
      */
     function updateThreshold(uint8 threshold_) public OnlyAuthorized {
         _updateThreshold(threshold_);
-    }
-
-    /**
-     * @notice Updates nonce of the signer set.
-     *
-     * @dev Reverts if `nonce_` less than or equal to current nonce.
-     *
-     * @param nonce_ nonce to set.
-     */
-    function setNonce(uint256 nonce_) public OnlyAuthorized {
-        MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
-
-        if (nonce_ <= $.nonce) revert InvalidNonce();
-
-        $.nonce = nonce_;
-
-        emit updateNonce(nonce_);
     }
 
     /* -------------------------------------------------------------------------- */

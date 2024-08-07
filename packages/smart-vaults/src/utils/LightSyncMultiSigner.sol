@@ -33,11 +33,54 @@ abstract contract LightSyncMultiSigner is MultiSigner {
     /*                                   ERRORS                                   */
     /* -------------------------------------------------------------------------- */
 
+    /// @notice Thrown when setting nonce to less than the current storage nonce.
+    error InvalidNonce();
+
     /**
      * @notice Thrown when signer signer set update signature validation fails.
      * @param lightSyncUpdate light sync signature that failed validation.
      */
     error LightSyncUpdateValidationFailed(LightSyncSignature lightSyncUpdate);
+
+    /* -------------------------------------------------------------------------- */
+    /*                                   EVENTS                                   */
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @notice Emitted when nonce is updated.
+     * @param nonce The new nonce for the signer set.
+     */
+    event updateNonce(uint256 nonce);
+
+    /* -------------------------------------------------------------------------- */
+    /*                            PUBLIC VIEW FUNCTIONS                           */
+    /* -------------------------------------------------------------------------- */
+
+    /// @notice Returns the nonce for the signer set
+    function getNonce() public view virtual returns (uint256) {
+        return _getMultiSignerStorage().nonce;
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*                             EXTERNAL FUNCTIONS                             */
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @notice Updates nonce of the signer set.
+     *
+     * @dev Reverts if `nonce_` less than or equal to current nonce.
+     *
+     * @param nonce_ nonce to set.
+     */
+    function setNonce(uint256 nonce_) public OnlyAuthorized {
+        MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
+
+        if (nonce_ <= $.nonce) revert InvalidNonce();
+
+        $.nonce = nonce_;
+
+        emit updateNonce(nonce_);
+    }
 
     /* -------------------------------------------------------------------------- */
     /*                             INTERNAL FUNCTIONS                             */
