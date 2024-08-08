@@ -31,20 +31,20 @@ contract SmartVaultFactory {
     /* -------------------------------------------------------------------------- */
 
     constructor() payable {
-        IMPLEMENTATION = address(new SmartVault(address(this)));
+        IMPLEMENTATION = address(new SmartVault());
     }
 
     /* -------------------------------------------------------------------------- */
-    /*                             EXTERNAL FUNCTIONS                             */
+    /*                       EXTERNAL AND PUBLIC FUNCTIONS                        */
     /* -------------------------------------------------------------------------- */
 
     /**
      * @notice Returns the deterministic address for a Splits Smart Vault created with `owner`, `signers`, 'threshold',
      * `salt`. Deploys and initializes contract if it has not yet been created.
      *
-     * @dev Deployed as a ERC-1967 proxy that's implementation is `this.implementation`.
+     * @dev Deployed as a ERC-1967 proxy that's implementation is `IMPLEMENTATION`.
      *
-     * @param owner_ Root owner of the smart vault.
+     * @param owner_ Owner of the smart vault.
      * @param signers_ Array of initial signers. Each item should be an ABI encoded address or 64 byte public key.
      * @param threshold_ Number of approvals needed for a valid user op/hash.
      * @param salt_  The salt of the account, a caller defined value which allows multiple accounts
@@ -54,6 +54,10 @@ contract SmartVaultFactory {
      */
     function createAccount(
         address owner_,
+        // use bitpacked user type Signers = bytes:
+        // 1st signer type (1 byte) || 1st signer data (20 or 64 byte) || 2nd signer type ...
+        // don't even need the byte for signer type if we're commit to distinguishing signers by length
+        // i feel so drawn to do this but part of me also thinks it isn't worth it.. not sure where i stand yet
         bytes[] calldata signers_,
         uint8 threshold_,
         uint256 salt_
@@ -87,7 +91,7 @@ contract SmartVaultFactory {
      *
      * @dev Reverts when the initial configuration of signers is invalid.
      *
-     * @param owner_ Root owner of the smart vault.
+     * @param owner_ Owner of the smart vault.
      * @param signers_ Array of initial signers. Each item should be an ABI encoded address or 64 byte public key.
      * @param threshold_ Number of approvals needed for a valid user op/hash.
      * @param salt_  The salt provided to `createAccount()`.
@@ -112,13 +116,17 @@ contract SmartVaultFactory {
 
     /**
      * @notice Returns the initialization code hash of the account:
-     *         a ERC1967 proxy that's implementation is `this.implementation`.
+     *         a ERC1967 proxy that's implementation is `IMPLEMENTATION`.
      *
      * @return The initialization code hash.
      */
     function initCodeHash() public view virtual returns (bytes32) {
         return LibClone.initCodeHashERC1967(IMPLEMENTATION);
     }
+
+    /* -------------------------------------------------------------------------- */
+    /*                       INTERNAL AND PRIVATE FUNCTIONS                       */
+    /* -------------------------------------------------------------------------- */
 
     /// @notice Returns the create2 salt for `LibClone.predictDeterministicAddress`
     function _getSalt(

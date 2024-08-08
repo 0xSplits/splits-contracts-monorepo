@@ -5,6 +5,15 @@ import { MultiSignerLib } from "../library/MultiSignerLib.sol";
 import { WebAuthn } from "@web-authn/WebAuthn.sol";
 import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
 
+// if we are comfortable using length of key to differentiate addresses from secp256r1 public keys, i think we can save 1 storage slot per signer
+// basically need to allocate 2 slots per signer (can do this in a number of ways)
+// read first slot
+//  if zero, no signer
+//  if not zero but first 96 bits are zero, address
+//  if not zero and first 96 bits aren't zero, read 2nd slot to complete public key
+
+// may limit future flexibility though? not sure whether that should matter
+
 /**
  * @title Multi Signer
  * @author Splits
@@ -157,6 +166,7 @@ abstract contract MultiSigner {
      *
      * @param nonce_ nonce to set.
      */
+    // fn name and event name should probably match
     function setNonce(uint256 nonce_) public OnlyAuthorized {
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
 

@@ -88,6 +88,7 @@ library MultiSignerSignatureLib {
         }
     }
 
+    // this one _can_ revert early for failure, right?
     /**
      * @notice validates if `hash_` was signed by the signer set present in `$` and 'signers_`.
      * @param $_ Storage reference to MultiSigner storage.
@@ -119,7 +120,6 @@ library MultiSignerSignatureLib {
             mask = (1 << signerIndex);
 
             signer = $_.signers[signerIndex];
-
             if (signer.length == 0) {
                 signer = getSignerAtIndex(signerUpdates_, signatures[i].signerIndex);
             }
@@ -134,6 +134,7 @@ library MultiSignerSignatureLib {
         }
     }
 
+    // can revisit this after we settle on the storage / packing stuff
     function getSignerAtIndex(bytes memory signerUpdates_, uint8 index_) internal pure returns (bytes memory signer) {
         uint256 numUpdates = signerUpdates_.length;
 

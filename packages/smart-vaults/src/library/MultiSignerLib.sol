@@ -78,12 +78,8 @@ library MultiSignerLib {
 
         if (numberOfSigners < threshold_ || threshold_ < 1) revert InvalidThreshold();
 
-        bytes memory signer;
-
         for (uint8 i; i < numberOfSigners; i++) {
-            signer = signers_[i];
-
-            validateSigner(signer);
+            validateSigner(signers_[i]);
         }
     }
 
@@ -99,10 +95,6 @@ library MultiSignerLib {
 
         if (signer_.length == EOA_SIGNER_SIZE) {
             if (uint256(bytes32(signer_)) > type(uint160).max) revert InvalidEthereumAddressOwner(signer_);
-            address eoa;
-            assembly ("memory-safe") {
-                eoa := mload(add(signer_, 32))
-            }
         }
     }
 

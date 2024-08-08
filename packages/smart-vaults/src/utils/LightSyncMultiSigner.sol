@@ -19,8 +19,11 @@ abstract contract LightSyncMultiSigner is MultiSigner {
 
     /// @notice Signer set update.
     struct SignerSetUpdate {
+        // bitpack
         /**
+           // doesn't match the code which is (bytes, uint8)
          * AddSigner: abi.encode(uint8 index, uint8 signerType, bytes signer)
+         * AddSigner: uint8 index || uint8 signerType || bytes signer
          */
         bytes data;
         /// abi.encode(MultiSignerSignatureLib.SignatureWrapper[]) signature over keccak256(nonce, address(this), data).
@@ -30,6 +33,7 @@ abstract contract LightSyncMultiSigner is MultiSigner {
     /* -------------------------------------------------------------------------- */
     /*                                   ERRORS                                   */
     /* -------------------------------------------------------------------------- */
+
 
     /**
      * @notice Thrown when signer signer set update signature validation fails.
@@ -126,6 +130,7 @@ abstract contract LightSyncMultiSigner is MultiSigner {
         }
     }
 
+    // can revisit this after we settle on the storage / packing stuff
     function _processSignerSetUpdateMemory(
         uint256 insertIndex_,
         SignerSetUpdate memory signerSetUpdate_,
@@ -152,6 +157,7 @@ abstract contract LightSyncMultiSigner is MultiSigner {
             signerType = MultiSignerSignatureLib.PASSKEY_SIGNER_TYPE;
         }
 
+        // this is memory safe right?
         assembly {
             let destPtr := add(add(signerUpdates_, 32), mul(insertIndex_, 66))
             mstore8(destPtr, index)

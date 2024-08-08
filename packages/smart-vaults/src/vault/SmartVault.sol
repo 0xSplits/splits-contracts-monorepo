@@ -15,6 +15,19 @@ import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOp
 import { Ownable } from "solady/auth/Ownable.sol";
 import { UUPSUpgradeable } from "solady/utils/UUPSUpgradeable.sol";
 
+// should our signatures expire?
+// another pro for bitpacking is a lot of fns can use calldata instead of memory
+
+/// @notice Represents a call to make.
+struct Call {
+    /// @dev The address to call.
+    address target;
+    /// @dev The value to send when making the call.
+    uint256 value;
+    /// @dev The data of the call.
+    bytes data;
+}
+
 /**
  * @title Splits Smart Accounts/Vaults
  *
@@ -28,18 +41,9 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
     /*                                   STRUCTS                                  */
     /* -------------------------------------------------------------------------- */
 
-    /// @notice Represents a call to make.
-    struct Call {
-        /// @dev The address to call.
-        address target;
-        /// @dev The value to send when making the call.
-        uint256 value;
-        /// @dev The data of the call.
-        bytes data;
-    }
-
     /**
      * @notice Primary Signature types
+     // do merkelized signatures make sense to include?
      * @dev UserOp signature type is also used in ERC1271 signature verification flow with the assumption that the
      * userOp Signature is of type Single.
      */
@@ -90,6 +94,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
         bytes32 merkleTreeRoot;
         /// @notice Proof to verify if the userOp hash is present in the root.
         bytes32[] merkleProof;
+        // if only one possible encoding, do we need to use bytes?
         /// @notice abi.encode(MultiSignerSignatureLib.SignatureWrapper[]), where threshold - 1
         /// signatures will be verified against the `lightMerkleTreeRoot` and the final signature will be verified
         /// against the `merkleTreeRoot`.
@@ -100,7 +105,8 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
     struct LightSyncSignature {
         /// @notice list of signer set updates.
         SignerSetUpdate[] updates;
-        /// @notice abi.encode(UserOPSignature)
+        // if only one possible encoding, do we need to use bytes?
+        /// @notice abi.encode(UserOpSignature)
         bytes userOpSignature;
     }
 
@@ -190,12 +196,12 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
     /*                                 CONSTRUCTOR                                */
     /* -------------------------------------------------------------------------- */
 
-    constructor(address factory_) ERC1271("splitsSmartVault", "1") {
-        FACTORY = factory_;
+    constructor() ERC1271("splitsSmartVault", "1") {
+        FACTORY = msg.sender;
     }
 
     /* -------------------------------------------------------------------------- */
-    /*                             EXTERNAL FUNCTIONS                             */
+    /*                        EXTERNAL AND PUBLIC FUNCTIONS                       */
     /* -------------------------------------------------------------------------- */
 
     /**
@@ -204,7 +210,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
      * @dev Reverts if caller is not factory.
      * @dev Reverts if signers or threshold is invalid.
      *
-     * @param owner_ Root owner of the smart account.
+     * @param owner_ Owner of the smart account.
      * @param signers_ Array of initial signers for this account. Each item should be
      *               an ABI encoded Ethereum address, i.e. 32 bytes with 12 leading 0 bytes,
      *               or a 64 byte public key.
@@ -213,8 +219,8 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
     function initialize(address owner_, bytes[] calldata signers_, uint8 threshold_) external payable {
         if (msg.sender != FACTORY) revert OnlyFactory();
 
-        _initializeSigners(signers_, threshold_);
         _initializeOwner(owner_);
+        _initializeSigners(signers_, threshold_);
     }
 
     /**
@@ -222,7 +228,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
      * the entryPoint will make the call to the recipient only if this validation call returns successfully.
      * signature failure should be reported by returning SIG_VALIDATION_FAILED (1).
      * This allows making a "simulation call" without a valid signature
-     * Other failures (e.g. nonce mismatch, or invalid signature format) should still revert to signal failure.
+     * Other failures (e.g. nonce mismatch, or invalid signature format) should still revert.
      *
      * @dev Must validate caller is the entryPoint.
      *      Must validate the signature and nonce
@@ -255,6 +261,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
         returns (uint256 validationData)
     {
         // Sync account state before validation.
+        // could all be calldata if we bitpack
         bytes memory signature = _preValidationStateSync(userOp_.signature);
 
         UserOpSignature memory userOpSignature = abi.decode(signature, (UserOpSignature));
@@ -270,7 +277,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
     /**
      * @notice Executes the given call from this account.
      *
-     * @dev Can only be called by the Entrypoint or a root owner of this account.
+     * @dev Can only be called by the Entrypoint or owner of this account.
      *
      * @param target_ The address to call.
      * @param value_  The value to send with the call.
@@ -283,7 +290,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
     /**
      * @notice Executes batch of `Call`s.
      *
-     * @dev Can only be called by the Entrypoint or a root owner of this account.
+     * @dev Can only be called by the Entrypoint or owner of this account.
      *
      * @param calls_ The list of `Call`s to execute.
      */
@@ -326,6 +333,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
             newContract := create(callvalue(), add(initCode_, 0x20), mload(initCode_))
         }
 
+        // any reason we might want to allow the new contract to .. immediately self destruct? lol,,
         if (newContract == address(0) || newContract.code.length == 0) {
             revert FailedContractCreation();
         }
@@ -384,15 +392,13 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
     function _preValidationStateSync(bytes memory signature_) internal returns (bytes memory) {
         Signature memory rootSignature = abi.decode(signature_, (Signature));
 
-        if (rootSignature.sigType == SignatureType.UserOp) {
-            return rootSignature.signature;
-        } else if (rootSignature.sigType == SignatureType.LightSync) {
+        if (rootSignature.sigType == SignatureType.LightSync) {
             LightSyncSignature memory lightSyncSignature = abi.decode(rootSignature.signature, (LightSyncSignature));
             _processSignerSetUpdates(lightSyncSignature.updates);
             return lightSyncSignature.userOpSignature;
-        } else {
-            revert InvalidSignatureType();
         }
+
+        return rootSignature.signature;
     }
 
     /// @dev Validates a single user operation. First n-1 signatures are verified against a light user op hash of
@@ -453,6 +459,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
         MultiSignerSignatureLib.SignatureWrapper[] memory signatures =
             abi.decode(signature_, (MultiSignerSignatureLib.SignatureWrapper[]));
 
+        // is this just a small gas savings when threshold == 1?
         if (threshold == 1) {
             return (
                 MultiSignerLib.isValidSignature(
