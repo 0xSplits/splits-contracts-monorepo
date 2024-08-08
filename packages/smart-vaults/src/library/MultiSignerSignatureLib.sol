@@ -64,7 +64,8 @@ library MultiSignerSignatureLib {
         view
         returns (bool isValid)
     {
-        return isValidSignature($_, hash_, hash_, signatures_);
+        bytes memory empty;
+        return isValidSignature($_, hash_, hash_, signatures_, empty);
     }
 
     /**
@@ -84,21 +85,47 @@ library MultiSignerSignatureLib {
         view
         returns (bool isValid)
     {
+        bytes memory empty;
+        return isValidSignature($_, frontHash_, backHash_, signatures_, empty);
+    }
+
+    /**
+     * @notice validates if a pair of hashes was signed by the signer set present in `$_` with in-memory updates
+     * @param $_ Storage reference to MultiSigner storage.
+     * @param frontHash_ blob of data that should be signed by all but the last signer.
+     * @param backHash_ blob of data that should be signed by the last signer.
+     * @param signatures_ abi.encode(SignatureWrapper[]).
+     * @param signerUpdates_ list of signer additions made to the signer set.
+     */
+    function isValidSignature(
+        MultiSignerLib.MultiSignerStorage storage $_,
+        bytes32 frontHash_,
+        bytes32 backHash_,
+        SignatureWrapper[] memory signatures_,
+        bytes memory signerUpdates_
+    )
+        internal
+        view
+        returns (bool isValid)
+    {
         isValid = true;
 
         uint8 threshold = $_.threshold;
 
         uint256 alreadySigned;
+
         uint256 mask;
         uint8 signerIndex;
-        uint256 i;
+        bytes memory signer;
 
+        uint256 i;
         for (; i < threshold - 1; i++) {
             signerIndex = signatures_[i].signerIndex;
             mask = (1 << signerIndex);
+            signer = getSignerAtIndex($_, signerUpdates_, signerIndex);
 
             if (
-                MultiSignerLib.isValidSignature(frontHash_, $_.signers[signerIndex], signatures_[i].signatureData)
+                MultiSignerLib.isValidSignature(frontHash_, signer, signatures_[i].signatureData)
                     && alreadySigned & mask == 0
             ) {
                 alreadySigned |= mask;
@@ -109,9 +136,10 @@ library MultiSignerSignatureLib {
 
         signerIndex = signatures_[i].signerIndex;
         mask = (1 << signerIndex);
+        signer = getSignerAtIndex($_, signerUpdates_, signerIndex);
 
         if (
-            MultiSignerLib.isValidSignature(backHash_, $_.signers[signerIndex], signatures_[i].signatureData)
+            MultiSignerLib.isValidSignature(backHash_, signer, signatures_[i].signatureData)
                 && alreadySigned & mask == 0
         ) {
             alreadySigned |= mask;
@@ -121,7 +149,7 @@ library MultiSignerSignatureLib {
     }
 
     /**
-     * @notice validates if `hash_` was signed by the signer set present in `$` and 'signers_`.
+     * @notice validates if `hash_` was signed by the signer set present in `$` with in-memory updates
      * @param $_ Storage reference to MultiSigner storage.
      * @param hash_ blob of data that needs to be verified.
      * @param signatures_ abi.encode(SignatureWrapper[]).
@@ -137,35 +165,16 @@ library MultiSignerSignatureLib {
         view
         returns (bool isValid)
     {
-        isValid = true;
-
-        uint8 threshold = $_.threshold;
-        uint256 alreadySigned;
-        uint256 mask;
-        uint8 signerIndex;
-        bytes memory signer;
-        for (uint256 i; i < threshold; i++) {
-            signerIndex = signatures_[i].signerIndex;
-            mask = (1 << signerIndex);
-
-            signer = $_.signers[signerIndex];
-
-            if (signer.length == 0) {
-                signer = getSignerAtIndex(signerUpdates_, signatures_[i].signerIndex);
-            }
-
-            if (
-                MultiSignerLib.isValidSignature(hash_, signer, signatures_[i].signatureData)
-                    && alreadySigned & mask == 0
-            ) {
-                alreadySigned |= mask;
-            } else {
-                isValid = false;
-            }
-        }
+        return isValidSignature($_, hash_, hash_, signatures_, signerUpdates_);
     }
 
-    function getSignerAtIndex(bytes memory signerUpdates_, uint8 index_) internal pure returns (bytes memory signer) {
+    function getSignerAtIndex(MultiSignerLib.MultiSignerStorage storage $_, bytes memory signerUpdates_, uint8 index_) internal view returns (bytes memory signer) {
+        signer = $_.signers[index_];
+
+        if (signer.length > 0) {
+            return signer;
+        }
+
         uint256 numUpdates = signerUpdates_.length;
 
         uint8 currentIndex;
