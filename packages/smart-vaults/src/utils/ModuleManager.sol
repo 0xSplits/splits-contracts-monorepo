@@ -38,7 +38,7 @@ abstract contract ModuleManager is Caller {
     /// @notice Event emitted when an module is enabled.
     event EnabledModule(address indexed module);
 
-    /// @notice Event emitted when an module is disable.
+    /// @notice Event emitted when an module is disabled.
     event DisabledModule(address indexed module);
 
     /// @notice Event emitted when an module executes a call.

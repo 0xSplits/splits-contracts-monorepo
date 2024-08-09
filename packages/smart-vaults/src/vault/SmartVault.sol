@@ -6,8 +6,9 @@ import { MultiSignerSignatureLib } from "../library/MultiSignerSignatureLib.sol"
 import { UserOperationLib } from "../library/UserOperationLib.sol";
 import { ERC1271 } from "../utils/ERC1271.sol";
 import { FallbackManager } from "../utils/FallbackManager.sol";
+
+import { ModuleManager } from "../utils/ModuleManager.sol";
 import { MultiSigner } from "../utils/MultiSigner.sol";
-import { OperatorManager } from "../utils/OperatorManager.sol";
 
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { IAccount } from "account-abstraction/interfaces/IAccount.sol";
@@ -21,7 +22,7 @@ import { UUPSUpgradeable } from "solady/utils/UUPSUpgradeable.sol";
  * @notice Based on Coinbase's Smart Wallet (https://github.com/coinbase/smart-wallet) and Solady's Smart Wallet.
  * @author Splits
  */
-contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271, FallbackManager, OperatorManager {
+contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271, FallbackManager, ModuleManager {
     using UserOperationLib for PackedUserOperation;
 
     /* -------------------------------------------------------------------------- */
@@ -304,7 +305,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
     /// @dev authorizes caller to upgrade the implementation of this contract.
     function _authorizeUpgrade(address) internal view virtual override(UUPSUpgradeable) onlyOwner { }
 
-    function _authorize() internal view override(MultiSigner, FallbackManager, OperatorManager) onlySelf { }
+    function _authorize() internal view override(MultiSigner, FallbackManager, ModuleManager) onlySelf { }
 
     /// @dev Get light user op hash of the Packed user operation.
     function _getLightUserOpHash(PackedUserOperation calldata userOp_) internal view returns (bytes32) {

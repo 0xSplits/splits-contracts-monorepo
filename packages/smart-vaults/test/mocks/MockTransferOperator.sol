@@ -14,13 +14,13 @@ contract MockTransferOperator {
 
         Caller.Call memory call = Caller.Call(token, 0, data);
 
-        account.executeFromOperator(call);
+        account.executeFromModule(call);
     }
 
     function transfer(SmartVault account, uint256 amount, address to) public {
         bytes memory data;
         Caller.Call memory call = Caller.Call(to, amount, data);
-        account.executeFromOperator(call);
+        account.executeFromModule(call);
     }
 
     function transfer(SmartVault account, uint96 amount1, address to1, uint96 amount2, address to2) public {
@@ -28,7 +28,7 @@ contract MockTransferOperator {
         Caller.Call[] memory calls = new Caller.Call[](2);
         calls[0] = Caller.Call(to1, amount1, data);
         calls[1] = Caller.Call(to2, amount2, data);
-        account.executeFromOperator(calls);
+        account.executeFromModule(calls);
     }
 
     function addAccount() public {

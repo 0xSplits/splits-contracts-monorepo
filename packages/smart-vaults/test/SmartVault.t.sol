@@ -909,56 +909,50 @@ contract SmartVaultTest is BaseTest {
     }
 
     /* -------------------------------------------------------------------------- */
-    /*                              OPERATOR MANAGER                              */
+    /*                              Module MANAGER                                */
     /* -------------------------------------------------------------------------- */
 
-    event OperatorAdded(address indexed operator);
-    event OperatorRemoved(address indexed operator);
-    event ExecutedTxFromOperator(address indexed operator, SmartVault.Call call);
+    event EnabledModule(address indexed module);
+    event DisabledModule(address indexed module);
+    event ExecutedTxFromModule(address indexed module, SmartVault.Call call);
     event AccountAdded(address account);
     event AccountRemoved(address account);
 
-    error OnlyOperator();
-    error TargetCannotBeAccount();
+    error OnlyModule();
 
-    function testFuzz_OperatorManager_addOperator(address operator_) public {
+    function testFuzz_OperatorManager_enableModule(address module_) public {
         vm.expectEmit();
-        emit OperatorAdded(operator_);
+        emit EnabledModule(module_);
         vm.prank(address(vault));
-        vault.addOperator(operator_);
+        vault.enableModule(module_);
 
-        assertTrue(vault.isOperator(operator_));
+        assertTrue(vault.isModuleEnabled(module_));
     }
 
-    function testFuzz_OperatorManager_addOperator_RevertsWhen_callerNotSelf(
-        address operator_,
-        address caller_
-    )
-        public
-    {
+    function testFuzz_OperatorManager_enableModule_RevertsWhen_callerNotSelf(address module_, address caller_) public {
         vm.assume(caller_ != address(vault));
 
         vm.expectRevert(OnlySelf.selector);
         vm.prank(caller_);
-        vault.addOperator(operator_);
+        vault.enableModule(module_);
     }
 
-    function test_OperatorManager_addAndSetupOperator() public {
-        MockTransferOperator operator = new MockTransferOperator();
+    function test_OperatorManager_setupAndEnableModule() public {
+        MockTransferOperator module = new MockTransferOperator();
         bytes memory data = abi.encodeWithSelector(MockTransferOperator.addAccount.selector);
 
         vm.expectEmit();
-        emit OperatorAdded(address(operator));
+        emit EnabledModule(address(module));
         emit AccountAdded(address(vault));
         vm.prank(address(vault));
-        vault.addAndSetupOperator(address(operator), address(operator), data);
+        vault.setupAndEnableModule(address(module), address(module), data);
 
-        assertTrue(vault.isOperator(address(operator)));
+        assertTrue(vault.isModuleEnabled(address(module)));
     }
 
-    function testFuzz_OperatorManager_addAndSetupOperator_RevertsWhen_callerNotSelf(
+    function testFuzz_OperatorManager_setupAndEnableModule_RevertsWhen_callerNotSelf(
         address caller_,
-        address operator_,
+        address module_,
         address setupContract_,
         bytes memory data_
     )
@@ -968,36 +962,36 @@ contract SmartVaultTest is BaseTest {
 
         vm.expectRevert(OnlySelf.selector);
         vm.prank(caller_);
-        vault.addAndSetupOperator(operator_, setupContract_, data_);
+        vault.setupAndEnableModule(module_, setupContract_, data_);
     }
 
-    function testFuzz_OperatorManager_removeOperator(address operator_) public {
-        testFuzz_OperatorManager_addOperator(operator_);
+    function testFuzz_OperatorManager_disableModule(address module_) public {
+        testFuzz_OperatorManager_enableModule(module_);
 
         vm.expectEmit();
-        emit OperatorRemoved(operator_);
+        emit DisabledModule(module_);
         vm.prank(address(vault));
-        vault.removeOperator(operator_);
+        vault.disableModule(module_);
 
-        assertFalse(vault.isOperator(operator_));
+        assertFalse(vault.isModuleEnabled(module_));
     }
 
-    function test_OperatorManager_removeAndTeardownOperator() public {
-        MockTransferOperator operator = new MockTransferOperator();
+    function test_OperatorManager_teardownAndDisableModule() public {
+        MockTransferOperator module = new MockTransferOperator();
         bytes memory data = abi.encodeWithSelector(MockTransferOperator.removeAccount.selector);
 
         vm.expectEmit();
-        emit OperatorRemoved(address(operator));
+        emit DisabledModule(address(module));
         emit AccountRemoved(address(vault));
         vm.prank(address(vault));
-        vault.removeAndTeardownOperator(address(operator), address(operator), data);
+        vault.teardownAndDisableModule(address(module), address(module), data);
 
-        assertFalse(vault.isOperator(address(operator)));
+        assertFalse(vault.isModuleEnabled(address(module)));
     }
 
-    function testFuzz_OperatorManager_removeAndTeardownOperator_RevertsWhen_callerNotSelf(
+    function testFuzz_OperatorManager_teardownAndDisableModule_RevertsWhen_callerNotSelf(
         address caller_,
-        address operator_,
+        address module_,
         address teardownContract_,
         bytes memory data_
     )
@@ -1007,11 +1001,11 @@ contract SmartVaultTest is BaseTest {
 
         vm.expectRevert(OnlySelf.selector);
         vm.prank(caller_);
-        vault.removeAndTeardownOperator(operator_, teardownContract_, data_);
+        vault.teardownAndDisableModule(module_, teardownContract_, data_);
     }
 
-    function testFuzz_OperatorManager_removeOperator_RevertsWhen_callerNotSelf(
-        address operator_,
+    function testFuzz_OperatorManager_disableModule_RevertsWhen_callerNotSelf(
+        address module_,
         address caller_
     )
         public
@@ -1020,18 +1014,20 @@ contract SmartVaultTest is BaseTest {
 
         vm.expectRevert(OnlySelf.selector);
         vm.prank(caller_);
-        vault.removeOperator(operator_);
+        vault.disableModule(module_);
     }
 
-    function testFuzz_OperatorManager_executeFromOperatorSingle(address to_, uint256 amount_) public {
+    function testFuzz_OperatorManager_executeFromModuleSingle(address to_, uint256 amount_) public {
         assumeAddressIsNot(to_, AddressType.NonPayable);
+        vm.assume(to_ != address(vault));
+
         vm.assume(amount_ > 0);
         vm.deal(address(vault), amount_);
 
-        MockTransferOperator operator = new MockTransferOperator();
+        MockTransferOperator module = new MockTransferOperator();
 
         vm.prank(address(vault));
-        vault.addOperator(address(operator));
+        vault.enableModule(address(module));
 
         assertEq(address(vault).balance, amount_);
 
@@ -1039,54 +1035,55 @@ contract SmartVaultTest is BaseTest {
         Caller.Call memory call = Caller.Call(to_, amount_, data);
 
         vm.expectEmit();
-        emit ExecutedTxFromOperator(address(operator), call);
-        operator.transfer(vault, amount_, to_);
+        emit ExecutedTxFromModule(address(module), call);
+        module.transfer(vault, amount_, to_);
 
         assertEq(address(vault).balance, 0);
     }
 
-    function testFuzz_OperatorManager_executeFromOperatorSingle_RevertsWhen_callerNotOperator(
+    function testFuzz_OperatorManager_executeFromModuleSingle_RevertsWhen_callerNotOperator(
         address caller_,
         Caller.Call memory call_
     )
         public
     {
-        vm.expectRevert(OnlyOperator.selector);
+        vm.expectRevert(OnlyModule.selector);
         vm.prank(caller_);
-        vault.executeFromOperator(call_);
+        vault.executeFromModule(call_);
     }
 
-    function testFuzz_OperatorManager_executeFromOperatorBatch(address to_, uint96 amount_) public {
+    function testFuzz_OperatorManager_executeFromModuleBatch(address to_, uint96 amount_) public {
         assumeAddressIsNot(to_, AddressType.NonPayable);
+        vm.assume(to_ != address(vault));
 
         vm.assume(amount_ > 0);
         vm.deal(address(vault), amount_ * uint256(2));
 
-        MockTransferOperator operator = new MockTransferOperator();
+        MockTransferOperator module = new MockTransferOperator();
 
         vm.prank(address(vault));
-        vault.addOperator(address(operator));
+        vault.enableModule(address(module));
 
         assertGt(address(vault).balance, 0);
 
         bytes memory data;
         Caller.Call memory call = Caller.Call(to_, amount_, data);
         vm.expectEmit();
-        emit ExecutedTxFromOperator(address(operator), call);
-        emit ExecutedTxFromOperator(address(operator), call);
-        operator.transfer(vault, amount_, to_, amount_, to_);
+        emit ExecutedTxFromModule(address(module), call);
+        emit ExecutedTxFromModule(address(module), call);
+        module.transfer(vault, amount_, to_, amount_, to_);
 
         assertEq(address(vault).balance, 0);
     }
 
-    function testFuzz_OperatorManager_executeFromOperatorBatch_RevertsWhen_callerNotOperator(
+    function testFuzz_OperatorManager_executeFromModuleBatch_RevertsWhen_callerNotOperator(
         address caller_,
         Caller.Call[] memory calls_
     )
         public
     {
-        vm.expectRevert(OnlyOperator.selector);
+        vm.expectRevert(OnlyModule.selector);
         vm.prank(caller_);
-        vault.executeFromOperator(calls_);
+        vault.executeFromModule(calls_);
     }
 }
