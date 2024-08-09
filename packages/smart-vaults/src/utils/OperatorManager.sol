@@ -51,9 +51,6 @@ abstract contract OperatorManager is Caller {
     /// @notice Thrown when caller is not an operator.
     error OnlyOperator();
 
-    /// @notice Thrown when target of call is this account.
-    error TargetCannotBeAccount();
-
     /* -------------------------------------------------------------------------- */
     /*                                  MODIFIERS                                 */
     /* -------------------------------------------------------------------------- */
@@ -70,7 +67,7 @@ abstract contract OperatorManager is Caller {
     /**
      * @notice Adds operator to the allowlist.
      *
-     * @dev Can only be called by this account.
+     * @dev access is controlled by `_authorize()`
      *
      * @param operator_ address of operator.
      */
@@ -83,7 +80,7 @@ abstract contract OperatorManager is Caller {
     /**
      * @notice Adds `operator` to the allowlist and makes a call to the `setupContract` passing `data_`.
      *
-     * @dev Can only be called by this account.
+     * @dev access is controlled by `_authorize()`
      *
      * @param operator_ address of operator.
      * @param setupContract_ address of contract to call to setup operator.
@@ -100,7 +97,7 @@ abstract contract OperatorManager is Caller {
     /**
      * @notice Removes operator from the allowlist.
      *
-     * @dev Can only be called by this account.
+     * @dev access is controlled by `_authorize()`
      *
      * @param operator_ address of operator.
      */
@@ -113,7 +110,7 @@ abstract contract OperatorManager is Caller {
     /**
      * @notice Removes `operator` from the allowlist and makes a call to the `teardownContract_` passing `data_`.
      *
-     * @dev Can only be called by this account.
+     * @dev access is controlled by `_authorize()`
      *
      * @param operator_ address of operator.
      * @param teardownContract_ address of contract to call to teardown operator.
@@ -131,14 +128,11 @@ abstract contract OperatorManager is Caller {
      * @notice Executes a single call from the account.
      *
      * @dev Can only be called by the operator.
-     * @dev Reverts if Call.target is account (address(this)).
      * @dev Emits an event to capture the call executed.
      *
      * @param call_ Call to execute from the account.
      */
     function executeFromOperator(Call calldata call_) external onlyOperator {
-        if (call_.target == address(this)) revert TargetCannotBeAccount();
-
         _call(call_.target, call_.value, call_.data);
 
         emit ExecutedTxFromOperator(msg.sender, call_);
@@ -148,7 +142,6 @@ abstract contract OperatorManager is Caller {
      * @notice Executes calls from the account.
      *
      * @dev Can only be called by the operator.
-     * @dev Reverts if Call.target is account (address(this)).
      * @dev Emits an event to capture the call executed.
      *
      * @param calls_ Calls to execute from this account.
@@ -157,8 +150,6 @@ abstract contract OperatorManager is Caller {
         uint256 numCalls = calls_.length;
 
         for (uint256 i; i < numCalls; i++) {
-            if (calls_[i].target == address(this)) revert TargetCannotBeAccount();
-
             _call(calls_[i]);
 
             emit ExecutedTxFromOperator(msg.sender, calls_[i]);
@@ -167,6 +158,7 @@ abstract contract OperatorManager is Caller {
 
     /**
      * @notice Returns true if the provided `operator` is added otherwise false.
+     *
      * @param operator_ address of operator.
      */
     function isOperator(address operator_) public view returns (bool) {
