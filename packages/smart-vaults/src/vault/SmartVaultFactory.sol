@@ -31,20 +31,20 @@ contract SmartVaultFactory {
     /* -------------------------------------------------------------------------- */
 
     constructor() payable {
-        IMPLEMENTATION = address(new SmartVault(address(this)));
+        IMPLEMENTATION = address(new SmartVault());
     }
 
     /* -------------------------------------------------------------------------- */
-    /*                             EXTERNAL FUNCTIONS                             */
+    /*                          EXTERNAL/PUBLIC FUNCTIONS                         */
     /* -------------------------------------------------------------------------- */
 
     /**
      * @notice Returns the deterministic address for a Splits Smart Vault created with `owner`, `signers`, 'threshold',
      * `salt`. Deploys and initializes contract if it has not yet been created.
      *
-     * @dev Deployed as a ERC-1967 proxy that's implementation is `this.implementation`.
+     * @dev Deployed as a ERC-1967 proxy that's implementation is `IMPLEMENTATION`.
      *
-     * @param owner_ Root owner of the smart vault.
+     * @param owner_ Owner of the smart vault.
      * @param signers_ Array of initial signers. Each item should be an ABI encoded address or 64 byte public key.
      * @param threshold_ Number of approvals needed for a valid user op/hash.
      * @param salt_  The salt of the account, a caller defined value which allows multiple accounts
@@ -87,7 +87,7 @@ contract SmartVaultFactory {
      *
      * @dev Reverts when the initial configuration of signers is invalid.
      *
-     * @param owner_ Root owner of the smart vault.
+     * @param owner_ Owner of the smart vault.
      * @param signers_ Array of initial signers. Each item should be an ABI encoded address or 64 byte public key.
      * @param threshold_ Number of approvals needed for a valid user op/hash.
      * @param salt_  The salt provided to `createAccount()`.
@@ -112,13 +112,17 @@ contract SmartVaultFactory {
 
     /**
      * @notice Returns the initialization code hash of the account:
-     *         a ERC1967 proxy that's implementation is `this.implementation`.
+     *         a ERC1967 proxy that's implementation is `IMPLEMENTATION`.
      *
      * @return The initialization code hash.
      */
     function initCodeHash() public view virtual returns (bytes32) {
         return LibClone.initCodeHashERC1967(IMPLEMENTATION);
     }
+
+    /* -------------------------------------------------------------------------- */
+    /*                          INTERNAL/PRIVATE FUNCTION                         */
+    /* -------------------------------------------------------------------------- */
 
     /// @notice Returns the create2 salt for `LibClone.predictDeterministicAddress`
     function _getSalt(

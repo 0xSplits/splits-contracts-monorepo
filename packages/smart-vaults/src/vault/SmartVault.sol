@@ -149,12 +149,12 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
     /*                                 CONSTRUCTOR                                */
     /* -------------------------------------------------------------------------- */
 
-    constructor(address factory_) ERC1271("splitsSmartVault", "1") {
-        FACTORY = factory_;
+    constructor() ERC1271("splitsSmartVault", "1") {
+        FACTORY = msg.sender;
     }
 
     /* -------------------------------------------------------------------------- */
-    /*                             EXTERNAL FUNCTIONS                             */
+    /*                          EXTERNAL/PUBLIC FUNCTIONS                         */
     /* -------------------------------------------------------------------------- */
 
     /**
@@ -163,7 +163,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
      * @dev Reverts if caller is not factory.
      * @dev Reverts if signers or threshold is invalid.
      *
-     * @param owner_ Root owner of the smart account.
+     * @param owner_ Owner of the smart account.
      * @param signers_ Array of initial signers for this account. Each item should be
      *               an ABI encoded Ethereum address, i.e. 32 bytes with 12 leading 0 bytes,
      *               or a 64 byte public key.
@@ -172,8 +172,8 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
     function initialize(address owner_, bytes[] calldata signers_, uint8 threshold_) external payable {
         if (msg.sender != FACTORY) revert OnlyFactory();
 
-        _initializeSigners(signers_, threshold_);
         _initializeOwner(owner_);
+        _initializeSigners(signers_, threshold_);
     }
 
     /**
@@ -181,7 +181,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
      * the entryPoint will make the call to the recipient only if this validation call returns successfully.
      * signature failure should be reported by returning SIG_VALIDATION_FAILED (1).
      * This allows making a "simulation call" without a valid signature
-     * Other failures (e.g. nonce mismatch, or invalid signature format) should still revert to signal failure.
+     * Other failures (e.g. nonce mismatch, or invalid signature format) should still revert.
      *
      * @dev Must validate caller is the entryPoint.
      *      Must validate the signature and nonce
@@ -242,7 +242,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
     /**
      * @notice Executes the given call from this account.
      *
-     * @dev Can only be called by the Entrypoint or a root owner of this account.
+     * @dev Can only be called by the Entrypoint or owner of this account.
      *
      * @param target_ The address to call.
      * @param value_  The value to send with the call.
@@ -255,7 +255,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
     /**
      * @notice Executes batch of `Call`s.
      *
-     * @dev Can only be called by the Entrypoint or a root owner of this account.
+     * @dev Can only be called by the Entrypoint or owner of this account.
      *
      * @param calls_ The list of `Call`s to execute.
      */
