@@ -2,8 +2,6 @@
 pragma solidity ^0.8.23;
 
 import { MultiSignerLib } from "../library/MultiSignerLib.sol";
-import { WebAuthn } from "@web-authn/WebAuthn.sol";
-import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
 
 /**
  * @title Multi Signer
@@ -151,11 +149,13 @@ abstract contract MultiSigner {
 
     /**
      * @notice Initialize the signers of this contract.
+     *
      * @dev Intended to be called when contract is first deployed and never again.
      * @dev Reverts if a provided owner is neither 64 bytes long (for public key) nor a valid address.
      * @dev Reverts if 'threshold' is less than number of signers.
      * @dev Reverts if 'threshold' is 0.
      * @dev Reverts if number of signers is more than 256.
+     *
      * @param signers_ The initial set of signers.
      * @param threshold_ The number of signers needed for approval.
      */
@@ -172,16 +172,13 @@ abstract contract MultiSigner {
 
         for (uint8 i; i < numSigners; i++) {
             signer = signers_[i];
-
             MultiSignerLib.validateSigner(signer);
-
             $.signers[i] = signer;
 
             emit AddSigner(i, signer);
         }
 
         $.signerCount = numSigners;
-
         $.threshold = threshold_;
         emit UpdateThreshold(threshold_);
     }

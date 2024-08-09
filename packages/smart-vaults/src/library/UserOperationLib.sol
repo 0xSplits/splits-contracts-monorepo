@@ -18,6 +18,10 @@ library UserOperationLib {
 
     uint256 public constant INVALID_SIGNATURE = 1;
 
+    /* -------------------------------------------------------------------------- */
+    /*                                  FUNCTIONS                                 */
+    /* -------------------------------------------------------------------------- */
+
     /**
      * @notice keccak function over calldata.
      * @dev copy calldata into memory, do keccak and drop allocated memory. Strangely, this is more efficient than

@@ -6,7 +6,6 @@ import { MultiSignerSignatureLib } from "../library/MultiSignerSignatureLib.sol"
 import { UserOperationLib } from "../library/UserOperationLib.sol";
 import { ERC1271 } from "../utils/ERC1271.sol";
 import { FallbackManager } from "../utils/FallbackManager.sol";
-import { LightSyncMultiSigner } from "../utils/LightSyncMultiSigner.sol";
 import { MultiSigner } from "../utils/MultiSigner.sol";
 
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
@@ -21,7 +20,7 @@ import { UUPSUpgradeable } from "solady/utils/UUPSUpgradeable.sol";
  * @notice Based on Coinbase's Smart Wallet (https://github.com/coinbase/smart-wallet) and Solady's Smart Wallet.
  * @author Splits
  */
-contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner, ERC1271, FallbackManager {
+contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271, FallbackManager {
     using UserOperationLib for PackedUserOperation;
 
     /* -------------------------------------------------------------------------- */
@@ -42,10 +41,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
     enum SignatureTypes {
         SingleUserOp,
         MerkelizedUserOp,
-        LightSyncSingleUserOpSignature,
-        LightSyncMerkelizedUserOpSignature,
-        ERC1271,
-        LightSyncERC1271
+        ERC1271
     }
 
     /// @notice Single User Op Signature Scheme.
@@ -71,27 +67,9 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
         MultiSignerSignatureLib.SignatureWrapper[] signatures;
     }
 
-    /// @notice Single User Op with Light Sync Updates signature scheme.
-    struct LightSyncSingleUserOpSignature {
-        LightSyncSignature[] lightSyncSignatures;
-        SingleUserOpSignature singleUserOpSignature;
-    }
-
-    /// @notice Merkelized User Op with Light Sync Updates signature scheme.
-    struct LightSyncMerkelizedUserOpSignature {
-        LightSyncSignature[] lightSyncSignatures;
-        MerkelizedUserOpSignature merkelizedSignature;
-    }
-
     /// @notice ERC1271 Signature scheme
     struct ERC1271Signature {
         MultiSignerSignatureLib.SignatureWrapper[] signatures;
-    }
-
-    /// @notice ERC1271 with Light Sync Updates signature scheme.
-    struct LightSyncERC1271Signature {
-        LightSyncSignature[] lightSyncSignatures;
-        ERC1271Signature erc1271Signature;
     }
 
     /* -------------------------------------------------------------------------- */
@@ -245,20 +223,20 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
         returns (uint256 validationData)
     {
         SignatureTypes signatureType = _getSignatureType(userOp_.signature[0]);
-        bytes32 lightHash = _getLightUserOpHash(userOp_);
+        bytes32 lightHash;
 
         if (signatureType == SignatureTypes.SingleUserOp) {
             SingleUserOpSignature memory signature = abi.decode(userOp_.signature[1:], (SingleUserOpSignature));
+
+            if (signature.signatures.length > 1) lightHash = _getLightUserOpHash(userOp_);
+
             return _validateSingleUserOp(lightHash, userOpHash_, signature);
         } else if (signatureType == SignatureTypes.MerkelizedUserOp) {
             MerkelizedUserOpSignature memory signature = abi.decode(userOp_.signature[1:], (MerkelizedUserOpSignature));
+
+            if (signature.lightMerkleTreeRoot != bytes32(0)) lightHash = _getLightUserOpHash(userOp_);
+
             return _validateMerkelizedUserOp(lightHash, userOpHash_, signature);
-        } else if (signatureType == SignatureTypes.LightSyncSingleUserOpSignature) {
-            LightSyncSingleUserOpSignature memory signature = abi.decode(userOp_.signature[1:], (LightSyncSingleUserOpSignature));
-            return _validateLightSyncSingleUserOpSignature(lightHash, userOpHash_, signature);
-        } else if (signatureType == SignatureTypes.LightSyncMerkelizedUserOpSignature) {
-            LightSyncMerkelizedUserOpSignature memory signature = abi.decode(userOp_.signature[1:], (LightSyncMerkelizedUserOpSignature));
-            return _validateLightSyncMerkelizedUserOp(lightHash, userOpHash_, signature);
         } else {
             revert InvalidSignatureType();
         }
@@ -353,21 +331,9 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
 
     /// @dev validates if the given hash (ERC1271) was signed by the signers.
     function _isValidSignature(bytes32 hash_, bytes calldata signature_) internal view override returns (bool) {
-        SignatureTypes signatureType = _getSignatureType(signature_[0]);
-
-        if (signatureType == SignatureTypes.ERC1271) {
-            return MultiSignerSignatureLib.isValidSignature(
-                _getMultiSignerStorage(), hash_, abi.decode(signature_[1:], (ERC1271Signature)).signatures
-            );
-        } else if (signatureType == SignatureTypes.LightSyncERC1271) {
-            LightSyncERC1271Signature memory signature = abi.decode(signature_[1:], (LightSyncERC1271Signature));
-            bytes memory addedSigners = _validateAndProcessLightSyncSignaturesMemory(signature.lightSyncSignatures);
-            return MultiSignerSignatureLib.isValidSignature(
-                _getMultiSignerStorage(), hash_, signature.erc1271Signature.signatures, addedSigners
-            );
-        } else {
-            revert InvalidSignatureType();
-        }
+        return MultiSignerSignatureLib.isValidSignature(
+            _getMultiSignerStorage(), hash_, abi.decode(signature_, (ERC1271Signature)).signatures
+        );
     }
 
     function _validateSingleUserOp(
@@ -379,29 +345,13 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
         view
         returns (uint256)
     {
-        return _isValidSignature(
-            lightHash_,
-            userOpHash_,
-            signature.signatures
-        );
-    }
-
-    function _validateLightSyncSingleUserOpSignature(
-        bytes32 lightHash_,
-        bytes32 userOpHash_,
-        LightSyncSingleUserOpSignature memory signature
-    )
-        internal
-        returns (uint256)
-    {
-        _validateAndProcessLightSyncSignatures(signature.lightSyncSignatures);
-        return _validateSingleUserOp(lightHash_, userOpHash_, signature.singleUserOpSignature);
+        return _isValidSignature(lightHash_, userOpHash_, signature.signatures);
     }
 
     function _validateMerkelizedUserOp(
         bytes32 lightHash_,
         bytes32 userOpHash_,
-        MerkelizedUserOpSignature  memory signature
+        MerkelizedUserOpSignature memory signature
     )
         internal
         view
@@ -412,28 +362,12 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, LightSyncMultiSigner,
         }
 
         if (signature.lightMerkleTreeRoot != bytes32(0)) {
-            if (
-                !MerkleProof.verify(
-                    signature.lightMerkleProof, signature.lightMerkleTreeRoot, lightHash_
-                )
-            ) {
+            if (!MerkleProof.verify(signature.lightMerkleProof, signature.lightMerkleTreeRoot, lightHash_)) {
                 revert InvalidMerkleProof();
             }
         }
 
         return _isValidSignature(signature.lightMerkleTreeRoot, signature.merkleTreeRoot, signature.signatures);
-    }
-
-    function _validateLightSyncMerkelizedUserOp(
-        bytes32 lightHash_,
-        bytes32 userOpHash_,
-        LightSyncMerkelizedUserOpSignature memory signature
-    )
-        internal
-        returns (uint256 validationData)
-    {
-        _validateAndProcessLightSyncSignatures(signature.lightSyncSignatures);
-        return _validateMerkelizedUserOp(lightHash_, userOpHash_, signature.merkelizedSignature);
     }
 
     function _isValidSignature(

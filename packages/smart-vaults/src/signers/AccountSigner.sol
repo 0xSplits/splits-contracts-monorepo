@@ -1,10 +1,10 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.23;
 
 import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
 
 /**
- * A signer backed by an EOA or ERC-1271 smart account.
+ * @notice A signer backed by an EOA or ERC-1271 smart account.
  */
 type AccountSigner is address;
 

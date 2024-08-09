@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.23;
 
-import { WebAuthn } from "@web-authn/WebAuthn.sol";
-import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
 import { decodeAccountSigner } from "../signers/AccountSigner.sol";
 import { decodePasskeySigner } from "../signers/PasskeySigner.sol";
 
@@ -29,7 +27,6 @@ library MultiSignerLib {
     /// @dev Can allow up to 256 signers.
     /// @custom:storage-location erc7201:splits.storage.MultiSigner
     struct MultiSignerStorage {
-        uint256 nonce;
         /// @dev Number of unique signatures required to validate a message signed by this contract.
         uint8 threshold;
         /// @dev number of signers
@@ -68,8 +65,10 @@ library MultiSignerLib {
 
     /**
      * @notice Validates the list of `signers` and `threshold`.
+     *
      * @dev Throws error when number of signers is zero or greater than 255.
      * @dev Throws error if `threshold` is zero or greater than number of signers.
+     *
      * @param signers_ abi encoded list of signers (passkey/eoa).
      * @param threshold_ minimum number of signers required for approval.
      */
@@ -80,19 +79,16 @@ library MultiSignerLib {
 
         if (numberOfSigners < threshold_ || threshold_ < 1) revert InvalidThreshold();
 
-        bytes memory signer;
-
         for (uint8 i; i < numberOfSigners; i++) {
-            signer = signers_[i];
-
-            validateSigner(signer);
+            validateSigner(signers_[i]);
         }
     }
 
     /**
      * @notice Validates the signer.
+     *
      * @dev Throws error when length of signer is neither 32 or 64.
-     * @dev Throws error if signer is invalid address or if address has code.
+     * @dev Throws error if signer is invalid address.
      */
     function validateSigner(bytes memory signer_) internal pure {
         if (signer_.length != EOA_SIGNER_SIZE && signer_.length != PASSKEY_SIGNER_SIZE) {
@@ -101,10 +97,6 @@ library MultiSignerLib {
 
         if (signer_.length == EOA_SIGNER_SIZE) {
             if (uint256(bytes32(signer_)) > type(uint160).max) revert InvalidEthereumAddressOwner(signer_);
-            address eoa;
-            assembly ("memory-safe") {
-                eoa := mload(add(signer_, 32))
-            }
         }
     }
 

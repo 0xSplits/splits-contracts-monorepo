@@ -1,10 +1,10 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.23;
 
 import { WebAuthn } from "@web-authn/WebAuthn.sol";
 
 /**
- * A signer backed by a passkey.
+ * @notice A signer backed by a passkey.
  */
 struct PasskeySigner {
     uint256 x;
@@ -29,6 +29,12 @@ library PasskeySignerLib {
     {
         WebAuthn.WebAuthnAuth memory auth = abi.decode(signature, (WebAuthn.WebAuthnAuth));
 
-        return WebAuthn.verify({ challenge: abi.encode(messageHash), requireUV: false, webAuthnAuth: auth, x: signer.x, y: signer.y });
+        return WebAuthn.verify({
+            challenge: abi.encode(messageHash),
+            requireUV: false,
+            webAuthnAuth: auth,
+            x: signer.x,
+            y: signer.y
+        });
     }
 }
