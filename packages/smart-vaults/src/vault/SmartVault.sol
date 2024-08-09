@@ -219,12 +219,18 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
         if (signatureType == SignatureTypes.SingleUserOp) {
             SingleUserOpSignature memory signature = abi.decode(userOp_.signature[1:], (SingleUserOpSignature));
 
+            // if threshold is greater than 1, `threshold - 1` signers will sign over the light user op hash. We lazily
+            // calculate light user op hash based on number of signatures. If threshold is 1 then light user op hash
+            // won't be needed.
             if (signature.signatures.length > 1) lightHash = _getLightUserOpHash(userOp_);
 
             return _validateSingleUserOp(lightHash, userOpHash_, signature);
         } else if (signatureType == SignatureTypes.MerkelizedUserOp) {
             MerkelizedUserOpSignature memory signature = abi.decode(userOp_.signature[1:], (MerkelizedUserOpSignature));
 
+            // if threshold is greater than 1, `threshold - 1` signers will sign over the merkle tree root of light user
+            // op hash(s). We lazily calculate light user op hash based on value of light merkle tree root. If threshold
+            // is 1 then light user op hash won't be needed.
             if (signature.lightMerkleTreeRoot != bytes32(0)) lightHash = _getLightUserOpHash(userOp_);
 
             return _validateMerkelizedUserOp(lightHash, userOpHash_, signature);
