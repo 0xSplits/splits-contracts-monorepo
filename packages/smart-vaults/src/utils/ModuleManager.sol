@@ -74,7 +74,7 @@ abstract contract ModuleManager is Caller {
     function enableModule(address module_) public {
         _authorize();
 
-        _addModule(module_);
+        _enableModule(module_);
     }
 
     /**
@@ -89,7 +89,7 @@ abstract contract ModuleManager is Caller {
     function setupAndEnableModule(address module_, address setupContract_, bytes calldata data_) public {
         _authorize();
 
-        _addModule(module_);
+        _enableModule(module_);
 
         _call(setupContract_, 0, data_);
     }
@@ -104,7 +104,7 @@ abstract contract ModuleManager is Caller {
     function disableModule(address module_) public {
         _authorize();
 
-        _removeModule(module_);
+        _disableModule(module_);
     }
 
     /**
@@ -119,7 +119,7 @@ abstract contract ModuleManager is Caller {
     function teardownAndDisableModule(address module_, address teardownContract_, bytes calldata data_) public {
         _authorize();
 
-        _removeModule(module_);
+        _disableModule(module_);
 
         _call(teardownContract_, 0, data_);
     }
@@ -169,13 +169,13 @@ abstract contract ModuleManager is Caller {
     /*                         INTERNAL/PRIVATE FUNCTIONS                         */
     /* -------------------------------------------------------------------------- */
 
-    function _addModule(address module_) public {
+    function _enableModule(address module_) public {
         _getModuleManagerStorage().isModule[module_] = true;
 
         emit EnabledModule(module_);
     }
 
-    function _removeModule(address module_) public {
+    function _disableModule(address module_) public {
         _getModuleManagerStorage().isModule[module_] = false;
 
         emit DisabledModule(module_);
