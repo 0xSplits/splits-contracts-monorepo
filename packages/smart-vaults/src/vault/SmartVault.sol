@@ -2,7 +2,6 @@
 pragma solidity ^0.8.23;
 
 import { MultiSignerLib } from "../library/MultiSignerLib.sol";
-import { MultiSignerSignatureLib } from "../library/MultiSignerSignatureLib.sol";
 import { UserOperationLib } from "../library/UserOperationLib.sol";
 import { ERC1271 } from "../utils/ERC1271.sol";
 import { FallbackManager } from "../utils/FallbackManager.sol";
@@ -38,7 +37,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
 
     /// @notice Single User Op Signature Scheme.
     struct SingleUserOpSignature {
-        MultiSignerSignatureLib.SignatureWrapper[] signatures;
+        MultiSignerLib.SignatureWrapper[] signatures;
     }
 
     /// @notice Merkelized User Op Signature Scheme.
@@ -56,12 +55,12 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
         /// @notice abi.encode(MultiSignerSignatureLib.SignatureWrapper[]), where threshold - 1
         /// signatures will be verified against the `lightMerkleTreeRoot` and the final signature will be verified
         /// against the `merkleTreeRoot`.
-        MultiSignerSignatureLib.SignatureWrapper[] signatures;
+        MultiSignerLib.SignatureWrapper[] signatures;
     }
 
     /// @notice ERC1271 Signature scheme
     struct ERC1271Signature {
-        MultiSignerSignatureLib.SignatureWrapper[] signatures;
+        MultiSignerLib.SignatureWrapper[] signatures;
     }
 
     /* -------------------------------------------------------------------------- */
@@ -314,7 +313,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
 
     /// @dev validates if the given hash (ERC1271) was signed by the signers.
     function _isValidSignature(bytes32 hash_, bytes calldata signature_) internal view override returns (bool) {
-        return MultiSignerSignatureLib.isValidSignature(
+        return MultiSignerLib.isValidSignature(
             _getMultiSignerStorage(), hash_, abi.decode(signature_, (ERC1271Signature)).signatures
         );
     }
@@ -356,14 +355,14 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
     function _isValidSignature(
         bytes32 lightHash_,
         bytes32 hash_,
-        MultiSignerSignatureLib.SignatureWrapper[] memory signatures
+        MultiSignerLib.SignatureWrapper[] memory signatures
     )
         internal
         view
         returns (uint256 validationData)
     {
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
-        if (MultiSignerSignatureLib.isValidSignature($, lightHash_, hash_, signatures)) {
+        if (MultiSignerLib.isValidSignature($, lightHash_, hash_, signatures)) {
             return UserOperationLib.VALID_SIGNATURE;
         } else {
             return UserOperationLib.INVALID_SIGNATURE;

@@ -5,7 +5,7 @@ import { BaseTest } from "./Base.t.sol";
 import "@web-authn/../test/Utils.sol";
 import "@web-authn/WebAuthn.sol";
 
-import { MultiSignerSignatureLib } from "src/library/MultiSignerSignatureLib.sol";
+import { MultiSignerLib } from "src/library/MultiSignerLib.sol";
 import { UserOperationLib } from "src/library/UserOperationLib.sol";
 
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
@@ -87,20 +87,12 @@ contract SmartVaultTest is BaseTest {
         return keccak256(abi.encode(userOp.hashLight(), ENTRY_POINT, block.chainid));
     }
 
-    function getERC1271Signature(MultiSignerSignatureLib.SignatureWrapper[] memory sigs)
-        internal
-        pure
-        returns (bytes memory)
-    {
+    function getERC1271Signature(MultiSignerLib.SignatureWrapper[] memory sigs) internal pure returns (bytes memory) {
         SmartVault.ERC1271Signature memory sig = SmartVault.ERC1271Signature(sigs);
         return abi.encode(sig);
     }
 
-    function getUserOpSignature(MultiSignerSignatureLib.SignatureWrapper[] memory sigs)
-        internal
-        pure
-        returns (bytes memory)
-    {
+    function getUserOpSignature(MultiSignerLib.SignatureWrapper[] memory sigs) internal pure returns (bytes memory) {
         SmartVault.SingleUserOpSignature memory sig = SmartVault.SingleUserOpSignature(sigs);
         bytes memory signature = abi.encode(sig);
         bytes1 sigType = bytes1(uint8(SmartVault.SignatureTypes.SingleUserOp));
@@ -108,7 +100,7 @@ contract SmartVaultTest is BaseTest {
     }
 
     function getUserOpSignature(
-        MultiSignerSignatureLib.SignatureWrapper[] memory sigs,
+        MultiSignerLib.SignatureWrapper[] memory sigs,
         bytes32[] memory proof,
         bytes32[] memory lightProof,
         bytes32 rootHash,
@@ -247,8 +239,8 @@ contract SmartVaultTest is BaseTest {
 
         vm.deal(address(vault), _missingAccountsFund);
 
-        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](1);
-        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+        MultiSignerLib.SignatureWrapper[] memory sigs = new MultiSignerLib.SignatureWrapper[](1);
+        sigs[0] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         PackedUserOperation memory userOp = _userOp;
         userOp.signature = getUserOpSignature(sigs);
@@ -268,13 +260,13 @@ contract SmartVaultTest is BaseTest {
         bytes32 hash = getUserOpHash(_userOp);
         bytes32 lightHash = getLightUserOpHash(_userOp);
 
-        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](2);
+        MultiSignerLib.SignatureWrapper[] memory sigs = new MultiSignerLib.SignatureWrapper[](2);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, lightHash);
-        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+        sigs[0] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         (v, r, s) = vm.sign(BOB.key, hash);
-        sigs[1] = MultiSignerSignatureLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
+        sigs[1] = MultiSignerLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
 
         PackedUserOperation memory userOp = _userOp;
         userOp.signature = getUserOpSignature(sigs);
@@ -299,8 +291,8 @@ contract SmartVaultTest is BaseTest {
         (bytes32 r, bytes32 s) = vm.signP256(passkeyPrivateKey, webAuthn.messageHash);
         s = bytes32(Utils.normalizeS(uint256(s)));
 
-        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](1);
-        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(
+        MultiSignerLib.SignatureWrapper[] memory sigs = new MultiSignerLib.SignatureWrapper[](1);
+        sigs[0] = MultiSignerLib.SignatureWrapper(
             2,
             abi.encode(
                 WebAuthn.WebAuthnAuth({
@@ -328,7 +320,7 @@ contract SmartVaultTest is BaseTest {
     )
         public
     {
-        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](0);
+        MultiSignerLib.SignatureWrapper[] memory sigs = new MultiSignerLib.SignatureWrapper[](0);
 
         _userOp.signature = getUserOpSignature(sigs);
 
@@ -351,8 +343,8 @@ contract SmartVaultTest is BaseTest {
 
         vm.deal(address(vault), _missingAccountsFund);
 
-        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](1);
-        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+        MultiSignerLib.SignatureWrapper[] memory sigs = new MultiSignerLib.SignatureWrapper[](1);
+        sigs[0] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
         _userOp.signature = getUserOpSignature(sigs);
 
         vm.expectRevert();
@@ -376,12 +368,12 @@ contract SmartVaultTest is BaseTest {
         bytes32 hash = getUserOpHash(_userOp);
         bytes32 lightHash = getLightUserOpHash(_userOp);
 
-        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](2);
+        MultiSignerLib.SignatureWrapper[] memory sigs = new MultiSignerLib.SignatureWrapper[](2);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, lightHash);
-        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+        sigs[0] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         (v, r, s) = vm.sign(ALICE.key, hash);
-        sigs[1] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+        sigs[1] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         PackedUserOperation memory userOp = _userOp;
         userOp.signature = getUserOpSignature(sigs);
@@ -401,8 +393,8 @@ contract SmartVaultTest is BaseTest {
 
         vm.deal(address(vault), _missingAccountsFund);
 
-        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](1);
-        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+        MultiSignerLib.SignatureWrapper[] memory sigs = new MultiSignerLib.SignatureWrapper[](1);
+        sigs[0] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
         PackedUserOperation memory userOp = _userOp;
 
         userOp.signature = getUserOpSignature(sigs);
@@ -425,12 +417,12 @@ contract SmartVaultTest is BaseTest {
 
         vm.deal(address(vault), _missingAccountsFund);
 
-        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](2);
+        MultiSignerLib.SignatureWrapper[] memory sigs = new MultiSignerLib.SignatureWrapper[](2);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(BOB.key, lightHash);
-        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+        sigs[0] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         (v, r, s) = vm.sign(ALICE.key, hash);
-        sigs[1] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+        sigs[1] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         PackedUserOperation memory userOp = _userOp;
 
@@ -454,12 +446,12 @@ contract SmartVaultTest is BaseTest {
 
         vm.deal(address(vault), _missingAccountsFund);
 
-        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](2);
+        MultiSignerLib.SignatureWrapper[] memory sigs = new MultiSignerLib.SignatureWrapper[](2);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(BOB.key, lightHash);
-        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
+        sigs[0] = MultiSignerLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
 
         (v, r, s) = vm.sign(ALICE.key, hash);
-        sigs[1] = MultiSignerSignatureLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
+        sigs[1] = MultiSignerLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
 
         PackedUserOperation memory userOp = _userOp;
 
@@ -479,9 +471,9 @@ contract SmartVaultTest is BaseTest {
         bytes32 hash = getUserOpHash(_userOp);
         vm.deal(address(vault), _missingAccountsFund);
 
-        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](1);
+        MultiSignerLib.SignatureWrapper[] memory sigs = new MultiSignerLib.SignatureWrapper[](1);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(BOB.key, _hash);
-        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
+        sigs[0] = MultiSignerLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
 
         PackedUserOperation memory userOp = _userOp;
 
@@ -504,12 +496,12 @@ contract SmartVaultTest is BaseTest {
 
         vm.deal(address(vault), _missingAccountsFund);
 
-        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](2);
+        MultiSignerLib.SignatureWrapper[] memory sigs = new MultiSignerLib.SignatureWrapper[](2);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(BOB.key, hash);
-        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
+        sigs[0] = MultiSignerLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
 
         (v, r, s) = vm.sign(ALICE.key, hash);
-        sigs[1] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+        sigs[1] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         PackedUserOperation memory userOp = _userOp;
 
@@ -533,12 +525,12 @@ contract SmartVaultTest is BaseTest {
 
         vm.deal(address(vault), _missingAccountsFund);
 
-        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](2);
+        MultiSignerLib.SignatureWrapper[] memory sigs = new MultiSignerLib.SignatureWrapper[](2);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(BOB.key, lightHash);
-        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
+        sigs[0] = MultiSignerLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
 
         (v, r, s) = vm.sign(ALICE.key, lightHash);
-        sigs[1] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+        sigs[1] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         PackedUserOperation memory userOp = _userOp;
 
@@ -565,8 +557,8 @@ contract SmartVaultTest is BaseTest {
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, rootHash);
 
-        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](1);
-        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+        MultiSignerLib.SignatureWrapper[] memory sigs = new MultiSignerLib.SignatureWrapper[](1);
+        sigs[0] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         bytes32[] memory proof = new bytes32[](1);
         proof[0] = hash2;
@@ -599,8 +591,8 @@ contract SmartVaultTest is BaseTest {
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, rootHash);
 
-        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](1);
-        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+        MultiSignerLib.SignatureWrapper[] memory sigs = new MultiSignerLib.SignatureWrapper[](1);
+        sigs[0] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         bytes32[] memory proof = new bytes32[](1);
         proof[0] = hash1;
@@ -622,7 +614,7 @@ contract SmartVaultTest is BaseTest {
         vm.prank(address(vault));
         vault.updateThreshold(2);
 
-        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](2);
+        MultiSignerLib.SignatureWrapper[] memory sigs = new MultiSignerLib.SignatureWrapper[](2);
 
         bytes32 hash1 = getUserOpHash(_userOp1);
         bytes32 hash2 = getUserOpHash(_userOp2);
@@ -634,10 +626,10 @@ contract SmartVaultTest is BaseTest {
         bytes32 lightRootHash = hashPair(lightHash1, lightHash2);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, lightRootHash);
-        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+        sigs[0] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         (v, r, s) = vm.sign(BOB.key, rootHash);
-        sigs[1] = MultiSignerSignatureLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
+        sigs[1] = MultiSignerLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
 
         bytes32[] memory proof = new bytes32[](1);
         proof[0] = hash2;
@@ -670,7 +662,7 @@ contract SmartVaultTest is BaseTest {
         vm.prank(address(vault));
         vault.updateThreshold(2);
 
-        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](2);
+        MultiSignerLib.SignatureWrapper[] memory sigs = new MultiSignerLib.SignatureWrapper[](2);
 
         bytes32 hash1 = getUserOpHash(_userOp1);
         bytes32 hash2 = getUserOpHash(_userOp2);
@@ -682,10 +674,10 @@ contract SmartVaultTest is BaseTest {
         bytes32 lightRootHash = hashPair(lightHash1, lightHash2);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, lightRootHash);
-        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+        sigs[0] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         (v, r, s) = vm.sign(BOB.key, rootHash);
-        sigs[1] = MultiSignerSignatureLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
+        sigs[1] = MultiSignerLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
 
         bytes32[] memory proof = new bytes32[](1);
         proof[0] = hash2;
@@ -706,10 +698,10 @@ contract SmartVaultTest is BaseTest {
     /* -------------------------------------------------------------------------- */
 
     function testFuzz_erc1271(bytes32 _hash) public {
-        MultiSignerSignatureLib.SignatureWrapper[] memory sigs = new MultiSignerSignatureLib.SignatureWrapper[](1);
+        MultiSignerLib.SignatureWrapper[] memory sigs = new MultiSignerLib.SignatureWrapper[](1);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, vault.replaySafeHash(_hash));
-        sigs[0] = MultiSignerSignatureLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+        sigs[0] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         vm.prank(ENTRY_POINT);
         assertTrue(vault.isValidSignature(_hash, getERC1271Signature(sigs)) == 0x1626ba7e);
