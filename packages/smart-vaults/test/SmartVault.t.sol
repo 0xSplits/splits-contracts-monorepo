@@ -1397,6 +1397,7 @@ contract SmartVaultTest is BaseTest {
         vm.expectEmit();
         emit ReceiveEth(sender_, amount_);
         vm.prank(sender_);
-        payable(address(vault)).call{ value: amount_ }("");
+        (bool ok, ) = payable(address(vault)).call{ value: amount_ }("");
+        require(ok);
     }
 }
