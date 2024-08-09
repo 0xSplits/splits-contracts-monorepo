@@ -2,8 +2,6 @@
 pragma solidity ^0.8.23;
 
 import { MultiSignerLib } from "../library/MultiSignerLib.sol";
-import { WebAuthn } from "@web-authn/WebAuthn.sol";
-import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
 
 /**
  * @title Multi Signer
@@ -34,9 +32,6 @@ abstract contract MultiSigner {
 
     /// @notice Thrown when number of signers is more than 256.
     error InvalidNumberOfSigners();
-
-    /// @notice Thrown when setting nonce to less than the current storage nonce.
-    error InvalidNonce();
 
     /**
      * @notice Thrown when trying to remove an empty signer.
@@ -74,17 +69,11 @@ abstract contract MultiSigner {
      */
     event UpdateThreshold(uint8 threshold);
 
-    /**
-     * @notice Emitted when nonce is updated.
-     * @param nonce The new nonce for the signer set.
-     */
-    event updateNonce(uint256 nonce);
-
     /* -------------------------------------------------------------------------- */
     /*                                  MODIFIERS                                 */
     /* -------------------------------------------------------------------------- */
 
-    modifier OnlyAuthorized() {
+    modifier onlyAuthorized() {
         _authorize();
         _;
     }
@@ -108,11 +97,6 @@ abstract contract MultiSigner {
         return _getMultiSignerStorage().threshold;
     }
 
-    /// @notice Returns the nonce for the signer set
-    function getNonce() public view virtual returns (uint256) {
-        return _getMultiSignerStorage().nonce;
-    }
-
     /* -------------------------------------------------------------------------- */
     /*                             EXTERNAL FUNCTIONS                             */
     /* -------------------------------------------------------------------------- */
@@ -123,7 +107,7 @@ abstract contract MultiSigner {
      * @param signer_ The owner raw bytes to register.
      * @param index_ The index to register the signer.
      */
-    function addSigner(bytes calldata signer_, uint8 index_) public OnlyAuthorized {
+    function addSigner(bytes calldata signer_, uint8 index_) public onlyAuthorized {
         _addSigner(signer_, index_);
     }
 
@@ -134,7 +118,7 @@ abstract contract MultiSigner {
      *
      * @param index_ The index of the signer to be removed.
      */
-    function removeSigner(uint8 index_) public OnlyAuthorized {
+    function removeSigner(uint8 index_) public onlyAuthorized {
         _removeSigner(index_);
     }
 
@@ -146,25 +130,8 @@ abstract contract MultiSigner {
      *
      * @param threshold_ The new signer set threshold.
      */
-    function updateThreshold(uint8 threshold_) public OnlyAuthorized {
+    function updateThreshold(uint8 threshold_) public onlyAuthorized {
         _updateThreshold(threshold_);
-    }
-
-    /**
-     * @notice Updates nonce of the signer set.
-     *
-     * @dev Reverts if `nonce_` less than or equal to current nonce.
-     *
-     * @param nonce_ nonce to set.
-     */
-    function setNonce(uint256 nonce_) public OnlyAuthorized {
-        MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
-
-        if (nonce_ <= $.nonce) revert InvalidNonce();
-
-        $.nonce = nonce_;
-
-        emit updateNonce(nonce_);
     }
 
     /* -------------------------------------------------------------------------- */
@@ -182,11 +149,13 @@ abstract contract MultiSigner {
 
     /**
      * @notice Initialize the signers of this contract.
+     *
      * @dev Intended to be called when contract is first deployed and never again.
      * @dev Reverts if a provided owner is neither 64 bytes long (for public key) nor a valid address.
      * @dev Reverts if 'threshold' is less than number of signers.
      * @dev Reverts if 'threshold' is 0.
      * @dev Reverts if number of signers is more than 256.
+     *
      * @param signers_ The initial set of signers.
      * @param threshold_ The number of signers needed for approval.
      */
@@ -203,16 +172,13 @@ abstract contract MultiSigner {
 
         for (uint8 i; i < numSigners; i++) {
             signer = signers_[i];
-
             MultiSignerLib.validateSigner(signer);
-
             $.signers[i] = signer;
 
             emit AddSigner(i, signer);
         }
 
         $.signerCount = numSigners;
-
         $.threshold = threshold_;
         emit UpdateThreshold(threshold_);
     }
