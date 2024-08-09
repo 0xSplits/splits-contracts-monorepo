@@ -4,59 +4,59 @@ pragma solidity ^0.8.23;
 import { Caller } from "./Caller.sol";
 
 /**
- * @title Operator Manager
- * @notice Manages operators of a smart contract. Gives each operator the ability to execute `Calls` from this account.
- * @dev Account owners should be careful when adding an operator.
+ * @title Module Manager
+ * @notice Manages modules of a smart contract. Gives each module the ability to execute `Calls` from this account.
+ * @dev Account owners should be careful when adding a module.
  */
-abstract contract OperatorManager is Caller {
+abstract contract ModuleManager is Caller {
     /* -------------------------------------------------------------------------- */
     /*                                  CONSTANTS                                 */
     /* -------------------------------------------------------------------------- */
 
     /**
-     * @dev Slot for the `OperatorManager` struct in storage.
+     * @dev Slot for the `ModuleManager` struct in storage.
      *      Computed from
-     *      keccak256(abi.encode(uint256(keccak256("splits.storage.operatorManager")) - 1)) & ~bytes32(uint256(0xff))
+     *      keccak256(abi.encode(uint256(keccak256("splits.storage.moduleManager")) - 1)) & ~bytes32(uint256(0xff))
      *      Follows ERC-7201 (see https://eips.ethereum.org/EIPS/eip-7201).
      */
-    bytes32 internal constant _OPERATOR_MANAGER_STORAGE_SLOT =
-        0x0216194314f4301bb656e2100094647329591429172ab63bdb3b133cea9bbf00;
+    bytes32 internal constant _MODULE_MANAGER_STORAGE_SLOT =
+        0xe103b19f601cd46db3208af0dd24bb7e0acd21ca997b18cc4246bfe5258d3800;
 
     /* -------------------------------------------------------------------------- */
     /*                                   STRUCTS                                  */
     /* -------------------------------------------------------------------------- */
 
-    /// @notice Operator Manager storage structure.
-    struct OperatorManagerStorage {
-        mapping(address => bool) isOperator;
+    /// @notice Module Manager storage structure.
+    struct ModuleManagerStorage {
+        mapping(address => bool) isModule;
     }
 
     /* -------------------------------------------------------------------------- */
     /*                                   EVENTS                                   */
     /* -------------------------------------------------------------------------- */
 
-    /// @notice Event emitted when an operator is added.
-    event OperatorAdded(address indexed operator);
+    /// @notice Event emitted when an module is enabled.
+    event EnabledModule(address indexed module);
 
-    /// @notice Event emitted when an operator is removed.
-    event OperatorRemoved(address indexed operator);
+    /// @notice Event emitted when an module is disable.
+    event DisabledModule(address indexed module);
 
-    /// @notice Event emitted when an operator executes a call.
-    event ExecutedTxFromOperator(address indexed operator, Call call);
+    /// @notice Event emitted when an module executes a call.
+    event ExecutedTxFromModule(address indexed module, Call call);
 
     /* -------------------------------------------------------------------------- */
     /*                                   ERRORS                                   */
     /* -------------------------------------------------------------------------- */
 
-    /// @notice Thrown when caller is not an operator.
-    error OnlyOperator();
+    /// @notice Thrown when caller is not an module.
+    error OnlyModule();
 
     /* -------------------------------------------------------------------------- */
     /*                                  MODIFIERS                                 */
     /* -------------------------------------------------------------------------- */
 
-    modifier onlyOperator() {
-        if (!_getOperatorManagerStorage().isOperator[msg.sender]) revert OnlyOperator();
+    modifier onlyModule() {
+        if (!_getModuleManagerStorage().isModule[msg.sender]) revert OnlyModule();
         _;
     }
 
@@ -65,61 +65,61 @@ abstract contract OperatorManager is Caller {
     /* -------------------------------------------------------------------------- */
 
     /**
-     * @notice Adds operator to the allowlist.
+     * @notice Adds module to the allowlist.
      *
      * @dev access is controlled by `_authorize()`
      *
-     * @param operator_ address of operator.
+     * @param module_ address of module.
      */
-    function addOperator(address operator_) public {
+    function enableModule(address module_) public {
         _authorize();
 
-        _addOperator(operator_);
+        _addModule(module_);
     }
 
     /**
-     * @notice Adds `operator` to the allowlist and makes a call to the `setupContract` passing `data_`.
+     * @notice Adds `module` to the allowlist and makes a call to the `setupContract` passing `data_`.
      *
      * @dev access is controlled by `_authorize()`
      *
-     * @param operator_ address of operator.
-     * @param setupContract_ address of contract to call to setup operator.
+     * @param module_ address of module.
+     * @param setupContract_ address of contract to call to setup module.
      * @param data_ data passed to the setupContract.
      */
-    function addAndSetupOperator(address operator_, address setupContract_, bytes calldata data_) public {
+    function setupAndEnableModule(address module_, address setupContract_, bytes calldata data_) public {
         _authorize();
 
-        _addOperator(operator_);
+        _addModule(module_);
 
         _call(setupContract_, 0, data_);
     }
 
     /**
-     * @notice Removes operator from the allowlist.
+     * @notice Removes module from the allowlist.
      *
      * @dev access is controlled by `_authorize()`
      *
-     * @param operator_ address of operator.
+     * @param module_ address of module.
      */
-    function removeOperator(address operator_) public {
+    function disableModule(address module_) public {
         _authorize();
 
-        _removeOperator(operator_);
+        _removeModule(module_);
     }
 
     /**
-     * @notice Removes `operator` from the allowlist and makes a call to the `teardownContract_` passing `data_`.
+     * @notice Removes `module` from the allowlist and makes a call to the `teardownContract_` passing `data_`.
      *
      * @dev access is controlled by `_authorize()`
      *
-     * @param operator_ address of operator.
-     * @param teardownContract_ address of contract to call to teardown operator.
-     * @param data_ data passed to the setupContract.
+     * @param module_ address of module.
+     * @param teardownContract_ address of contract to call to teardown module.
+     * @param data_ data passed to the teardown contract.
      */
-    function removeAndTeardownOperator(address operator_, address teardownContract_, bytes calldata data_) public {
+    function teardownAndDisableModule(address module_, address teardownContract_, bytes calldata data_) public {
         _authorize();
 
-        _removeOperator(operator_);
+        _removeModule(module_);
 
         _call(teardownContract_, 0, data_);
     }
@@ -127,65 +127,65 @@ abstract contract OperatorManager is Caller {
     /**
      * @notice Executes a single call from the account.
      *
-     * @dev Can only be called by the operator.
+     * @dev Can only be called by the module.
      * @dev Emits an event to capture the call executed.
      *
      * @param call_ Call to execute from the account.
      */
-    function executeFromOperator(Call calldata call_) external onlyOperator {
+    function executeFromModule(Call calldata call_) external onlyModule {
         _call(call_.target, call_.value, call_.data);
 
-        emit ExecutedTxFromOperator(msg.sender, call_);
+        emit ExecutedTxFromModule(msg.sender, call_);
     }
 
     /**
      * @notice Executes calls from the account.
      *
-     * @dev Can only be called by the operator.
+     * @dev Can only be called by the module.
      * @dev Emits an event to capture the call executed.
      *
      * @param calls_ Calls to execute from this account.
      */
-    function executeFromOperator(Call[] calldata calls_) external onlyOperator {
+    function executeFromModule(Call[] calldata calls_) external onlyModule {
         uint256 numCalls = calls_.length;
 
         for (uint256 i; i < numCalls; i++) {
             _call(calls_[i]);
 
-            emit ExecutedTxFromOperator(msg.sender, calls_[i]);
+            emit ExecutedTxFromModule(msg.sender, calls_[i]);
         }
     }
 
     /**
-     * @notice Returns true if the provided `operator` is added otherwise false.
+     * @notice Returns true if the provided `module` is enabled otherwise false.
      *
-     * @param operator_ address of operator.
+     * @param module_ address of module.
      */
-    function isOperator(address operator_) public view returns (bool) {
-        return _getOperatorManagerStorage().isOperator[operator_];
+    function isModuleEnabled(address module_) public view returns (bool) {
+        return _getModuleManagerStorage().isModule[module_];
     }
 
     /* -------------------------------------------------------------------------- */
     /*                         INTERNAL/PRIVATE FUNCTIONS                         */
     /* -------------------------------------------------------------------------- */
 
-    function _addOperator(address operator_) public {
-        _getOperatorManagerStorage().isOperator[operator_] = true;
+    function _addModule(address module_) public {
+        _getModuleManagerStorage().isModule[module_] = true;
 
-        emit OperatorAdded(operator_);
+        emit EnabledModule(module_);
     }
 
-    function _removeOperator(address operator_) public {
-        _getOperatorManagerStorage().isOperator[operator_] = false;
+    function _removeModule(address module_) public {
+        _getModuleManagerStorage().isModule[module_] = false;
 
-        emit OperatorRemoved(operator_);
+        emit DisabledModule(module_);
     }
 
     function _authorize() internal view virtual;
 
-    function _getOperatorManagerStorage() internal pure returns (OperatorManagerStorage storage $) {
+    function _getModuleManagerStorage() internal pure returns (ModuleManagerStorage storage $) {
         assembly ("memory-safe") {
-            $.slot := _OPERATOR_MANAGER_STORAGE_SLOT
+            $.slot := _MODULE_MANAGER_STORAGE_SLOT
         }
     }
 }

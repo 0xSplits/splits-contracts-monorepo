@@ -30,11 +30,6 @@ contract Caller {
     }
 
     function _call(Call calldata call_) internal {
-        (bool success, bytes memory result) = call_.target.call{ value: call_.value }(call_.data);
-        if (!success) {
-            assembly ("memory-safe") {
-                revert(add(result, 32), mload(result))
-            }
-        }
+        _call(call_.target, call_.value, call_.data);
     }
 }
