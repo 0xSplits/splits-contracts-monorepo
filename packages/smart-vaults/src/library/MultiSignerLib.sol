@@ -22,7 +22,7 @@ library MultiSignerLib {
         uint8 threshold;
         /// @dev number of signers
         uint8 signerCount;
-        /// @dev signer bytes;
+        /// @dev signers of type `Signer`;
         mapping(uint8 => Signer) signers;
     }
 
@@ -96,7 +96,7 @@ library MultiSignerLib {
         view
         returns (bool isValid)
     {
-        if (signer_.isPasskey()) {
+        if (signer_.isPasskeyMem()) {
             isValid = decodePasskeySigner(signer_).isValidSignature(hash_, signature_);
         } else {
             isValid = decodeAccountSigner(signer_).isValidSignature(hash_, signature_);

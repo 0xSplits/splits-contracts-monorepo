@@ -186,7 +186,7 @@ abstract contract MultiSigner {
 
         MultiSignerLib.validateSigner(signer_);
 
-        if (!$.signers[index_].isEmpty()) revert SignerAlreadyPresent(index_);
+        if (!$.signers[index_].isEmptyMem()) revert SignerAlreadyPresent(index_);
 
         $.signerCount += 1;
         $.signers[index_] = signer_;
@@ -203,7 +203,7 @@ abstract contract MultiSigner {
 
         Signer memory signer = $.signers[index_];
 
-        if (signer.isEmpty()) revert SignerNotPresent(index_);
+        if (signer.isEmptyMem()) revert SignerNotPresent(index_);
 
         delete $.signers[index_];
         $.signerCount -= 1;
