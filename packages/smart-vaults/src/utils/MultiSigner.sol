@@ -11,6 +11,7 @@ import { Signer } from "../signers/Signer.sol";
  * @dev Base on Coinbase's Smart Wallet Multi Ownable (https://github.com/coinbase/smart-wallet)
  */
 abstract contract MultiSigner {
+    using MultiSignerLib for MultiSignerLib.MultiSignerStorage;
     /* -------------------------------------------------------------------------- */
     /*                                  CONSTANTS                                 */
     /* -------------------------------------------------------------------------- */
@@ -170,7 +171,7 @@ abstract contract MultiSigner {
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
 
         for (uint8 i; i < numSigners; i++) {
-            MultiSignerLib.setSigner($, signers_[i], i);
+            $.setSigner(signers_[i], i);
 
             emit AddSigner(i, signers_[i]);
         }
@@ -185,7 +186,7 @@ abstract contract MultiSigner {
 
         if (!$.signers[index_].isEmptyMem()) revert SignerAlreadyPresent(index_);
 
-        MultiSignerLib.setSigner($, signer_, index_);
+        $.setSigner(signer_, index_);
         $.signerCount += 1;
 
         emit AddSigner(index_, signer_);
