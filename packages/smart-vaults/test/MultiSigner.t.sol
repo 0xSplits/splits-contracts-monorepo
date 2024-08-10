@@ -86,6 +86,13 @@ contract MultiSignerTest is BaseTest {
         multiSigner.initialize(ALICE.addr, signers, 1);
     }
 
+    function test_initialize_signers_RevertWhen_invalidSigner_Empty() public {
+        signers[0] = Signer(bytes32(0), bytes32(0));
+        vm.expectRevert();
+        vm.expectRevert(abi.encodeWithSelector(InvalidSigner.selector, signers[0]));
+        multiSigner.initialize(ALICE.addr, signers, 1);
+    }
+
     /* -------------------------------------------------------------------------- */
     /*                                  THRESHOLD                                 */
     /* -------------------------------------------------------------------------- */
@@ -184,46 +191,46 @@ contract MultiSignerTest is BaseTest {
         assertEq(multiSigner.getSignerAtIndex(3), createSigner(BOB.addr));
     }
 
-    // function testFuzz_addSigner_RevertWhen_callerNotRoot(Signer memory _signer, address _caller) public {
-    //     vm.assume(_caller != ALICE.addr);
-    //     initializeSigners();
+    function testFuzz_addSigner_RevertWhen_callerNotRoot(Signer memory _signer, address _caller) public {
+        vm.assume(_caller != ALICE.addr);
+        initializeSigners();
 
-    //     vm.startPrank(_caller);
-    //     vm.expectRevert(Unauthorized.selector);
-    //     multiSigner.addSigner(_signer, 0);
-    //     vm.stopPrank();
-    // }
+        vm.startPrank(_caller);
+        vm.expectRevert(Unauthorized.selector);
+        multiSigner.addSigner(_signer, 0);
+        vm.stopPrank();
+    }
 
-    // function test_addSigner_replace() public {
-    //     initializeSigners();
+    function test_addSigner_replace() public {
+        initializeSigners();
 
-    //     vm.expectRevert();
-    //     vm.startPrank(ALICE.addr);
-    //     multiSigner.addSigner(createSigner(DAN.addr), uint8(0));
-    //     vm.stopPrank();
-    // }
+        vm.expectRevert();
+        vm.startPrank(ALICE.addr);
+        multiSigner.addSigner(createSigner(DAN.addr), uint8(0));
+        vm.stopPrank();
+    }
 
-    // function test_addSigner_RevertWhen_invalidSigner_Empty() public {
-    //     initializeSigners();
+    function test_addSigner_RevertWhen_invalidSigner_Empty() public {
+        initializeSigners();
 
-    //     Signer memory signer = Signer(bytes32(0), bytes32(0));
+        Signer memory signer = Signer(bytes32(0), bytes32(0));
 
-    //     vm.expectRevert(abi.encodeWithSelector(InvalidSigner.selector, signer));
-    //     vm.startPrank(ALICE.addr);
-    //     multiSigner.addSigner(signer, uint8(3));
-    //     vm.stopPrank();
-    // }
+        vm.expectRevert(abi.encodeWithSelector(InvalidSigner.selector, signer));
+        vm.startPrank(ALICE.addr);
+        multiSigner.addSigner(signer, uint8(3));
+        vm.stopPrank();
+    }
 
-    // function test_addSigner_RevertWhen_MaxSignersReached() public {
-    //     Signer[] memory signers_ = new Signer[](255);
-    //     for (uint256 i; i < signers_.length; i++) {
-    //         signers_[i] = createSigner(address(uint160(i + 1)));
-    //     }
-    //     multiSigner.initialize(ALICE.addr, signers_, 1);
+    function test_addSigner_RevertWhen_MaxSignersReached() public {
+        Signer[] memory signers_ = new Signer[](255);
+        for (uint256 i; i < signers_.length; i++) {
+            signers_[i] = createSigner(address(uint160(i + 1)));
+        }
+        multiSigner.initialize(ALICE.addr, signers_, 1);
 
-    //     vm.startPrank(ALICE.addr);
-    //     vm.expectRevert();
-    //     multiSigner.addSigner(createSigner((address(this))), 3);
-    //     vm.stopPrank();
-    // }
+        vm.startPrank(ALICE.addr);
+        vm.expectRevert();
+        multiSigner.addSigner(createSigner((address(this))), 3);
+        vm.stopPrank();
+    }
 }

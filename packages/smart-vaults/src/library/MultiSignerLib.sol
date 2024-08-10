@@ -54,12 +54,33 @@ library MultiSignerLib {
     /* -------------------------------------------------------------------------- */
 
     /**
+     * @notice Sets signer at index in storage.
+     *
+     * @dev Throws error when signer is not EOA or Passkey.
+     *
+     * @param $_ multi signer storage reference.
+     * @param signer_ Signer to be set.
+     * @param index_ Index to set signer at.
+     */
+    function setSigner(MultiSignerStorage storage $_, Signer calldata signer_, uint8 index_) internal {
+        if (signer_.isPasskey()) {
+            /// if passkey store signer as is.
+            $_.signers[index_] = signer_;
+        } else if (signer_.isEOA()) {
+            /// if EOA only store slot1 since slot2 is zero.
+            $_.signers[index_].slot1 = signer_.slot1;
+        } else {
+            revert InvalidSigner(signer_);
+        }
+    }
+
+    /**
      * @notice Validates the list of `signers` and `threshold`.
      *
      * @dev Throws error when number of signers is zero or greater than 255.
      * @dev Throws error if `threshold` is zero or greater than number of signers.
      *
-     * @param signers_ abi encoded list of signers (passkey/eoa).
+     * @param signers_ List of Signer(s).
      * @param threshold_ minimum number of signers required for approval.
      */
     function validateSigners(Signer[] calldata signers_, uint8 threshold_) internal pure {

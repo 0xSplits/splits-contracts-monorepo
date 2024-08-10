@@ -35,7 +35,8 @@ library SignerLib {
     /* -------------------------------------------------------------------------- */
 
     function isEOA(Signer calldata signer_) internal pure returns (bool) {
-        return signer_.slot2 == ZERO && uint256(bytes32(signer_.slot1)) <= type(uint160).max;
+        uint256 slot1 = uint256(bytes32(signer_.slot1));
+        return signer_.slot2 == ZERO && slot1 <= type(uint160).max && slot1 > 0;
     }
 
     function isPasskey(Signer calldata signer_) internal pure returns (bool) {
@@ -47,7 +48,7 @@ library SignerLib {
     }
 
     function isValid(Signer calldata signer_) internal pure returns (bool) {
-        return !isEmpty(signer_);
+        return isEOA(signer_) || isPasskey(signer_);
     }
 
     function isEmpty(Signer calldata signer_) internal pure returns (bool) {

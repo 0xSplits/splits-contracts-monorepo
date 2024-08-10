@@ -170,8 +170,7 @@ abstract contract MultiSigner {
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
 
         for (uint8 i; i < numSigners; i++) {
-            MultiSignerLib.validateSigner(signers_[i]);
-            $.signers[i] = signers_[i];
+            MultiSignerLib.setSigner($, signers_[i], i);
 
             emit AddSigner(i, signers_[i]);
         }
@@ -184,12 +183,10 @@ abstract contract MultiSigner {
     function _addSigner(Signer calldata signer_, uint8 index_) internal {
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
 
-        MultiSignerLib.validateSigner(signer_);
-
         if (!$.signers[index_].isEmptyMem()) revert SignerAlreadyPresent(index_);
 
+        MultiSignerLib.setSigner($, signer_, index_);
         $.signerCount += 1;
-        $.signers[index_] = signer_;
 
         emit AddSigner(index_, signer_);
     }
