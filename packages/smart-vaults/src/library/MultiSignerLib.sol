@@ -77,8 +77,7 @@ library MultiSignerLib {
     /**
      * @notice Validates the signer.
      *
-     * @dev Throws error when length of signer is neither 32 or 64.
-     * @dev Throws error if signer is invalid address.
+     * @dev Throws error when signer is neither an EOA or a passkey.
      */
     function validateSigner(Signer calldata signer_) internal pure {
         if (!signer_.isValid()) revert InvalidSigner(signer_);

@@ -13,15 +13,11 @@ struct Signer {
     bytes32 y;
 }
 
-function decodeSigner(bytes calldata signer_) pure returns (Signer memory) {
-    return abi.decode(signer_, (Signer));
-}
-
-function encodeSigner(address signer_) pure returns (Signer memory) {
+function createSigner(address signer_) pure returns (Signer memory) {
     return Signer(bytes32(uint256(uint160(signer_))), bytes32(0));
 }
 
-function encodeSigner(uint256 x_, uint256 y_) pure returns (Signer memory) {
+function createSigner(uint256 x_, uint256 y_) pure returns (Signer memory) {
     return Signer(bytes32(x_), bytes32(y_));
 }
 

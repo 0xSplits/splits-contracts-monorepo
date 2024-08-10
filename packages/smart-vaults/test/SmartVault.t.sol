@@ -20,7 +20,7 @@ import { console } from "forge-std/console.sol";
 
 import { ERC7211FallbackHandler, IERC7211Receiver, MockERC7211 } from "./mocks/MockERC7211.sol";
 import { MockTransferOperator } from "./mocks/MockTransferOperator.sol";
-import { Signer, encodeSigner, encodeSigner } from "src/signers/Signer.sol";
+import { Signer, createSigner, createSigner } from "src/signers/Signer.sol";
 
 contract SmartVaultTest is BaseTest {
     using UserOperationLib for PackedUserOperation;
@@ -74,8 +74,8 @@ contract SmartVaultTest is BaseTest {
         (bytes32 x, bytes32 y) = abi.decode(passkeyOwner, (bytes32, bytes32));
         passkey = Signer(x, y);
 
-        signers.push(encodeSigner(ALICE.addr));
-        signers.push(encodeSigner(BOB.addr));
+        signers.push(createSigner(ALICE.addr));
+        signers.push(createSigner(BOB.addr));
         signers.push(passkey);
 
         vault = smartVaultFactory.createAccount(root, signers, 1, 0);

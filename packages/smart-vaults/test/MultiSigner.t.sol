@@ -4,7 +4,7 @@ pragma solidity ^0.8.23;
 import { BaseTest } from "./Base.t.sol";
 import { MultiSignerMock } from "./mocks/MultiSignerMock.sol";
 import { LibClone } from "solady/utils/LibClone.sol";
-import { Signer, encodeSigner, encodeSigner } from "src/signers/Signer.sol";
+import { Signer, createSigner, createSigner } from "src/signers/Signer.sol";
 import { MultiSigner } from "src/utils/MultiSigner.sol";
 
 contract MultiSignerTest is BaseTest {
@@ -30,9 +30,9 @@ contract MultiSignerTest is BaseTest {
 
         MIKE = PublicKey({ x: 1, y: 2 });
 
-        signers.push(encodeSigner(ALICE.addr));
-        signers.push(encodeSigner(BOB.addr));
-        signers.push(encodeSigner(MIKE.x, MIKE.y));
+        signers.push(createSigner(ALICE.addr));
+        signers.push(createSigner(BOB.addr));
+        signers.push(createSigner(MIKE.x, MIKE.y));
 
         multiSigner = MultiSignerMock(LibClone.clone(address(new MultiSignerMock())));
     }
@@ -47,15 +47,15 @@ contract MultiSignerTest is BaseTest {
 
     function test_initialize_signers() public {
         vm.expectEmit();
-        emit MultiSigner.AddSigner(0, encodeSigner(ALICE.addr));
-        emit MultiSigner.AddSigner(1, encodeSigner(BOB.addr));
-        emit MultiSigner.AddSigner(2, encodeSigner(MIKE.x, MIKE.y));
+        emit MultiSigner.AddSigner(0, createSigner(ALICE.addr));
+        emit MultiSigner.AddSigner(1, createSigner(BOB.addr));
+        emit MultiSigner.AddSigner(2, createSigner(MIKE.x, MIKE.y));
         initializeSigners();
 
-        assertEq(multiSigner.getSignerAtIndex(0).x, encodeSigner(ALICE.addr).x);
-        assertEq(multiSigner.getSignerAtIndex(1).x, encodeSigner(BOB.addr).x);
-        assertEq(multiSigner.getSignerAtIndex(2).x, encodeSigner(MIKE.x, MIKE.y).x);
-        assertEq(multiSigner.getSignerAtIndex(2).y, encodeSigner(MIKE.x, MIKE.y).y);
+        assertEq(multiSigner.getSignerAtIndex(0).x, createSigner(ALICE.addr).x);
+        assertEq(multiSigner.getSignerAtIndex(1).x, createSigner(BOB.addr).x);
+        assertEq(multiSigner.getSignerAtIndex(2).x, createSigner(MIKE.x, MIKE.y).x);
+        assertEq(multiSigner.getSignerAtIndex(2).y, createSigner(MIKE.x, MIKE.y).y);
         assertEq(multiSigner.getSignerCount(), 3);
         assertEq(multiSigner.getThreshold(), 1);
     }
@@ -141,7 +141,7 @@ contract MultiSignerTest is BaseTest {
 
         vm.startPrank(ALICE.addr);
         vm.expectEmit();
-        emit MultiSigner.RemoveSigner(0, encodeSigner(ALICE.addr));
+        emit MultiSigner.RemoveSigner(0, createSigner(ALICE.addr));
         multiSigner.removeSigner(0);
         vm.stopPrank();
 
@@ -178,13 +178,13 @@ contract MultiSignerTest is BaseTest {
 
         vm.startPrank(ALICE.addr);
         vm.expectEmit();
-        emit MultiSigner.AddSigner(3, encodeSigner(BOB.addr));
-        multiSigner.addSigner(encodeSigner(BOB.addr), 3);
+        emit MultiSigner.AddSigner(3, createSigner(BOB.addr));
+        multiSigner.addSigner(createSigner(BOB.addr), 3);
         vm.stopPrank();
 
         assertEq(multiSigner.getSignerCount(), 4);
-        assertEq(multiSigner.getSignerAtIndex(3).x, encodeSigner(BOB.addr).x);
-        assertEq(multiSigner.getSignerAtIndex(3).y, encodeSigner(BOB.addr).y);
+        assertEq(multiSigner.getSignerAtIndex(3).x, createSigner(BOB.addr).x);
+        assertEq(multiSigner.getSignerAtIndex(3).y, createSigner(BOB.addr).y);
     }
 
     function testFuzz_addSigner_RevertWhen_callerNotRoot(Signer memory _signer, address _caller) public {
@@ -202,7 +202,7 @@ contract MultiSignerTest is BaseTest {
 
         vm.expectRevert();
         vm.startPrank(ALICE.addr);
-        multiSigner.addSigner(encodeSigner(DAN.addr), uint8(0));
+        multiSigner.addSigner(createSigner(DAN.addr), uint8(0));
         vm.stopPrank();
     }
 
@@ -220,13 +220,13 @@ contract MultiSignerTest is BaseTest {
     function test_addSigner_RevertWhen_MaxSignersReached() public {
         Signer[] memory signers_ = new Signer[](255);
         for (uint256 i; i < signers_.length; i++) {
-            signers_[i] = encodeSigner(address(uint160(i + 1)));
+            signers_[i] = createSigner(address(uint160(i + 1)));
         }
         multiSigner.initialize(ALICE.addr, signers_, 1);
 
         vm.startPrank(ALICE.addr);
         vm.expectRevert();
-        multiSigner.addSigner(encodeSigner((address(this))), 3);
+        multiSigner.addSigner(createSigner((address(this))), 3);
         vm.stopPrank();
     }
 }

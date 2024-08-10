@@ -152,7 +152,7 @@ abstract contract MultiSigner {
      * @notice Initialize the signers of this contract.
      *
      * @dev Intended to be called when contract is first deployed and never again.
-     * @dev Reverts if a provided owner is neither 64 bytes long (for public key) nor a valid address.
+     * @dev Reverts if signer is neither an EOA or a passkey.
      * @dev Reverts if 'threshold' is less than number of signers.
      * @dev Reverts if 'threshold' is 0.
      * @dev Reverts if number of signers is more than 256.

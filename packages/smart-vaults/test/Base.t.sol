@@ -3,7 +3,7 @@ pragma solidity ^0.8.23;
 
 import { Test, console2, stdError } from "forge-std/Test.sol";
 
-import { Signer, encodeSigner, encodeSigner } from "src/signers/Signer.sol";
+import { Signer, createSigner, createSigner } from "src/signers/Signer.sol";
 import { SmartVaultFactory } from "src/vault/SmartVaultFactory.sol";
 
 contract BaseTest is Test {
