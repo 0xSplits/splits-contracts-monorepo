@@ -20,11 +20,12 @@ import { console } from "forge-std/console.sol";
 
 import { ERC7211FallbackHandler, IERC7211Receiver, MockERC7211 } from "./mocks/MockERC7211.sol";
 import { MockTransferOperator } from "./mocks/MockTransferOperator.sol";
+import { Signer, encodeSigner, encodeSigner } from "src/signers/Signer.sol";
 
 contract SmartVaultTest is BaseTest {
     using UserOperationLib for PackedUserOperation;
 
-    bytes[] signers;
+    Signer[] signers;
 
     struct PublicKey {
         uint256 x;
@@ -46,15 +47,15 @@ contract SmartVaultTest is BaseTest {
         hex"1c05286fe694493eae33312f2d2e0d0abeda8db76238b7a204be1fb87f54ce4228fef61ef4ac300f631657635c28e59bfb2fe71bce1634c81c65642042f6dc4d";
     // solhint-enable
 
+    Signer passkey;
+
     error OnlyEntryPoint();
     error OnlyFactory();
     error OnlySelf();
     error Unauthorized();
-    error InvalidSignerBytesLength(bytes signer);
     error MissingSignatures(uint256 signaturesSupplied, uint8 threshold);
     error InvalidNumberOfSigners();
     error InvalidThreshold();
-    error InvalidEthereumAddressOwner(bytes signer);
     error InvalidMerkleProof();
     error FunctionNotSupported(bytes4 sig);
 
@@ -70,9 +71,12 @@ contract SmartVaultTest is BaseTest {
 
         MIKE = PublicKey({ x: 1, y: 2 });
 
-        signers.push(abi.encode(ALICE.addr));
-        signers.push(abi.encode(BOB.addr));
-        signers.push(passkeyOwner);
+        (bytes32 x, bytes32 y) = abi.decode(passkeyOwner, (bytes32, bytes32));
+        passkey = Signer(x, y);
+
+        signers.push(encodeSigner(ALICE.addr));
+        signers.push(encodeSigner(BOB.addr));
+        signers.push(passkey);
 
         vault = smartVaultFactory.createAccount(root, signers, 1, 0);
 
@@ -146,13 +150,13 @@ contract SmartVaultTest is BaseTest {
     function test_initialize_RevertsWhen_signersIsZero() public {
         vm.expectRevert(abi.encodeWithSelector(InvalidNumberOfSigners.selector));
         vm.prank(address(smartVaultFactory));
-        vault.initialize(root, new bytes[](0), 1);
+        vault.initialize(root, new Signer[](0), 1);
     }
 
     function test_initialize_RevertsWhen_signersIsGreaterThan255() public {
         vm.expectRevert(abi.encodeWithSelector(InvalidNumberOfSigners.selector));
         vm.prank(address(smartVaultFactory));
-        vault.initialize(root, new bytes[](256), 1);
+        vault.initialize(root, new Signer[](256), 1);
     }
 
     function test_initialize_RevertsWhen_thresholdIsZero() public {
@@ -165,28 +169,6 @@ contract SmartVaultTest is BaseTest {
         vm.expectRevert(abi.encodeWithSelector(InvalidThreshold.selector));
         vm.prank(address(smartVaultFactory));
         vault.initialize(root, signers, 4);
-    }
-
-    function testFuzz_initialize_RevertsWhen_invalidSignerBytesLength(bytes memory signer_) public {
-        vm.assume(signer_.length != 32 && signer_.length != 64);
-
-        bytes[] memory signers__ = new bytes[](1);
-        signers__[0] = signer_;
-
-        vm.expectRevert(abi.encodeWithSelector(InvalidSignerBytesLength.selector, signer_));
-        vm.prank(address(smartVaultFactory));
-        vault.initialize(root, signers__, 1);
-    }
-
-    function testFuzz_initialize_RevertsWhen_invalidEthereumAddressOwner(uint256 signer_) public {
-        vm.assume(signer_ > type(uint160).max);
-
-        bytes[] memory signers__ = new bytes[](1);
-        signers__[0] = abi.encode(signer_);
-
-        vm.expectRevert(abi.encodeWithSelector(InvalidEthereumAddressOwner.selector, signers__[0]));
-        vm.prank(address(smartVaultFactory));
-        vault.initialize(root, signers__, 1);
     }
 
     function test_initialize_RevertsWhen_notFactory() public {
@@ -807,7 +789,7 @@ contract SmartVaultTest is BaseTest {
     /*                             SIGNER SET UPDATES                             */
     /* -------------------------------------------------------------------------- */
 
-    function testFuzz_addSigner_RevertWhen_callerNotAccount(bytes memory _signer, address _caller) public {
+    function testFuzz_addSigner_RevertWhen_callerNotAccount(Signer calldata _signer, address _caller) public {
         vm.assume(_caller != address(vault));
 
         vm.startPrank(_caller);

@@ -3,22 +3,13 @@ pragma solidity ^0.8.23;
 
 import { decodeAccountSigner } from "../signers/AccountSigner.sol";
 import { decodePasskeySigner } from "../signers/PasskeySigner.sol";
+import { Signer } from "../signers/Signer.sol";
 
 /**
  * @title Multi Signer Library
  * @author Splits
  */
 library MultiSignerLib {
-    /* -------------------------------------------------------------------------- */
-    /*                                  CONSTANTS                                 */
-    /* -------------------------------------------------------------------------- */
-
-    // Size in bytes for an externally owned account (EOA) signer.
-    uint256 public constant EOA_SIGNER_SIZE = 32;
-
-    // Size in bytes for a passkey-based signer.
-    uint256 public constant PASSKEY_SIGNER_SIZE = 64;
-
     /* -------------------------------------------------------------------------- */
     /*                                   STRUCTS                                  */
     /* -------------------------------------------------------------------------- */
@@ -32,7 +23,7 @@ library MultiSignerLib {
         /// @dev number of signers
         uint8 signerCount;
         /// @dev signer bytes;
-        mapping(uint8 => bytes) signers;
+        mapping(uint8 => Signer) signers;
     }
 
     struct SignatureWrapper {
@@ -49,19 +40,8 @@ library MultiSignerLib {
     /*                                   ERRORS                                   */
     /* -------------------------------------------------------------------------- */
 
-    /**
-     * @notice Thrown when a provided signer is neither 64 bytes long (for public key)
-     *         nor a ABI encoded address.
-     * @param signer The invalid signer.
-     */
-    error InvalidSignerBytesLength(bytes signer);
-
-    /**
-     * @notice Thrown if a provided signer is 32 bytes long but does not fit in an `address` type or if `signer` has
-     * code.
-     * @param signer The invalid signer.
-     */
-    error InvalidEthereumAddressOwner(bytes signer);
+    /// @notice Thrown when Signer is invalid.
+    error InvalidSigner(Signer signer);
 
     /// @notice Thrown when threshold is greater than number of owners or when zero.
     error InvalidThreshold();
@@ -82,7 +62,7 @@ library MultiSignerLib {
      * @param signers_ abi encoded list of signers (passkey/eoa).
      * @param threshold_ minimum number of signers required for approval.
      */
-    function validateSigners(bytes[] calldata signers_, uint8 threshold_) internal pure {
+    function validateSigners(Signer[] calldata signers_, uint8 threshold_) internal pure {
         if (signers_.length > 255 || signers_.length == 0) revert InvalidNumberOfSigners();
 
         uint8 numberOfSigners = uint8(signers_.length);
@@ -100,14 +80,8 @@ library MultiSignerLib {
      * @dev Throws error when length of signer is neither 32 or 64.
      * @dev Throws error if signer is invalid address.
      */
-    function validateSigner(bytes memory signer_) internal pure {
-        if (signer_.length != EOA_SIGNER_SIZE && signer_.length != PASSKEY_SIGNER_SIZE) {
-            revert InvalidSignerBytesLength(signer_);
-        }
-
-        if (signer_.length == EOA_SIGNER_SIZE) {
-            if (uint256(bytes32(signer_)) > type(uint160).max) revert InvalidEthereumAddressOwner(signer_);
-        }
+    function validateSigner(Signer calldata signer_) internal pure {
+        if (!signer_.isValid()) revert InvalidSigner(signer_);
     }
 
     /**
@@ -115,17 +89,17 @@ library MultiSignerLib {
      */
     function isValidSignature(
         bytes32 hash_,
-        bytes memory signer_,
+        Signer memory signer_,
         bytes memory signature_
     )
         internal
         view
         returns (bool isValid)
     {
-        if (signer_.length == EOA_SIGNER_SIZE) {
-            isValid = decodeAccountSigner(signer_).isValidSignature(hash_, signature_);
-        } else if (signer_.length == PASSKEY_SIGNER_SIZE) {
+        if (signer_.isPasskey()) {
             isValid = decodePasskeySigner(signer_).isValidSignature(hash_, signature_);
+        } else {
+            isValid = decodeAccountSigner(signer_).isValidSignature(hash_, signature_);
         }
     }
 

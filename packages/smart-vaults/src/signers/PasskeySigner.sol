@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.23;
 
+import { Signer } from "./Signer.sol";
 import { WebAuthn } from "@web-authn/WebAuthn.sol";
 
 /**
@@ -11,8 +12,8 @@ struct PasskeySigner {
     uint256 y;
 }
 
-function decodePasskeySigner(bytes memory signer) pure returns (PasskeySigner memory) {
-    return abi.decode(signer, (PasskeySigner));
+function decodePasskeySigner(Signer memory signer_) pure returns (PasskeySigner memory) {
+    return PasskeySigner(uint256(signer_.x), uint256(signer_.y));
 }
 
 using PasskeySignerLib for PasskeySigner global;

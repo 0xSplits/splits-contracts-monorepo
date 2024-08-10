@@ -2,6 +2,7 @@
 pragma solidity ^0.8.23;
 
 import { MultiSignerLib } from "../library/MultiSignerLib.sol";
+import { Signer } from "../signers/Signer.sol";
 
 /**
  * @title Multi Signer
@@ -54,14 +55,14 @@ abstract contract MultiSigner {
      * @param index The index of the signer added.
      * @param signer The signer added.
      */
-    event AddSigner(uint256 indexed index, bytes signer);
+    event AddSigner(uint256 indexed index, Signer signer);
 
     /**
      * @notice Emitted when a signer is removed.
      * @param index The index of the signer removed.
      * @param signer The signer removed.
      */
-    event RemoveSigner(uint256 indexed index, bytes signer);
+    event RemoveSigner(uint256 indexed index, Signer signer);
 
     /**
      * @notice Emitted when threshold is updated.
@@ -83,7 +84,7 @@ abstract contract MultiSigner {
     /* -------------------------------------------------------------------------- */
 
     /// @notice Returns the owner bytes at the given `index`.
-    function getSignerAtIndex(uint8 index_) public view virtual returns (bytes memory) {
+    function getSignerAtIndex(uint8 index_) public view virtual returns (Signer memory) {
         return _getMultiSignerStorage().signers[index_];
     }
 
@@ -107,7 +108,7 @@ abstract contract MultiSigner {
      * @param signer_ The owner raw bytes to register.
      * @param index_ The index to register the signer.
      */
-    function addSigner(bytes calldata signer_, uint8 index_) public onlyAuthorized {
+    function addSigner(Signer calldata signer_, uint8 index_) public onlyAuthorized {
         _addSigner(signer_, index_);
     }
 
@@ -159,7 +160,7 @@ abstract contract MultiSigner {
      * @param signers_ The initial set of signers.
      * @param threshold_ The number of signers needed for approval.
      */
-    function _initializeSigners(bytes[] calldata signers_, uint8 threshold_) internal virtual {
+    function _initializeSigners(Signer[] calldata signers_, uint8 threshold_) internal virtual {
         if (signers_.length > 255 || signers_.length == 0) revert InvalidNumberOfSigners();
 
         uint8 numSigners = uint8(signers_.length);
@@ -168,14 +169,11 @@ abstract contract MultiSigner {
 
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
 
-        bytes memory signer;
-
         for (uint8 i; i < numSigners; i++) {
-            signer = signers_[i];
-            MultiSignerLib.validateSigner(signer);
-            $.signers[i] = signer;
+            MultiSignerLib.validateSigner(signers_[i]);
+            $.signers[i] = signers_[i];
 
-            emit AddSigner(i, signer);
+            emit AddSigner(i, signers_[i]);
         }
 
         $.signerCount = numSigners;
@@ -183,12 +181,12 @@ abstract contract MultiSigner {
         emit UpdateThreshold(threshold_);
     }
 
-    function _addSigner(bytes memory signer_, uint8 index_) internal {
+    function _addSigner(Signer calldata signer_, uint8 index_) internal {
         MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
 
         MultiSignerLib.validateSigner(signer_);
 
-        if ($.signers[index_].length != 0) revert SignerAlreadyPresent(index_);
+        if (!$.signers[index_].isEmpty()) revert SignerAlreadyPresent(index_);
 
         $.signerCount += 1;
         $.signers[index_] = signer_;
@@ -203,8 +201,9 @@ abstract contract MultiSigner {
 
         if (signerCount_ == $.threshold) revert InvalidThreshold();
 
-        bytes memory signer = $.signers[index_];
-        if (signer.length == 0) revert SignerNotPresent(index_);
+        Signer memory signer = $.signers[index_];
+
+        if (signer.isEmpty()) revert SignerNotPresent(index_);
 
         delete $.signers[index_];
         $.signerCount -= 1;

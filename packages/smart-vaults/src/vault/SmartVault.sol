@@ -3,6 +3,7 @@ pragma solidity ^0.8.23;
 
 import { MultiSignerLib } from "../library/MultiSignerLib.sol";
 import { UserOperationLib } from "../library/UserOperationLib.sol";
+import { Signer } from "../signers/Signer.sol";
 import { ERC1271 } from "../utils/ERC1271.sol";
 import { FallbackManager } from "../utils/FallbackManager.sol";
 
@@ -164,12 +165,10 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
      * @dev Reverts if signers or threshold is invalid.
      *
      * @param owner_ Owner of the smart account.
-     * @param signers_ Array of initial signers for this account. Each item should be
-     *               an ABI encoded Ethereum address, i.e. 32 bytes with 12 leading 0 bytes,
-     *               or a 64 byte public key.
+     * @param signers_ Array of initial signers. Each signer is of type `Signer`.
      * @param threshold_ Number of signers required to approve a signature.
      */
-    function initialize(address owner_, bytes[] calldata signers_, uint8 threshold_) external payable {
+    function initialize(address owner_, Signer[] calldata signers_, uint8 threshold_) external payable {
         if (msg.sender != FACTORY) revert OnlyFactory();
 
         _initializeOwner(owner_);
