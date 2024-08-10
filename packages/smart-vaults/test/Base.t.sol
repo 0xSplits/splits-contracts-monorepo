@@ -40,7 +40,7 @@ contract BaseTest is Test {
     }
 
     function assertEq(Signer memory signer1, Signer memory signer2) internal pure {
-        assertEq(signer1.x, signer2.x);
-        assertEq(signer1.y, signer2.y);
+        assertEq(signer1.slot1, signer2.slot1);
+        assertEq(signer1.slot2, signer2.slot2);
     }
 }

@@ -10,7 +10,7 @@ import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
 type AccountSigner is address;
 
 function decodeAccountSigner(Signer memory signer_) pure returns (AccountSigner) {
-    return AccountSigner.wrap(address(uint160(uint256(signer_.x))));
+    return AccountSigner.wrap(address(uint160(uint256(signer_.slot1))));
 }
 
 using AccountSignerLib for AccountSigner global;

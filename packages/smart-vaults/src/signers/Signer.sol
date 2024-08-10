@@ -5,12 +5,12 @@ pragma solidity ^0.8.23;
  * @notice An EOA or Passkey signer.
  *
  * @dev For a Signer to be valid it has to be either an EOA or a Passkey signer.
- *      - EOA -> y has to be empty and x has to be a valid address.
- *      - Passkey -> both x and y have to be non empty.
+ *      - EOA -> slot2 has to be empty and slot1 has to be a valid address.
+ *      - Passkey -> both slot1 and slot2 have to be non empty.
  */
 struct Signer {
-    bytes32 x;
-    bytes32 y;
+    bytes32 slot1;
+    bytes32 slot2;
 }
 
 function createSigner(address signer_) pure returns (Signer memory) {
@@ -35,23 +35,26 @@ library SignerLib {
     /* -------------------------------------------------------------------------- */
 
     function isEOA(Signer calldata signer_) internal pure returns (bool) {
-        return signer_.y == ZERO && uint256(bytes32(signer_.x)) <= type(uint160).max;
+        return signer_.slot2 == ZERO && uint256(bytes32(signer_.slot1)) <= type(uint160).max;
     }
 
     function isPasskey(Signer calldata signer_) internal pure returns (bool) {
-        return signer_.x != ZERO && signer_.y != ZERO;
+        return signer_.slot1 != ZERO && signer_.slot2 != ZERO;
     }
 
-    // not sure if I like this, any suggestions?
     function isPasskeyMem(Signer memory signer_) internal pure returns (bool) {
-        return signer_.x != ZERO && signer_.y != ZERO;
+        return signer_.slot1 != ZERO && signer_.slot2 != ZERO;
     }
 
     function isValid(Signer calldata signer_) internal pure returns (bool) {
-        return isEOA(signer_) || isPasskey(signer_);
+        return !isEmpty(signer_);
+    }
+
+    function isEmpty(Signer calldata signer_) internal pure returns (bool) {
+        return signer_.slot1 == ZERO && signer_.slot2 == ZERO;
     }
 
     function isEmptyMem(Signer memory signer_) internal pure returns (bool) {
-        return signer_.x == ZERO && signer_.y == ZERO;
+        return signer_.slot1 == ZERO && signer_.slot2 == ZERO;
     }
 }

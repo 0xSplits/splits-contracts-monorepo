@@ -13,7 +13,7 @@ struct PasskeySigner {
 }
 
 function decodePasskeySigner(Signer memory signer_) pure returns (PasskeySigner memory) {
-    return PasskeySigner(uint256(signer_.x), uint256(signer_.y));
+    return PasskeySigner(uint256(signer_.slot1), uint256(signer_.slot2));
 }
 
 using PasskeySignerLib for PasskeySigner global;
