@@ -6,7 +6,6 @@ import { UserOperationLib } from "../library/UserOperationLib.sol";
 import { Signer } from "../signers/Signer.sol";
 import { ERC1271 } from "../utils/ERC1271.sol";
 import { FallbackManager } from "../utils/FallbackManager.sol";
-
 import { ModuleManager } from "../utils/ModuleManager.sol";
 import { MultiSigner } from "../utils/MultiSigner.sol";
 
@@ -318,9 +317,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
 
     /// @dev validates if the given hash (ERC1271) was signed by the signers.
     function _isValidSignature(bytes32 hash_, bytes calldata signature_) internal view override returns (bool) {
-        return MultiSignerLib.isValidSignature(
-            _getMultiSignerStorage(), hash_, abi.decode(signature_, (ERC1271Signature)).signatures
-        );
+        return _getMultiSignerStorage().isValidSignature(hash_, abi.decode(signature_, (ERC1271Signature)).signatures);
     }
 
     function _validateSingleUserOp(
@@ -367,7 +364,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
         returns (uint256 validationData)
     {
         MultiSignerStorage storage $ = _getMultiSignerStorage();
-        if (MultiSignerLib.isValidSignature($, lightHash_, hash_, signatures)) {
+        if ($.isValidSignature(lightHash_, hash_, signatures)) {
             return UserOperationLib.VALID_SIGNATURE;
         } else {
             return UserOperationLib.INVALID_SIGNATURE;
