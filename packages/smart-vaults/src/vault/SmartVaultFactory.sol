@@ -8,9 +8,8 @@ import { LibClone } from "solady/utils/LibClone.sol";
 
 /**
  * @title Splits Smart Accounts/Vaults Factory
- *
  * @notice based on Coinbase's Smart Wallet Factory.
- * @author Splits
+ * @author Splits (https://splits.org)
  */
 contract SmartVaultFactory {
     /* -------------------------------------------------------------------------- */
@@ -42,7 +41,7 @@ contract SmartVaultFactory {
      * @notice Returns the deterministic address for a Splits Smart Vault created with `owner`, `signers`, 'threshold',
      * `salt`. Deploys and initializes contract if it has not yet been created.
      *
-     * @dev Deployed as a ERC-1967 proxy that's implementation is `IMPLEMENTATION`.
+     * @dev Deployed as an ERC-1967 proxy.
      *
      * @param owner_ Owner of the smart vault.
      * @param signers_ Array of initial signers. Each item should be an ABI encoded address or 64 byte public key.

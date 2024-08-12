@@ -5,7 +5,7 @@ import { MultiSignerLib } from "../library/MultiSignerLib.sol";
 
 /**
  * @title Multi Signer
- * @author Splits
+ * @author Splits (https://splits.org)
  * @notice Auth contract allowing multiple signers, each identified as bytes with a specified threshold.
  * @dev Base on Coinbase's Smart Wallet Multi Ownable (https://github.com/coinbase/smart-wallet)
  */

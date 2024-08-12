@@ -6,7 +6,7 @@ import { decodePasskeySigner } from "../signers/PasskeySigner.sol";
 
 /**
  * @title Multi Signer Library
- * @author Splits
+ * @author Splits (https://splits.org)
  */
 library MultiSignerLib {
     /* -------------------------------------------------------------------------- */

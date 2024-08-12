@@ -5,6 +5,7 @@ import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
 /**
  * @title ERC-1271
+ * @author Splits (https://splits.org)
  * @notice Based on https://github.com/coinbase/smart-wallet/blob/main/src/ERC1271.sol
  * @notice Abstract ERC-1271 implementation (based on Solady's) with guards to handle the same
  *       signer being used on multiple accounts.
@@ -45,10 +46,12 @@ abstract contract ERC1271 is EIP712 {
 
     /**
      * @notice Validates the `signature` against the given `hash`.
+     *
      * @dev This implementation follows ERC-1271. See https://eips.ethereum.org/EIPS/eip-1271.
      * @dev IMPORTANT: Signature verification is performed on the hash produced AFTER applying the anti
      *      cross-account-replay layer on the given `hash` (i.e., verification is run on the replay-safe
      *      hash version).
+     *
      * @param hash_      The original hash.
      * @param signature_ The signature of the replay-safe hash to validate.
      * @return result `0x1626ba7e` if validation succeeded, else `0xffffffff`.
@@ -66,6 +69,8 @@ abstract contract ERC1271 is EIP712 {
      * @dev Returns an EIP-712-compliant hash of `hash`,
      * where the domainSeparator includes address(this) and block.chainId
      * to protect against the same signature being used for many accounts.
+     *
+     * @param hash_ The original hash.
      * @return
      *  keccak256(\x19\x01 || this.domainSeparator ||
      *      hashStruct(SplitWalletMessage({
@@ -83,7 +88,9 @@ abstract contract ERC1271 is EIP712 {
 
     /**
      * @notice Validates the `signature` against the given `hash`.
+     *
      * @dev MUST be defined by the implementation.
+     *
      * @param hash_      The hash whose signature has been performed on.
      * @param signature_ The signature associated with `hash`.
      * @return `true` is the signature is valid, else `false`.

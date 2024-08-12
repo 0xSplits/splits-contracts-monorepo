@@ -14,16 +14,32 @@ function decodeAccountSigner(bytes memory signer) pure returns (AccountSigner) {
 
 using AccountSignerLib for AccountSigner global;
 
+/**
+ * @notice Library for verifying AccountSigner signatures.
+ * @author Splits (https://splits.org)
+ */
 library AccountSignerLib {
+    /* -------------------------------------------------------------------------- */
+    /*                                  FUNCTIONS                                 */
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @notice Verifies if the `signer` has signed the provided `messageHash`.
+     *
+     * @param signer_ Account signer.
+     * @param messageHash_ Message hash that should be signed by the signer.
+     * @param signature_ abi.encode(r,s,v) signature.
+     * @return isValid true when signer has signed the messageHash otherwise false.
+     */
     function isValidSignature(
-        AccountSigner signer,
-        bytes32 messageHash,
-        bytes memory signature
+        AccountSigner signer_,
+        bytes32 messageHash_,
+        bytes memory signature_
     )
         internal
         view
         returns (bool)
     {
-        return SignatureCheckerLib.isValidSignatureNow(AccountSigner.unwrap(signer), messageHash, signature);
+        return SignatureCheckerLib.isValidSignatureNow(AccountSigner.unwrap(signer_), messageHash_, signature_);
     }
 }

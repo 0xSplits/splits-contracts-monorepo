@@ -5,6 +5,7 @@ import { Caller } from "./Caller.sol";
 
 /**
  * @title Module Manager
+ * @author Splits (https://splits.org)
  * @notice Manages modules of a smart contract. Gives each module the ability to execute `Calls` from this account.
  * @dev Account owners should be careful when adding a module.
  */
@@ -65,7 +66,7 @@ abstract contract ModuleManager is Caller {
     /* -------------------------------------------------------------------------- */
 
     /**
-     * @notice Adds module to the allowlist.
+     * @notice Adds `module` to the allowlist.
      *
      * @dev access is controlled by `_authorize()`
      *
@@ -127,13 +128,13 @@ abstract contract ModuleManager is Caller {
     /**
      * @notice Executes a single call from the account.
      *
-     * @dev Can only be called by the module.
+     * @dev Can only be called by a module present in the allowlist.
      * @dev Emits an event to capture the call executed.
      *
      * @param call_ Call to execute from the account.
      */
     function executeFromModule(Call calldata call_) external onlyModule {
-        _call(call_.target, call_.value, call_.data);
+        _call(call_);
 
         emit ExecutedTxFromModule(msg.sender, call_);
     }
@@ -141,7 +142,7 @@ abstract contract ModuleManager is Caller {
     /**
      * @notice Executes calls from the account.
      *
-     * @dev Can only be called by the module.
+     * @dev Can only be called by a module present in the allowlist.
      * @dev Emits an event to capture the call executed.
      *
      * @param calls_ Calls to execute from this account.

@@ -3,6 +3,7 @@ pragma solidity ^0.8.23;
 
 /**
  * @title Caller contract
+ * @author Splits (https://splits.org)
  * @notice Contract that provides basic functionalities to make external calls from a smart contract.
  */
 contract Caller {

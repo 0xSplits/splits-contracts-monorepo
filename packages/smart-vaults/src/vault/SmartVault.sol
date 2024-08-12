@@ -17,9 +17,8 @@ import { UUPSUpgradeable } from "solady/utils/UUPSUpgradeable.sol";
 
 /**
  * @title Splits Smart Accounts/Vaults
- *
  * @notice Based on Coinbase's Smart Wallet (https://github.com/coinbase/smart-wallet) and Solady's Smart Wallet.
- * @author Splits
+ * @author Splits (https://splits.org)
  */
 contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271, FallbackManager, ModuleManager {
     using UserOperationLib for PackedUserOperation;
@@ -50,9 +49,9 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
         bytes32[] lightMerkleProof;
         /// @notice merkleRoot of all the user ops in the Merkle Tree.
         bytes32 merkleTreeRoot;
-        /// @notice Proof to verify if the userOp hash is present in the root.
+        /// @notice Proof to verify if the userOp hash is present in the merkle tree.
         bytes32[] merkleProof;
-        /// @notice abi.encode(MultiSignerSignatureLib.SignatureWrapper[]), where threshold - 1
+        /// @notice list of signatures where threshold - 1
         /// signatures will be verified against the `lightMerkleTreeRoot` and the final signature will be verified
         /// against the `merkleTreeRoot`.
         MultiSignerLib.SignatureWrapper[] signatures;
@@ -85,9 +84,6 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
 
     /// @notice Thrown when contract creation has failed.
     error FailedContractCreation();
-
-    /// @notice Thrown when User Operation signature is of unknown type.
-    error InvalidUserOpSignatureType();
 
     /// @notice Thrown when Signature is of unknown type.
     error InvalidSignatureType();
@@ -244,12 +240,10 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
      *
      * @dev Can only be called by the Entrypoint or owner of this account.
      *
-     * @param target_ The address to call.
-     * @param value_  The value to send with the call.
-     * @param data_   The data of the call.
+     * @param call_ The `Call` to execute.
      */
-    function execute(address target_, uint256 value_, bytes calldata data_) external payable onlyEntryPointOrOwner {
-        _call(target_, value_, data_);
+    function execute(Call calldata call_) external payable onlyEntryPointOrOwner {
+        _call(call_);
     }
 
     /**
@@ -262,7 +256,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
     function executeBatch(Call[] calldata calls_) external payable onlyEntryPointOrOwner {
         uint256 numCalls = calls_.length;
         for (uint256 i; i < numCalls; i++) {
-            _call(calls_[i].target, calls_[i].value, calls_[i].data);
+            _call(calls_[i]);
         }
     }
 
@@ -289,6 +283,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
      * bytecode `initCode` and `msg.value` as inputs. In order to save deployment costs,
      * we do not sanity check the `initCode` length. Note that if `msg.value` is non-zero,
      * `initCode` must have a `payable` constructor.
+     * @dev Can only be called by this contract.
      *
      * @param initCode_ The creation bytecode.
      * @return newContract The 20-byte address where the contract was deployed.

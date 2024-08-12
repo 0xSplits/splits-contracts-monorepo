@@ -17,24 +17,40 @@ function decodePasskeySigner(bytes memory signer) pure returns (PasskeySigner me
 
 using PasskeySignerLib for PasskeySigner global;
 
+/**
+ * @notice Library for verifying PasskeySigner signatures.
+ * @author Splits (https://splits.org)
+ */
 library PasskeySignerLib {
+    /* -------------------------------------------------------------------------- */
+    /*                                  FUNCTIONS                                 */
+    /* -------------------------------------------------------------------------- */
+
+    /**
+     * @notice Verifies if the `signer` has signed the provided `messageHash`.
+     *
+     * @param signer_ Passkey signer.
+     * @param messageHash_ Message hash that should be signed by the signer.
+     * @param signature_ abi.encode(WebAuthn.WebAuthnAuth) signature.
+     * @return isValid true when signer has signed the messageHash otherwise false.
+     */
     function isValidSignature(
-        PasskeySigner memory signer,
-        bytes32 messageHash,
-        bytes memory signature
+        PasskeySigner memory signer_,
+        bytes32 messageHash_,
+        bytes memory signature_
     )
         internal
         view
         returns (bool)
     {
-        WebAuthn.WebAuthnAuth memory auth = abi.decode(signature, (WebAuthn.WebAuthnAuth));
+        WebAuthn.WebAuthnAuth memory auth = abi.decode(signature_, (WebAuthn.WebAuthnAuth));
 
         return WebAuthn.verify({
-            challenge: abi.encode(messageHash),
+            challenge: abi.encode(messageHash_),
             requireUV: false,
             webAuthnAuth: auth,
-            x: signer.x,
-            y: signer.y
+            x: signer_.x,
+            y: signer_.y
         });
     }
 }

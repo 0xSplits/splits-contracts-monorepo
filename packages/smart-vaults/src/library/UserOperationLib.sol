@@ -5,6 +5,7 @@ import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOp
 
 /**
  * @title User operation Library
+ * @author Splits (https://splits.org)
  * @notice Forked from
  * https://github.com/eth-infinitism/account-abstraction/blob/develop/contracts/core/UserOperationLib.sol
  * @dev Light here refers to the subset of user op params not related to gas, gas price or initCode in the userOp.

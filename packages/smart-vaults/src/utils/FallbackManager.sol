@@ -5,6 +5,7 @@ import { Receiver } from "solady/accounts/Receiver.sol";
 
 /**
  * @title Fallback Manager - Fallback call handler for a smart contract.
+ * @author Splits (https://splits.org)
  * @dev By defaults supports all ERC721 and ERC1155 token safety callbacks.
  */
 abstract contract FallbackManager is Receiver {
@@ -76,17 +77,23 @@ abstract contract FallbackManager is Receiver {
         }
     }
 
-    /// @notice Receive function that logs the amount of ETH sent.
+    /// @notice Receive function that logs the amount of ETH received.
     receive() external payable override {
         emit ReceiveEth(msg.sender, msg.value);
     }
 
     /**
      * @notice Allows setting a handler for a given function signature.
+     *
+     * @dev Following signatures is handled automatically by this contract and does not need any handler.
+     *      - 0x150b7a02: `onERC721Received(address,address,uint256,bytes)`.
+     *      - 0xf23a6e61: `onERC1155Received(address,address,uint256,uint256,bytes)`.
+     *      - 0xbc197c81: `onERC1155BatchReceived(address,address,uint256[],uint256[],bytes)`.
+     *
      * @param sig_ The function signature for which the handler is being set.
      * @param handler_ The address of the handler contract.
      */
-    function setFallbackHandler(bytes4 sig_, address handler_) public {
+    function updateFallbackHandler(bytes4 sig_, address handler_) public {
         _authorize();
 
         _getFallbackManagerStorage().fallbackHandler[sig_] = handler_;

@@ -717,19 +717,19 @@ contract SmartVaultTest is BaseTest {
         vm.deal(address(vault), value);
 
         vm.prank(_root ? root : ENTRY_POINT);
-        vault.execute(target, value, "0x");
+        vault.execute(Caller.Call(target, value, "0x"));
     }
 
     function testFuzz_execute_revertsWhenNotRootOrEntryPoint(address target, uint256 value, bytes memory data) public {
         vm.expectRevert(abi.encodeWithSelector(Unauthorized.selector));
-        vault.execute(target, value, data);
+        vault.execute(Caller.Call(target, value, data));
     }
 
     function testFuzz_execute_revertsWhenBadCall(address target, uint256 value, bytes memory data) public {
         vm.assume(target.code.length == 0 && value > 0);
         vm.expectRevert();
         vm.prank(ENTRY_POINT);
-        vault.execute(target, value, data);
+        vault.execute(Caller.Call(target, value, data));
     }
 
     /* -------------------------------------------------------------------------- */
@@ -771,10 +771,12 @@ contract SmartVaultTest is BaseTest {
     function test_deployCreate() public {
         vm.prank(ENTRY_POINT);
         vault.execute(
-            address(vault),
-            0,
-            abi.encodeWithSelector(
-                SmartVault.deployCreate.selector, abi.encodePacked(type(SmartVault).creationCode, abi.encode(root))
+            Caller.Call(
+                address(vault),
+                0,
+                abi.encodeWithSelector(
+                    SmartVault.deployCreate.selector, abi.encodePacked(type(SmartVault).creationCode, abi.encode(root))
+                )
             )
         );
     }
@@ -842,7 +844,7 @@ contract SmartVaultTest is BaseTest {
         vm.expectEmit();
         emit UpdatedFallbackHandler(sig_, handler_);
         vm.prank(address(vault));
-        vault.setFallbackHandler(sig_, handler_);
+        vault.updateFallbackHandler(sig_, handler_);
 
         assertEq(vault.getFallbackHandler(sig_), handler_);
     }
@@ -858,7 +860,7 @@ contract SmartVaultTest is BaseTest {
 
         vm.expectRevert(OnlySelf.selector);
         vm.prank(caller_);
-        vault.setFallbackHandler(sig_, handler_);
+        vault.updateFallbackHandler(sig_, handler_);
     }
 
     function testFuzz_FallbackHandler_receiveNFT(uint256 id_) public {
@@ -885,7 +887,7 @@ contract SmartVaultTest is BaseTest {
         address fallbackHandler = address(new ERC7211FallbackHandler());
 
         vm.prank(address(vault));
-        vault.setFallbackHandler(IERC7211Receiver.onERC7211Received.selector, fallbackHandler);
+        vault.updateFallbackHandler(IERC7211Receiver.onERC7211Received.selector, fallbackHandler);
 
         erc7211.transfer(from_, address(vault), tokenId_);
     }
