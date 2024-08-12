@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import { MultiSignerLib } from "../library/MultiSignerLib.sol";
+import { MultiSignerLib, MultiSignerStorage } from "../library/MultiSignerLib.sol";
 import { UserOperationLib } from "../library/UserOperationLib.sol";
 import { Signer } from "../signers/Signer.sol";
 import { ERC1271 } from "../utils/ERC1271.sol";
@@ -366,7 +366,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
         view
         returns (uint256 validationData)
     {
-        MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
+        MultiSignerStorage storage $ = _getMultiSignerStorage();
         if (MultiSignerLib.isValidSignature($, lightHash_, hash_, signatures)) {
             return UserOperationLib.VALID_SIGNATURE;
         } else {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.23;
 
-import { MultiSignerLib } from "../library/MultiSignerLib.sol";
+import { MultiSignerLib, MultiSignerStorage } from "../library/MultiSignerLib.sol";
 import { Signer } from "../signers/Signer.sol";
 
 /**
@@ -11,7 +11,6 @@ import { Signer } from "../signers/Signer.sol";
  * @dev Base on Coinbase's Smart Wallet Multi Ownable (https://github.com/coinbase/smart-wallet)
  */
 abstract contract MultiSigner {
-    using MultiSignerLib for MultiSignerLib.MultiSignerStorage;
     /* -------------------------------------------------------------------------- */
     /*                                  CONSTANTS                                 */
     /* -------------------------------------------------------------------------- */
@@ -106,22 +105,45 @@ abstract contract MultiSigner {
     /**
      * @notice Adds a `signer` at the `index`.
      *
+     * @dev Reverts if Signer is neither EOA or Passkey.
+     *
      * @param signer_ The owner raw bytes to register.
      * @param index_ The index to register the signer.
      */
     function addSigner(Signer calldata signer_, uint8 index_) public onlyAuthorized {
-        _addSigner(signer_, index_);
+        MultiSignerStorage storage $ = _getMultiSignerStorage();
+
+        if (!$.signers[index_].isEmptyMem()) revert SignerAlreadyPresent(index_);
+
+        $.setSigner(signer_, index_);
+        $.signerCount += 1;
+
+        emit AddSigner(index_, signer_);
     }
 
     /**
      * @notice Removes signer at the given `index`.
      *
      * @dev Reverts if 'threshold' is equal to signer count.
+     * @dev Reverts if signer is empty at `index`.
      *
      * @param index_ The index of the signer to be removed.
      */
     function removeSigner(uint8 index_) public onlyAuthorized {
-        _removeSigner(index_);
+        MultiSignerStorage storage $ = _getMultiSignerStorage();
+
+        uint256 signerCount_ = $.signerCount;
+
+        if (signerCount_ == $.threshold) revert InvalidThreshold();
+
+        Signer memory signer = $.signers[index_];
+
+        if (signer.isEmptyMem()) revert SignerNotPresent(index_);
+
+        delete $.signers[index_];
+        $.signerCount -= 1;
+
+        emit RemoveSigner(index_, signer);
     }
 
     /**
@@ -133,7 +155,13 @@ abstract contract MultiSigner {
      * @param threshold_ The new signer set threshold.
      */
     function updateThreshold(uint8 threshold_) public onlyAuthorized {
-        _updateThreshold(threshold_);
+        if (threshold_ == 0) revert InvalidThreshold();
+
+        MultiSignerStorage storage $ = _getMultiSignerStorage();
+        if ($.signerCount < threshold_) revert InvalidThreshold();
+
+        $.threshold = threshold_;
+        emit UpdateThreshold(threshold_);
     }
 
     /* -------------------------------------------------------------------------- */
@@ -143,7 +171,7 @@ abstract contract MultiSigner {
     function _authorize() internal virtual;
 
     /// @notice Helper function to get storage reference to the `MultiSignerStorage` struct.
-    function _getMultiSignerStorage() internal pure returns (MultiSignerLib.MultiSignerStorage storage $) {
+    function _getMultiSignerStorage() internal pure returns (MultiSignerStorage storage $) {
         assembly ("memory-safe") {
             $.slot := _MUTLI_SIGNER_STORAGE_LOCATION
         }
@@ -168,7 +196,7 @@ abstract contract MultiSigner {
 
         if (numSigners < threshold_ || threshold_ < 1) revert InvalidThreshold();
 
-        MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
+        MultiSignerStorage storage $ = _getMultiSignerStorage();
 
         for (uint8 i; i < numSigners; i++) {
             $.setSigner(signers_[i], i);
@@ -177,44 +205,6 @@ abstract contract MultiSigner {
         }
 
         $.signerCount = numSigners;
-        $.threshold = threshold_;
-        emit UpdateThreshold(threshold_);
-    }
-
-    function _addSigner(Signer calldata signer_, uint8 index_) internal {
-        MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
-
-        if (!$.signers[index_].isEmptyMem()) revert SignerAlreadyPresent(index_);
-
-        $.setSigner(signer_, index_);
-        $.signerCount += 1;
-
-        emit AddSigner(index_, signer_);
-    }
-
-    function _removeSigner(uint8 index_) internal {
-        MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
-
-        uint256 signerCount_ = $.signerCount;
-
-        if (signerCount_ == $.threshold) revert InvalidThreshold();
-
-        Signer memory signer = $.signers[index_];
-
-        if (signer.isEmptyMem()) revert SignerNotPresent(index_);
-
-        delete $.signers[index_];
-        $.signerCount -= 1;
-
-        emit RemoveSigner(index_, signer);
-    }
-
-    function _updateThreshold(uint8 threshold_) internal {
-        if (threshold_ == 0) revert InvalidThreshold();
-
-        MultiSignerLib.MultiSignerStorage storage $ = _getMultiSignerStorage();
-        if ($.signerCount < threshold_) revert InvalidThreshold();
-
         $.threshold = threshold_;
         emit UpdateThreshold(threshold_);
     }

@@ -5,6 +5,20 @@ import { decodeAccountSigner } from "../signers/AccountSigner.sol";
 import { decodePasskeySigner } from "../signers/PasskeySigner.sol";
 import { Signer } from "../signers/Signer.sol";
 
+/// @notice Storage layout used by this contract.
+/// @dev Can allow up to 256 signers.
+/// @custom:storage-location erc7201:splits.storage.MultiSigner
+struct MultiSignerStorage {
+    /// @dev Number of unique signatures required to validate a message signed by this contract.
+    uint8 threshold;
+    /// @dev number of signers
+    uint8 signerCount;
+    /// @dev signers of type `Signer`;
+    mapping(uint8 => Signer) signers;
+}
+
+using MultiSignerLib for MultiSignerStorage global;
+
 /**
  * @title Multi Signer Library
  * @author Splits
@@ -13,18 +27,6 @@ library MultiSignerLib {
     /* -------------------------------------------------------------------------- */
     /*                                   STRUCTS                                  */
     /* -------------------------------------------------------------------------- */
-
-    /// @notice Storage layout used by this contract.
-    /// @dev Can allow up to 256 signers.
-    /// @custom:storage-location erc7201:splits.storage.MultiSigner
-    struct MultiSignerStorage {
-        /// @dev Number of unique signatures required to validate a message signed by this contract.
-        uint8 threshold;
-        /// @dev number of signers
-        uint8 signerCount;
-        /// @dev signers of type `Signer`;
-        mapping(uint8 => Signer) signers;
-    }
 
     struct SignatureWrapper {
         /// @dev The index of the signer that signed, see `MultiSigner.signerAtIndex`
