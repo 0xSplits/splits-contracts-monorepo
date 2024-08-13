@@ -17,7 +17,7 @@ abstract contract FallbackManager is Receiver {
     /**
      * @dev Slot for the `FallbackManager` struct in storage.
      *      Computed from
-     *      keccak256(abi.encode(uint256(keccak256("splits.storage.FallbackManager")) - 1)) & ~bytes32(uint256(0xff))
+     *      keccak256(abi.encode(uint256(keccak256("splits.storage.fallbackManager")) - 1)) & ~bytes32(uint256(0xff))
      *      Follows ERC-7201 (see https://eips.ethereum.org/EIPS/eip-7201).
      */
     bytes32 internal constant _FALLBACK_MANAGER_STORAGE_SLOT =
@@ -28,6 +28,7 @@ abstract contract FallbackManager is Receiver {
     /* -------------------------------------------------------------------------- */
 
     /// @notice Fallback Manager storage structure
+    /// @custom:storage-location erc7201:splits.storage.fallbackManager
     struct FallbackManagerStorage {
         mapping(bytes4 => address) fallbackHandler;
     }

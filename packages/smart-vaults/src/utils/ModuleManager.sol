@@ -29,6 +29,7 @@ abstract contract ModuleManager is Caller {
     /* -------------------------------------------------------------------------- */
 
     /// @notice Module Manager storage structure.
+    /// @custom:storage-location erc7201:splits.storage.moduleManager
     struct ModuleManagerStorage {
         mapping(address => bool) isModule;
     }
