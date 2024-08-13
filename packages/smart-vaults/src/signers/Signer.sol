@@ -39,12 +39,20 @@ library SignerLib {
         return signer_.slot2 == ZERO && slot1 <= type(uint160).max && slot1 > 0;
     }
 
+    /**
+     * @dev slot2 will always be non zero for a passkey.
+     * ref: https://crypto.stackexchange.com/questions/108238/could-a-ec-public-key-have-zero-coordinate/108242#108242
+     */
     function isPasskey(Signer calldata signer_) internal pure returns (bool) {
-        return signer_.slot1 != ZERO && signer_.slot2 != ZERO;
+        return signer_.slot2 != ZERO;
     }
 
+    /**
+     * @dev slot2 will always be non zero for a passkey.
+     * ref: https://crypto.stackexchange.com/questions/108238/could-a-ec-public-key-have-zero-coordinate/108242#108242
+     */
     function isPasskeyMem(Signer memory signer_) internal pure returns (bool) {
-        return signer_.slot1 != ZERO && signer_.slot2 != ZERO;
+        return signer_.slot2 != ZERO;
     }
 
     function isValid(Signer calldata signer_) internal pure returns (bool) {
