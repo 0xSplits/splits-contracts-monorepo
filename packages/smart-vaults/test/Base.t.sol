@@ -3,8 +3,16 @@ pragma solidity ^0.8.23;
 
 import { Test, console2, stdError } from "forge-std/Test.sol";
 
-import { Signer, createSigner, createSigner } from "src/signers/Signer.sol";
+import { Signer } from "src/signers/Signer.sol";
 import { SmartVaultFactory } from "src/vault/SmartVaultFactory.sol";
+
+function createSigner(address signer_) pure returns (Signer memory) {
+    return Signer(bytes32(uint256(uint160(signer_))), bytes32(0));
+}
+
+function createSigner(uint256 x_, uint256 y_) pure returns (Signer memory) {
+    return Signer(bytes32(x_), bytes32(y_));
+}
 
 contract BaseTest is Test {
     address[] internal assumeAddresses;

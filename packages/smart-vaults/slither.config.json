@@ -1,0 +1,15 @@
+{
+  "filter_paths": "(test/|@openzeppelin/|node_modules/)",
+  "solc_remaps": [
+    "@prb/test/=node_modules/@prb/test/src",
+    "forge-std/=node_modules/forge-std/src",
+    "@openzeppelin/contracts/=node_modules/@openzeppelin/contracts/src",
+    "@openzeppelin/=node_modules/@openzeppelin/contracts/",
+    "solady/=node_modules/solady/src",
+    "@web-authn/=node_modules/web-authn/src",
+    "openzeppelin-contracts/=node_modules/@openzeppelin/contracts/",
+    "FreshCryptoLib/=node_modules/FreshCryptoLib/solidity/src/",
+    "src/=src/",
+    "account-abstraction/=node_modules/account-abstraction/contracts/"
+  ]
+}

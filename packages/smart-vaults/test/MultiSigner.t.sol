@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import { BaseTest } from "./Base.t.sol";
+import { BaseTest, createSigner, createSigner } from "./Base.t.sol";
 import { MultiSignerMock } from "./mocks/MultiSignerMock.sol";
 import { LibClone } from "solady/utils/LibClone.sol";
-import { Signer, createSigner, createSigner } from "src/signers/Signer.sol";
+import { Signer } from "src/signers/Signer.sol";
 import { MultiSigner } from "src/utils/MultiSigner.sol";
 
 contract MultiSignerTest is BaseTest {

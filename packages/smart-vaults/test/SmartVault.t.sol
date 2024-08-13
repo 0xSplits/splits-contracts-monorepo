@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import { BaseTest } from "./Base.t.sol";
+import { BaseTest, createSigner, createSigner } from "./Base.t.sol";
 import "@web-authn/../test/Utils.sol";
 import "@web-authn/WebAuthn.sol";
 
@@ -20,7 +20,7 @@ import { console } from "forge-std/console.sol";
 
 import { ERC7211FallbackHandler, IERC7211Receiver, MockERC7211 } from "./mocks/MockERC7211.sol";
 import { MockTransferOperator } from "./mocks/MockTransferOperator.sol";
-import { Signer, createSigner, createSigner } from "src/signers/Signer.sol";
+import { Signer } from "src/signers/Signer.sol";
 
 contract SmartVaultTest is BaseTest {
     using UserOperationLib for PackedUserOperation;

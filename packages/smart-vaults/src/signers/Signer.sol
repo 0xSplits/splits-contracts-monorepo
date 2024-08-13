@@ -13,14 +13,6 @@ struct Signer {
     bytes32 slot2;
 }
 
-function createSigner(address signer_) pure returns (Signer memory) {
-    return Signer(bytes32(uint256(uint160(signer_))), bytes32(0));
-}
-
-function createSigner(uint256 x_, uint256 y_) pure returns (Signer memory) {
-    return Signer(bytes32(x_), bytes32(y_));
-}
-
 using SignerLib for Signer global;
 
 /**
@@ -62,10 +54,6 @@ library SignerLib {
 
     function isValid(Signer calldata signer_) internal pure returns (bool) {
         return isEOA(signer_) || isPasskey(signer_);
-    }
-
-    function isEmpty(Signer calldata signer_) internal pure returns (bool) {
-        return signer_.slot1 == ZERO && signer_.slot2 == ZERO;
     }
 
     function isEmptyMem(Signer memory signer_) internal pure returns (bool) {

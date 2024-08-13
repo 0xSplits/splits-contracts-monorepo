@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import { BaseTest } from "./Base.t.sol";
+import { BaseTest, createSigner, createSigner } from "./Base.t.sol";
 
-import { Signer, createSigner, createSigner } from "src/signers/Signer.sol";
+import { Signer } from "src/signers/Signer.sol";
 import { SmartVault } from "src/vault/SmartVault.sol";
 import { SmartVaultFactory } from "src/vault/SmartVaultFactory.sol";
 
