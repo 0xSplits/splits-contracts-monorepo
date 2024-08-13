@@ -5,7 +5,7 @@ import { BaseTest, createSigner, createSigner } from "./Base.t.sol";
 import { MultiSignerMock } from "./mocks/MultiSignerMock.sol";
 import { LibClone } from "solady/utils/LibClone.sol";
 import { Signer } from "src/signers/Signer.sol";
-import { MultiSigner } from "src/utils/MultiSigner.sol";
+import { MultiSignerAuth } from "src/utils/MultiSignerAuth.sol";
 
 contract MultiSignerTest is BaseTest {
     MultiSignerMock multiSigner;
@@ -47,14 +47,14 @@ contract MultiSignerTest is BaseTest {
 
     function test_initialize_signers() public {
         vm.expectEmit();
-        emit MultiSigner.AddSigner(0, createSigner(ALICE.addr));
-        emit MultiSigner.AddSigner(1, createSigner(BOB.addr));
-        emit MultiSigner.AddSigner(2, createSigner(MIKE.x, MIKE.y));
+        emit MultiSignerAuth.AddSigner(0, createSigner(ALICE.addr));
+        emit MultiSignerAuth.AddSigner(1, createSigner(BOB.addr));
+        emit MultiSignerAuth.AddSigner(2, createSigner(MIKE.x, MIKE.y));
         initializeSigners();
 
-        assertEq(multiSigner.getSignerAtIndex(0), createSigner(ALICE.addr));
-        assertEq(multiSigner.getSignerAtIndex(1), createSigner(BOB.addr));
-        assertEq(multiSigner.getSignerAtIndex(2), createSigner(MIKE.x, MIKE.y));
+        assertEq(multiSigner.getSigner(0), createSigner(ALICE.addr));
+        assertEq(multiSigner.getSigner(1), createSigner(BOB.addr));
+        assertEq(multiSigner.getSigner(2), createSigner(MIKE.x, MIKE.y));
         assertEq(multiSigner.getSignerCount(), 3);
         assertEq(multiSigner.getThreshold(), 1);
     }
@@ -102,7 +102,7 @@ contract MultiSignerTest is BaseTest {
 
         vm.startPrank(ALICE.addr);
         vm.expectEmit();
-        emit MultiSigner.UpdateThreshold(2);
+        emit MultiSignerAuth.UpdateThreshold(2);
         multiSigner.updateThreshold(2);
         vm.stopPrank();
 
@@ -147,12 +147,12 @@ contract MultiSignerTest is BaseTest {
 
         vm.startPrank(ALICE.addr);
         vm.expectEmit();
-        emit MultiSigner.RemoveSigner(0, createSigner(ALICE.addr));
+        emit MultiSignerAuth.RemoveSigner(0, createSigner(ALICE.addr));
         multiSigner.removeSigner(0);
         vm.stopPrank();
 
         assertEq(multiSigner.getSignerCount(), 2);
-        assertEq(multiSigner.getSignerAtIndex(0), Signer(bytes32(0), bytes32(0)));
+        assertEq(multiSigner.getSigner(0), Signer(bytes32(0), bytes32(0)));
     }
 
     function testFuzz_removeSigner_RevertWhen_callerNotRoot(address _caller) public {
@@ -183,12 +183,12 @@ contract MultiSignerTest is BaseTest {
 
         vm.startPrank(ALICE.addr);
         vm.expectEmit();
-        emit MultiSigner.AddSigner(3, createSigner(BOB.addr));
+        emit MultiSignerAuth.AddSigner(3, createSigner(BOB.addr));
         multiSigner.addSigner(createSigner(BOB.addr), 3);
         vm.stopPrank();
 
         assertEq(multiSigner.getSignerCount(), 4);
-        assertEq(multiSigner.getSignerAtIndex(3), createSigner(BOB.addr));
+        assertEq(multiSigner.getSigner(3), createSigner(BOB.addr));
     }
 
     function testFuzz_addSigner_RevertWhen_callerNotRoot(Signer memory _signer, address _caller) public {

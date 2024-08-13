@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.23;
 
+import { decodeAccountSigner } from "./AccountSigner.sol";
+import { decodePasskeySigner } from "./PasskeySigner.sol";
+
 /**
  * @notice An EOA or Passkey signer.
  *
@@ -58,5 +61,24 @@ library SignerLib {
 
     function isEmptyMem(Signer memory signer_) internal pure returns (bool) {
         return signer_.slot1 == ZERO && signer_.slot2 == ZERO;
+    }
+
+    /**
+     * @notice validates if the signature provided by the signer is valid for the hash.
+     */
+    function isValidSignature(
+        Signer memory signer_,
+        bytes32 hash_,
+        bytes memory signature_
+    )
+        internal
+        view
+        returns (bool)
+    {
+        if (isPasskeyMem(signer_)) {
+            return decodePasskeySigner(signer_).isValidSignature(hash_, signature_);
+        } else {
+            return decodeAccountSigner(signer_).isValidSignature(hash_, signature_);
+        }
     }
 }

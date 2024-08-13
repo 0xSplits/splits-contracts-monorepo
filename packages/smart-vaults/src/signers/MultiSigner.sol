@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.23;
 
-import { decodeAccountSigner } from "../signers/AccountSigner.sol";
-import { decodePasskeySigner } from "../signers/PasskeySigner.sol";
 import { Signer } from "../signers/Signer.sol";
 
-/// @notice Storage layout used by this contract.
-/// @dev Can allow up to 256 signers.
-/// @custom:storage-location erc7201:splits.storage.MultiSigner
-struct MultiSignerStorage {
+/**
+ * @notice Multi Signer struct.
+ * @dev Each signer is of type `Signer`.
+ * @dev Can allow up to 256 signers.
+ */
+struct MultiSigner {
     /// @dev Number of unique signatures required to validate a message signed by this contract.
     uint8 threshold;
     /// @dev number of signers
@@ -17,7 +17,7 @@ struct MultiSignerStorage {
     mapping(uint8 => Signer) signers;
 }
 
-using MultiSignerLib for MultiSignerStorage global;
+using MultiSignerLib for MultiSigner global;
 
 /**
  * @title Multi Signer Library
@@ -56,6 +56,21 @@ library MultiSignerLib {
     /*                                  FUNCTIONS                                 */
     /* -------------------------------------------------------------------------- */
 
+    /// @notice Get signer at index from storage.
+    function getSigner(MultiSigner storage $_, uint8 index_) internal view returns (Signer memory) {
+        return $_.signers[index_];
+    }
+
+    /// @notice get threshold from storage.
+    function getThreshold(MultiSigner storage $_) internal view returns (uint8) {
+        return $_.threshold;
+    }
+
+    /// @notice get number of signers from storage.
+    function getSignerCount(MultiSigner storage $_) internal view returns (uint8) {
+        return $_.signerCount;
+    }
+
     /**
      * @notice Sets signer at index in storage.
      *
@@ -65,7 +80,7 @@ library MultiSignerLib {
      * @param signer_ Signer to be set.
      * @param index_ Index to set signer at.
      */
-    function setSigner(MultiSignerStorage storage $_, Signer calldata signer_, uint8 index_) internal {
+    function addSigner(MultiSigner storage $_, Signer calldata signer_, uint8 index_) internal {
         if (signer_.isPasskey()) {
             /// if passkey store signer as is.
             $_.signers[index_] = signer_;
@@ -78,6 +93,33 @@ library MultiSignerLib {
     }
 
     /**
+     * @notice Removes signer at the given `index`.
+     *
+     * @param index_ The index of the signer to be removed.
+     */
+    function removeSigner(MultiSigner storage $_, uint8 index_) internal {
+        delete $_.signers[index_];
+    }
+
+    /**
+     * @notice Updates threshold of the signer set.
+     *
+     * @param threshold_ The new signer set threshold.
+     */
+    function updateThreshold(MultiSigner storage $_, uint8 threshold_) internal {
+        $_.threshold = threshold_;
+    }
+
+    /**
+     * @notice Updates threshold of the signer set.
+     *
+     * @param signerCount_ The new signer set threshold.
+     */
+    function updateSignerCount(MultiSigner storage $_, uint8 signerCount_) internal {
+        $_.signerCount = signerCount_;
+    }
+
+    /**
      * @notice Validates the list of `signers` and `threshold`.
      *
      * @dev Throws error when number of signers is zero or greater than 255.
@@ -87,7 +129,7 @@ library MultiSignerLib {
      * @param threshold_ minimum number of signers required for approval.
      */
     function validateSigners(Signer[] calldata signers_, uint8 threshold_) internal pure {
-        if (signers_.length > 255 || signers_.length == 0) revert InvalidNumberOfSigners();
+        if (signers_.length > type(uint8).max || signers_.length == 0) revert InvalidNumberOfSigners();
 
         uint8 numberOfSigners = uint8(signers_.length);
 
@@ -108,25 +150,6 @@ library MultiSignerLib {
     }
 
     /**
-     * @notice validates if the signature provided by the signer at `signerIndex` is valid for the hash.
-     */
-    function isValidSignature(
-        bytes32 hash_,
-        Signer memory signer_,
-        bytes memory signature_
-    )
-        internal
-        view
-        returns (bool isValid)
-    {
-        if (signer_.isPasskeyMem()) {
-            isValid = decodePasskeySigner(signer_).isValidSignature(hash_, signature_);
-        } else {
-            isValid = decodeAccountSigner(signer_).isValidSignature(hash_, signature_);
-        }
-    }
-
-    /**
      * @notice validates if `hash_` was signed by the signer set present in `$_`
      *
      * @param $_ Storage reference to MultiSigner storage.
@@ -134,7 +157,7 @@ library MultiSignerLib {
      * @param signatures_ List of signatureWrapper
      */
     function isValidSignature(
-        MultiSignerStorage storage $_,
+        MultiSigner storage $_,
         bytes32 hash_,
         SignatureWrapper[] memory signatures_
     )
@@ -146,7 +169,7 @@ library MultiSignerLib {
     }
 
     /**
-     * @notice validates if a pair of hashes was signed by the signer set present in `$_` with in-memory updates
+     * @notice validates if a pair of hashes was signed by the signer set present in `$_`.
      *
      * @param $_ Storage reference to MultiSigner storage.
      * @param frontHash_ blob of data that should be signed by all but the last signer.
@@ -154,7 +177,7 @@ library MultiSignerLib {
      * @param signatures_ List of signatureWrapper
      */
     function isValidSignature(
-        MultiSignerStorage storage $_,
+        MultiSigner storage $_,
         bytes32 frontHash_,
         bytes32 backHash_,
         SignatureWrapper[] memory signatures_
@@ -177,7 +200,7 @@ library MultiSignerLib {
             mask = (1 << signerIndex);
 
             if (
-                isValidSignature(frontHash_, $_.signers[signerIndex], signatures_[i].signatureData)
+                $_.signers[signerIndex].isValidSignature(frontHash_, signatures_[i].signatureData)
                     && alreadySigned & mask == 0
             ) {
                 alreadySigned |= mask;
@@ -190,7 +213,7 @@ library MultiSignerLib {
         mask = (1 << signerIndex);
 
         if (
-            isValidSignature(backHash_, $_.signers[signerIndex], signatures_[i].signatureData)
+            $_.signers[signerIndex].isValidSignature(backHash_, signatures_[i].signatureData)
                 && alreadySigned & mask == 0
         ) {
             alreadySigned |= mask;

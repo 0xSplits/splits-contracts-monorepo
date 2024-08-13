@@ -3,9 +3,9 @@ pragma solidity ^0.8.23;
 
 import { Ownable } from "solady/auth/Ownable.sol";
 import { Signer } from "src/signers/Signer.sol";
-import { MultiSigner } from "src/utils/MultiSigner.sol";
+import { MultiSignerAuth } from "src/utils/MultiSignerAuth.sol";
 
-contract MultiSignerMock is MultiSigner, Ownable {
+contract MultiSignerMock is MultiSignerAuth, Ownable {
     /* -------------------------------------------------------------------------- */
     /*                                  CONSTANTS                                 */
     /* -------------------------------------------------------------------------- */
@@ -35,5 +35,5 @@ contract MultiSignerMock is MultiSigner, Ownable {
         _initializeSigners(_signers, _threshold);
     }
 
-    function _authorize() internal view override(MultiSigner) onlyOwner { }
+    function _authorize() internal view override(MultiSignerAuth) onlyOwner { }
 }

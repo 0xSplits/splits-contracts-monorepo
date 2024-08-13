@@ -5,12 +5,12 @@ import { BaseTest, createSigner, createSigner } from "./Base.t.sol";
 import "@web-authn/../test/Utils.sol";
 import "@web-authn/WebAuthn.sol";
 
-import { MultiSignerLib } from "src/library/MultiSignerLib.sol";
 import { UserOperationLib } from "src/library/UserOperationLib.sol";
+import { MultiSignerLib } from "src/signers/MultiSigner.sol";
 
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { Ownable } from "solady/auth/Ownable.sol";
-import { MultiSigner } from "src/utils/MultiSigner.sol";
+import { MultiSignerAuth } from "src/utils/MultiSignerAuth.sol";
 
 import { Caller } from "src/utils/Caller.sol";
 import { SmartVault } from "src/vault/SmartVault.sol";

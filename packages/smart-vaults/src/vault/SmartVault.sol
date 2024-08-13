@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import { MultiSignerLib, MultiSignerStorage } from "../library/MultiSignerLib.sol";
 import { UserOperationLib } from "../library/UserOperationLib.sol";
+import { MultiSignerLib } from "../signers/MultiSigner.sol";
 import { Signer } from "../signers/Signer.sol";
 import { ERC1271 } from "../utils/ERC1271.sol";
 import { FallbackManager } from "../utils/FallbackManager.sol";
 import { ModuleManager } from "../utils/ModuleManager.sol";
-import { MultiSigner } from "../utils/MultiSigner.sol";
+import { MultiSignerAuth } from "../utils/MultiSignerAuth.sol";
 
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { IAccount } from "account-abstraction/interfaces/IAccount.sol";
@@ -21,7 +21,7 @@ import { UUPSUpgradeable } from "solady/utils/UUPSUpgradeable.sol";
  * @author Splits (https://splits.org)
  * @dev Based on Coinbase's Smart Wallet (https://github.com/coinbase/smart-wallet) and Solady's Smart Wallet.
  */
-contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271, FallbackManager, ModuleManager {
+contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1271, FallbackManager, ModuleManager {
     using UserOperationLib for PackedUserOperation;
 
     /* -------------------------------------------------------------------------- */
@@ -304,7 +304,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
     /// @dev authorizes caller to upgrade the implementation of this contract.
     function _authorizeUpgrade(address) internal view virtual override(UUPSUpgradeable) onlyOwner { }
 
-    function _authorize() internal view override(MultiSigner, FallbackManager, ModuleManager) onlySelf { }
+    function _authorize() internal view override(MultiSignerAuth, FallbackManager, ModuleManager) onlySelf { }
 
     /// @dev Get light user op hash of the Packed user operation.
     function _getLightUserOpHash(PackedUserOperation calldata userOp_) internal view returns (bytes32) {
@@ -313,7 +313,9 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
 
     /// @dev validates if the given hash (ERC1271) was signed by the signers.
     function _isValidSignature(bytes32 hash_, bytes calldata signature_) internal view override returns (bool) {
-        return _getMultiSignerStorage().isValidSignature(hash_, abi.decode(signature_, (ERC1271Signature)).signatures);
+        return _getMultiSignerAuthStorage().signers.isValidSignature(
+            hash_, abi.decode(signature_, (ERC1271Signature)).signatures
+        );
     }
 
     function _validateSingleUserOp(
@@ -359,9 +361,9 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
         view
         returns (uint256 validationData)
     {
-        MultiSignerStorage storage $ = _getMultiSignerStorage();
+        MultiSignerAuthStorage storage $ = _getMultiSignerAuthStorage();
 
-        return $.isValidSignature(lightHash_, hash_, signatures)
+        return $.signers.isValidSignature(lightHash_, hash_, signatures)
             ? UserOperationLib.VALID_SIGNATURE
             : UserOperationLib.INVALID_SIGNATURE;
     }
