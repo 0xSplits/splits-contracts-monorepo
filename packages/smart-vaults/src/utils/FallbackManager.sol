@@ -95,7 +95,7 @@ abstract contract FallbackManager is Receiver {
      * @param sig_ The function signature for which the handler is being set.
      * @param handler_ The address of the handler contract.
      */
-    function updateFallbackHandler(bytes4 sig_, address handler_) public {
+    function updateFallbackHandler(bytes4 sig_, address handler_) external {
         _authorize();
 
         _getFallbackManagerStorage().fallbackHandler[sig_] = handler_;
