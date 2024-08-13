@@ -286,7 +286,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
      * @param initCode_ The creation bytecode.
      * @return newContract The 20-byte address where the contract was deployed.
      */
-    function deployCreate(bytes memory initCode_) public payable onlySelf returns (address newContract) {
+    function deployCreate(bytes memory initCode_) external payable onlySelf returns (address newContract) {
         assembly ("memory-safe") {
             newContract := create(callvalue(), add(initCode_, 0x20), mload(initCode_))
         }
@@ -359,11 +359,10 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
         returns (uint256 validationData)
     {
         MultiSignerStorage storage $ = _getMultiSignerStorage();
-        if ($.isValidSignature(lightHash_, hash_, signatures)) {
-            return UserOperationLib.VALID_SIGNATURE;
-        } else {
-            return UserOperationLib.INVALID_SIGNATURE;
-        }
+
+        return $.isValidSignature(lightHash_, hash_, signatures)
+            ? UserOperationLib.VALID_SIGNATURE
+            : UserOperationLib.INVALID_SIGNATURE;
     }
 
     function _getSignatureType(bytes1 signatureType_) internal pure returns (SignatureTypes) {
