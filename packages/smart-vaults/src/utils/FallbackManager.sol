@@ -51,6 +51,10 @@ abstract contract FallbackManager is Receiver {
     /*                          EXTERNAL/PUBLIC FUNCTIONS                         */
     /* -------------------------------------------------------------------------- */
 
+    // how do we want to handle the 3 sigs handled by `receiverFallback`?
+    // i think either those sigs should be overwritable by storage or
+    // we should prevent user from writing to those sigs
+    // atm we're just kind of silently failing (writing to the handler but then it can't access it)
     /**
      * @dev Fallback function to handle unsupported function calls.
      * It checks if a handler is set for the given function signature and

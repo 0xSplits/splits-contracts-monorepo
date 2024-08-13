@@ -8,7 +8,7 @@ import { Signer } from "../signers/Signer.sol";
  * @title Multi Signer
  * @author Splits
  * @notice Auth contract allowing multiple signers, each identified as bytes with a specified threshold.
- * @dev Base on Coinbase's Smart Wallet Multi Ownable (https://github.com/coinbase/smart-wallet)
+ * @dev Based on Coinbase's Smart Wallet Multi Ownable (https://github.com/coinbase/smart-wallet)
  */
 abstract contract MultiSigner {
     /* -------------------------------------------------------------------------- */
@@ -132,16 +132,14 @@ abstract contract MultiSigner {
     function removeSigner(uint8 index_) public onlyAuthorized {
         MultiSignerStorage storage $ = _getMultiSignerStorage();
 
-        uint256 signerCount_ = $.signerCount;
-
+        uint8 signerCount_ = $.signerCount;
         if (signerCount_ == $.threshold) revert InvalidThreshold();
 
         Signer memory signer = $.signers[index_];
-
         if (signer.isEmptyMem()) revert SignerNotPresent(index_);
 
         delete $.signers[index_];
-        $.signerCount -= 1;
+        $.signerCount = signerCount_ - 1;
 
         emit RemoveSigner(index_, signer);
     }
@@ -161,6 +159,7 @@ abstract contract MultiSigner {
         if ($.signerCount < threshold_) revert InvalidThreshold();
 
         $.threshold = threshold_;
+
         emit UpdateThreshold(threshold_);
     }
 
@@ -190,7 +189,7 @@ abstract contract MultiSigner {
      * @param threshold_ The number of signers needed for approval.
      */
     function _initializeSigners(Signer[] calldata signers_, uint8 threshold_) internal virtual {
-        if (signers_.length > 255 || signers_.length == 0) revert InvalidNumberOfSigners();
+        if (signers_.length > type(uint8).max || signers_.length == 0) revert InvalidNumberOfSigners();
 
         uint8 numSigners = uint8(signers_.length);
 
@@ -206,6 +205,7 @@ abstract contract MultiSigner {
 
         $.signerCount = numSigners;
         $.threshold = threshold_;
+
         emit UpdateThreshold(threshold_);
     }
 }

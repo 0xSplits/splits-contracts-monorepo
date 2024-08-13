@@ -28,6 +28,7 @@ abstract contract ERC1271 is EIP712 {
      *
      * keccak256("\x19Ethereum Signed Message:\n" || len(someMessage) || someMessage),
      */
+    // is SplitMessage right?
     bytes32 private constant _MESSAGE_TYPEHASH = keccak256("SplitMessage(bytes32 hash)");
 
     /* -------------------------------------------------------------------------- */

@@ -32,7 +32,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
     enum SignatureTypes {
         SingleUserOp,
         MerkelizedUserOp,
-        ERC1271
+        ERC1271 // do we need these as a separate type?
     }
 
     /// @notice Single User Op Signature Scheme.
@@ -52,12 +52,12 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
         bytes32 merkleTreeRoot;
         /// @notice Proof to verify if the userOp hash is present in the root.
         bytes32[] merkleProof;
-        /// @notice abi.encode(MultiSignerSignatureLib.SignatureWrapper[]), where threshold - 1
-        /// signatures will be verified against the `lightMerkleTreeRoot` and the final signature will be verified
-        /// against the `merkleTreeRoot`.
+        /// @notice threshold - 1 signatures will be verified against the `lightMerkleTreeRoot`
+        /// and the final signature will be verified against the `merkleTreeRoot`.
         MultiSignerLib.SignatureWrapper[] signatures;
     }
 
+    // do we need this as a separate type?
     /// @notice ERC1271 Signature scheme
     struct ERC1271Signature {
         MultiSignerLib.SignatureWrapper[] signatures;
@@ -74,6 +74,8 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
     /*                                   ERRORS                                   */
     /* -------------------------------------------------------------------------- */
 
+    // vaguely wonder if we aren't better off just using a generic Unauthorized() error here
+    // that's what gets thrown in _checkOwner() anyway i think
     /// @notice Thrown when caller is not entry point.
     error OnlyEntryPoint();
 
@@ -260,7 +262,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
     function executeBatch(Call[] calldata calls_) external payable onlyEntryPointOrOwner {
         uint256 numCalls = calls_.length;
         for (uint256 i; i < numCalls; i++) {
-            _call(calls_[i].target, calls_[i].value, calls_[i].data);
+            _call(calls_[i]);
         }
     }
 
@@ -291,7 +293,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
      * @param initCode_ The creation bytecode.
      * @return newContract The 20-byte address where the contract was deployed.
      */
-    function deployCreate(bytes memory initCode_) public payable onlySelf returns (address newContract) {
+    function deployCreate(bytes memory initCode_) external payable onlySelf returns (address newContract) {
         assembly ("memory-safe") {
             newContract := create(callvalue(), add(initCode_, 0x20), mload(initCode_))
         }
@@ -364,11 +366,9 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271,
         returns (uint256 validationData)
     {
         MultiSignerStorage storage $ = _getMultiSignerStorage();
-        if ($.isValidSignature(lightHash_, hash_, signatures)) {
-            return UserOperationLib.VALID_SIGNATURE;
-        } else {
-            return UserOperationLib.INVALID_SIGNATURE;
-        }
+        return $.isValidSignature(lightHash_, hash_, signatures) ?
+            UserOperationLib.VALID_SIGNATURE :
+            UserOperationLib.INVALID_SIGNATURE;
     }
 
     function _getSignatureType(bytes1 signatureType_) internal pure returns (SignatureTypes) {

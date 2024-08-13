@@ -71,7 +71,7 @@ abstract contract ModuleManager is Caller {
      *
      * @param module_ address of module.
      */
-    function enableModule(address module_) public {
+    function enableModule(address module_) external {
         _authorize();
 
         _enableModule(module_);
@@ -86,7 +86,7 @@ abstract contract ModuleManager is Caller {
      * @param setupContract_ address of contract to call to setup module.
      * @param data_ data passed to the setupContract.
      */
-    function setupAndEnableModule(address module_, address setupContract_, bytes calldata data_) public {
+    function setupAndEnableModule(address module_, address setupContract_, bytes calldata data_) external {
         _authorize();
 
         _enableModule(module_);
@@ -101,7 +101,7 @@ abstract contract ModuleManager is Caller {
      *
      * @param module_ address of module.
      */
-    function disableModule(address module_) public {
+    function disableModule(address module_) external {
         _authorize();
 
         _disableModule(module_);
@@ -116,7 +116,7 @@ abstract contract ModuleManager is Caller {
      * @param teardownContract_ address of contract to call to teardown module.
      * @param data_ data passed to the teardown contract.
      */
-    function teardownAndDisableModule(address module_, address teardownContract_, bytes calldata data_) public {
+    function teardownAndDisableModule(address module_, address teardownContract_, bytes calldata data_) external {
         _authorize();
 
         _disableModule(module_);
@@ -133,7 +133,7 @@ abstract contract ModuleManager is Caller {
      * @param call_ Call to execute from the account.
      */
     function executeFromModule(Call calldata call_) external onlyModule {
-        _call(call_.target, call_.value, call_.data);
+        _call(call_);
 
         emit ExecutedTxFromModule(msg.sender, call_);
     }
@@ -161,7 +161,7 @@ abstract contract ModuleManager is Caller {
      *
      * @param module_ address of module.
      */
-    function isModuleEnabled(address module_) public view returns (bool) {
+    function isModuleEnabled(address module_) external view returns (bool) {
         return _getModuleManagerStorage().isModule[module_];
     }
 
@@ -169,13 +169,13 @@ abstract contract ModuleManager is Caller {
     /*                         INTERNAL/PRIVATE FUNCTIONS                         */
     /* -------------------------------------------------------------------------- */
 
-    function _enableModule(address module_) public {
+    function _enableModule(address module_) internal {
         _getModuleManagerStorage().isModule[module_] = true;
 
         emit EnabledModule(module_);
     }
 
-    function _disableModule(address module_) public {
+    function _disableModule(address module_) internal {
         _getModuleManagerStorage().isModule[module_] = false;
 
         emit DisabledModule(module_);
