@@ -2,11 +2,13 @@
 pragma solidity ^0.8.23;
 
 import { BaseTest } from "./Base.t.sol";
+
+import { Signer, createSigner, createSigner } from "src/signers/Signer.sol";
 import { SmartVault } from "src/vault/SmartVault.sol";
 import { SmartVaultFactory } from "src/vault/SmartVaultFactory.sol";
 
 contract SmartVaultFactoryTest is BaseTest {
-    bytes[] signers;
+    Signer[] signers;
 
     struct PublicKey {
         uint256 x;
@@ -22,9 +24,9 @@ contract SmartVaultFactoryTest is BaseTest {
 
         MIKE = PublicKey({ x: 1, y: 2 });
 
-        signers.push(abi.encode(ALICE.addr));
-        signers.push(abi.encode(BOB.addr));
-        signers.push(abi.encode(MIKE.x, MIKE.y));
+        signers.push(createSigner(ALICE.addr));
+        signers.push(createSigner(BOB.addr));
+        signers.push(createSigner(MIKE.x, MIKE.y));
     }
 
     function test_implementation() public view {

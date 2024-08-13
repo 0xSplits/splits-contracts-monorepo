@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+import { MultiSignerLib } from "../library/MultiSignerLib.sol";
+import { Signer } from "../signers/Signer.sol";
 import { SmartVault } from "./SmartVault.sol";
 
-import { MultiSignerLib } from "../library/MultiSignerLib.sol";
 import { LibClone } from "solady/utils/LibClone.sol";
 
 /**
@@ -23,7 +24,7 @@ contract SmartVaultFactory {
     /*                                   EVENTS                                   */
     /* -------------------------------------------------------------------------- */
 
-    event SmartVaultCreated(address indexed vault, address owner, bytes[] signers, uint8 threshold, uint256 salt);
+    event SmartVaultCreated(address indexed vault, address owner, Signer[] signers, uint8 threshold, uint256 salt);
 
     /* -------------------------------------------------------------------------- */
     /*                                 CONSTRUCTOR                                */
@@ -44,7 +45,7 @@ contract SmartVaultFactory {
      * @dev Deployed as an ERC-1967 proxy.
      *
      * @param owner_ Owner of the smart vault.
-     * @param signers_ Array of initial signers. Each item should be an ABI encoded address or 64 byte public key.
+     * @param signers_ Array of initial signers. Each signer is of type `Signer`.
      * @param threshold_ Number of approvals needed for a valid user op/hash.
      * @param salt_  The salt of the account, a caller defined value which allows multiple accounts
      *               with the same `signers` to exist at different addresses.
@@ -53,7 +54,7 @@ contract SmartVaultFactory {
      */
     function createAccount(
         address owner_,
-        bytes[] calldata signers_,
+        Signer[] calldata signers_,
         uint8 threshold_,
         uint256 salt_
     )
@@ -87,7 +88,7 @@ contract SmartVaultFactory {
      * @dev Reverts when the initial configuration of signers is invalid.
      *
      * @param owner_ Owner of the smart vault.
-     * @param signers_ Array of initial signers. Each item should be an ABI encoded address or 64 byte public key.
+     * @param signers_ Array of initial signers. Each signer is of type `Signer`.
      * @param threshold_ Number of approvals needed for a valid user op/hash.
      * @param salt_  The salt provided to `createAccount()`.
      *
@@ -95,7 +96,7 @@ contract SmartVaultFactory {
      */
     function getAddress(
         address owner_,
-        bytes[] calldata signers_,
+        Signer[] calldata signers_,
         uint8 threshold_,
         uint256 salt_
     )
@@ -126,7 +127,7 @@ contract SmartVaultFactory {
     /// @notice Returns the create2 salt for `LibClone.predictDeterministicAddress`
     function _getSalt(
         address owner_,
-        bytes[] calldata signers_,
+        Signer[] calldata signers_,
         uint8 threshold_,
         uint256 salt_
     )

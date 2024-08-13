@@ -3,6 +3,21 @@ pragma solidity ^0.8.23;
 
 import { decodeAccountSigner } from "../signers/AccountSigner.sol";
 import { decodePasskeySigner } from "../signers/PasskeySigner.sol";
+import { Signer } from "../signers/Signer.sol";
+
+/// @notice Storage layout used by this contract.
+/// @dev Can allow up to 256 signers.
+/// @custom:storage-location erc7201:splits.storage.MultiSigner
+struct MultiSignerStorage {
+    /// @dev Number of unique signatures required to validate a message signed by this contract.
+    uint8 threshold;
+    /// @dev number of signers
+    uint8 signerCount;
+    /// @dev signers of type `Signer`;
+    mapping(uint8 => Signer) signers;
+}
+
+using MultiSignerLib for MultiSignerStorage global;
 
 /**
  * @title Multi Signer Library
@@ -10,30 +25,8 @@ import { decodePasskeySigner } from "../signers/PasskeySigner.sol";
  */
 library MultiSignerLib {
     /* -------------------------------------------------------------------------- */
-    /*                                  CONSTANTS                                 */
-    /* -------------------------------------------------------------------------- */
-
-    // Size in bytes for an externally owned account (EOA) signer.
-    uint256 public constant EOA_SIGNER_SIZE = 32;
-
-    // Size in bytes for a passkey-based signer.
-    uint256 public constant PASSKEY_SIGNER_SIZE = 64;
-
-    /* -------------------------------------------------------------------------- */
     /*                                   STRUCTS                                  */
     /* -------------------------------------------------------------------------- */
-
-    /// @notice Storage layout used by this contract.
-    /// @dev Can allow up to 256 signers.
-    /// @custom:storage-location erc7201:splits.storage.MultiSigner
-    struct MultiSignerStorage {
-        /// @dev Number of unique signatures required to validate a message signed by this contract.
-        uint8 threshold;
-        /// @dev number of signers
-        uint8 signerCount;
-        /// @dev signer bytes;
-        mapping(uint8 => bytes) signers;
-    }
 
     struct SignatureWrapper {
         /// @dev The index of the signer that signed, see `MultiSigner.signerAtIndex`
@@ -49,19 +42,8 @@ library MultiSignerLib {
     /*                                   ERRORS                                   */
     /* -------------------------------------------------------------------------- */
 
-    /**
-     * @notice Thrown when a provided signer is neither 64 bytes long (for public key)
-     *         nor a ABI encoded address.
-     * @param signer The invalid signer.
-     */
-    error InvalidSignerBytesLength(bytes signer);
-
-    /**
-     * @notice Thrown if a provided signer is 32 bytes long but does not fit in an `address` type or if `signer` has
-     * code.
-     * @param signer The invalid signer.
-     */
-    error InvalidEthereumAddressOwner(bytes signer);
+    /// @notice Thrown when Signer is invalid.
+    error InvalidSigner(Signer signer);
 
     /// @notice Thrown when threshold is greater than number of owners or when zero.
     error InvalidThreshold();
@@ -74,15 +56,36 @@ library MultiSignerLib {
     /* -------------------------------------------------------------------------- */
 
     /**
+     * @notice Sets signer at index in storage.
+     *
+     * @dev Throws error when signer is not EOA or Passkey.
+     *
+     * @param $_ multi signer storage reference.
+     * @param signer_ Signer to be set.
+     * @param index_ Index to set signer at.
+     */
+    function setSigner(MultiSignerStorage storage $_, Signer calldata signer_, uint8 index_) internal {
+        if (signer_.isPasskey()) {
+            /// if passkey store signer as is.
+            $_.signers[index_] = signer_;
+        } else if (signer_.isEOA()) {
+            /// if EOA only store slot1 since slot2 is zero.
+            $_.signers[index_].slot1 = signer_.slot1;
+        } else {
+            revert InvalidSigner(signer_);
+        }
+    }
+
+    /**
      * @notice Validates the list of `signers` and `threshold`.
      *
      * @dev Throws error when number of signers is zero or greater than 255.
      * @dev Throws error if `threshold` is zero or greater than number of signers.
      *
-     * @param signers_ abi encoded list of signers (passkey/eoa).
+     * @param signers_ List of Signer(s).
      * @param threshold_ minimum number of signers required for approval.
      */
-    function validateSigners(bytes[] calldata signers_, uint8 threshold_) internal pure {
+    function validateSigners(Signer[] calldata signers_, uint8 threshold_) internal pure {
         if (signers_.length > 255 || signers_.length == 0) revert InvalidNumberOfSigners();
 
         uint8 numberOfSigners = uint8(signers_.length);
@@ -97,17 +100,10 @@ library MultiSignerLib {
     /**
      * @notice Validates the signer.
      *
-     * @dev Throws error when length of signer is neither 32 or 64.
-     * @dev Throws error if signer is invalid address.
+     * @dev Throws error when signer is neither an EOA or a passkey.
      */
-    function validateSigner(bytes memory signer_) internal pure {
-        if (signer_.length != EOA_SIGNER_SIZE && signer_.length != PASSKEY_SIGNER_SIZE) {
-            revert InvalidSignerBytesLength(signer_);
-        }
-
-        if (signer_.length == EOA_SIGNER_SIZE) {
-            if (uint256(bytes32(signer_)) > type(uint160).max) revert InvalidEthereumAddressOwner(signer_);
-        }
+    function validateSigner(Signer calldata signer_) internal pure {
+        if (!signer_.isValid()) revert InvalidSigner(signer_);
     }
 
     /**
@@ -115,17 +111,17 @@ library MultiSignerLib {
      */
     function isValidSignature(
         bytes32 hash_,
-        bytes memory signer_,
+        Signer memory signer_,
         bytes memory signature_
     )
         internal
         view
         returns (bool isValid)
     {
-        if (signer_.length == EOA_SIGNER_SIZE) {
-            isValid = decodeAccountSigner(signer_).isValidSignature(hash_, signature_);
-        } else if (signer_.length == PASSKEY_SIGNER_SIZE) {
+        if (signer_.isPasskeyMem()) {
             isValid = decodePasskeySigner(signer_).isValidSignature(hash_, signature_);
+        } else {
+            isValid = decodeAccountSigner(signer_).isValidSignature(hash_, signature_);
         }
     }
 
