@@ -5,6 +5,7 @@ import { Caller } from "./Caller.sol";
 
 /**
  * @title Module Manager
+ * @custom:security-contract security@splits.org
  * @author Splits (https://splits.org)
  * @notice Manages modules of a smart contract. Gives each module the ability to execute `Calls` from this account.
  * @dev Account owners should be careful when adding a module.

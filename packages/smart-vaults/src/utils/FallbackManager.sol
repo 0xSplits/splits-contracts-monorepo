@@ -5,6 +5,7 @@ import { Receiver } from "solady/accounts/Receiver.sol";
 
 /**
  * @title Fallback Manager - Fallback call handler for a smart contract.
+ * @custom:security-contract security@splits.org
  * @author Splits (https://splits.org)
  * @dev By defaults supports all ERC721 and ERC1155 token safety callbacks.
  */

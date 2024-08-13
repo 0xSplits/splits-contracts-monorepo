@@ -9,8 +9,9 @@ import { LibClone } from "solady/utils/LibClone.sol";
 
 /**
  * @title Splits Smart Accounts/Vaults Factory
- * @notice based on Coinbase's Smart Wallet Factory.
+ * @custom:security-contract security@splits.org
  * @author Splits (https://splits.org)
+ * @notice based on Coinbase's Smart Wallet Factory.
  */
 contract SmartVaultFactory {
     /* -------------------------------------------------------------------------- */

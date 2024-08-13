@@ -20,6 +20,7 @@ using PasskeySignerLib for PasskeySigner global;
 
 /**
  * @notice Library for verifying PasskeySigner signatures.
+ * @custom:security-contract security@splits.org
  * @author Splits (https://splits.org)
  */
 library PasskeySignerLib {

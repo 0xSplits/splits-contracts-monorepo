@@ -23,6 +23,11 @@ function createSigner(uint256 x_, uint256 y_) pure returns (Signer memory) {
 
 using SignerLib for Signer global;
 
+/**
+ * @notice Signer library
+ * @custom:security-contract security@splits.org
+ * @author Splits (https://splits.org/)
+ */
 library SignerLib {
     /* -------------------------------------------------------------------------- */
     /*                                  CONSTANTS                                 */

@@ -17,8 +17,9 @@ import { UUPSUpgradeable } from "solady/utils/UUPSUpgradeable.sol";
 
 /**
  * @title Splits Smart Accounts/Vaults
- * @notice Based on Coinbase's Smart Wallet (https://github.com/coinbase/smart-wallet) and Solady's Smart Wallet.
+ * @custom:security-contract security@splits.org
  * @author Splits (https://splits.org)
+ * @dev Based on Coinbase's Smart Wallet (https://github.com/coinbase/smart-wallet) and Solady's Smart Wallet.
  */
 contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSigner, ERC1271, FallbackManager, ModuleManager {
     using UserOperationLib for PackedUserOperation;

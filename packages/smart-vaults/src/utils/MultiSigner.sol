@@ -6,6 +6,7 @@ import { Signer } from "../signers/Signer.sol";
 
 /**
  * @title Multi Signer
+ * @custom:security-contract security@splits.org
  * @author Splits (https://splits.org)
  * @notice Auth contract allowing multiple signers, each identified as `Signer` with a specified threshold.
  * @dev Based on Coinbase's Smart Wallet Multi Ownable (https://github.com/coinbase/smart-wallet)

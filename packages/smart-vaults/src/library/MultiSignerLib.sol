@@ -21,6 +21,7 @@ using MultiSignerLib for MultiSignerStorage global;
 
 /**
  * @title Multi Signer Library
+ * @custom:security-contract security@splits.org
  * @author Splits (https://splits.org)
  */
 library MultiSignerLib {

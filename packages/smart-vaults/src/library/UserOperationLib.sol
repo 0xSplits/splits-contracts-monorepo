@@ -5,6 +5,7 @@ import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOp
 
 /**
  * @title User operation Library
+ * @custom:security-contract security@splits.org
  * @author Splits (https://splits.org)
  * @notice Forked from
  * https://github.com/eth-infinitism/account-abstraction/blob/develop/contracts/core/UserOperationLib.sol

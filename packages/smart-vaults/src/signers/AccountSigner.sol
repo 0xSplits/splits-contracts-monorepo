@@ -17,6 +17,7 @@ using AccountSignerLib for AccountSigner global;
 
 /**
  * @notice Library for verifying AccountSigner signatures.
+ * @custom:security-contract security@splits.org
  * @author Splits (https://splits.org)
  */
 library AccountSignerLib {

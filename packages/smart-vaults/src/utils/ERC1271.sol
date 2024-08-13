@@ -5,6 +5,7 @@ import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
 /**
  * @title ERC-1271
+ * @custom:security-contract security@splits.org
  * @author Splits (https://splits.org)
  * @notice Based on https://github.com/coinbase/smart-wallet/blob/main/src/ERC1271.sol
  * @notice Abstract ERC-1271 implementation (based on Solady's) with guards to handle the same
