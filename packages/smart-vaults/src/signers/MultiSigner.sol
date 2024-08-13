@@ -61,22 +61,22 @@ library MultiSignerLib {
         return $_.signers[index_];
     }
 
-    /// @notice get threshold from storage.
+    /// @notice Get threshold from storage.
     function getThreshold(MultiSigner storage $_) internal view returns (uint8) {
         return $_.threshold;
     }
 
-    /// @notice get number of signers from storage.
+    /// @notice Get number of signers from storage.
     function getSignerCount(MultiSigner storage $_) internal view returns (uint8) {
         return $_.signerCount;
     }
 
     /**
-     * @notice Sets signer at index in storage.
+     * @notice Adds signer at index in storage.
      *
      * @dev Throws error when signer is not EOA or Passkey.
      *
-     * @param $_ multi signer storage reference.
+     * @param $_ Multi signer storage reference.
      * @param signer_ Signer to be set.
      * @param index_ Index to set signer at.
      */
@@ -95,6 +95,7 @@ library MultiSignerLib {
     /**
      * @notice Removes signer at the given `index`.
      *
+     * @param $_ Multi signer storage reference.
      * @param index_ The index of the signer to be removed.
      */
     function removeSigner(MultiSigner storage $_, uint8 index_) internal {
@@ -104,6 +105,7 @@ library MultiSignerLib {
     /**
      * @notice Updates threshold of the signer set.
      *
+     * @param $_ Multi signer storage reference.
      * @param threshold_ The new signer set threshold.
      */
     function updateThreshold(MultiSigner storage $_, uint8 threshold_) internal {
@@ -111,9 +113,10 @@ library MultiSignerLib {
     }
 
     /**
-     * @notice Updates threshold of the signer set.
+     * @notice Updates signer count of the signer set.
      *
-     * @param signerCount_ The new signer set threshold.
+     * @param $_ Multi signer storage reference.
+     * @param signerCount_ The new signer count.
      */
     function updateSignerCount(MultiSigner storage $_, uint8 signerCount_) internal {
         $_.signerCount = signerCount_;
@@ -152,7 +155,7 @@ library MultiSignerLib {
     /**
      * @notice validates if `hash_` was signed by the signer set present in `$_`
      *
-     * @param $_ Storage reference to MultiSigner storage.
+     * @param $_ Multi signer storage reference.
      * @param hash_ blob of data that needs to be verified.
      * @param signatures_ List of signatureWrapper
      */
@@ -171,7 +174,7 @@ library MultiSignerLib {
     /**
      * @notice validates if a pair of hashes was signed by the signer set present in `$_`.
      *
-     * @param $_ Storage reference to MultiSigner storage.
+     * @param $_ Multi signer storage reference.
      * @param frontHash_ blob of data that should be signed by all but the last signer.
      * @param backHash_ blob of data that should be signed by the last signer.
      * @param signatures_ List of signatureWrapper
