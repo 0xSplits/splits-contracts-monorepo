@@ -4,6 +4,7 @@ pragma solidity ^0.8.23;
 import { BaseTest, createSigner, createSigner } from "./Base.t.sol";
 import "@web-authn/../test/Utils.sol";
 import "@web-authn/WebAuthn.sol";
+import { FCL_Elliptic_ZZ } from "FreshCryptoLib/FCL_elliptic.sol";
 
 import { UserOperationLib } from "src/library/UserOperationLib.sol";
 import { MultiSignerLib } from "src/signers/MultiSigner.sol";
@@ -293,6 +294,39 @@ contract SmartVaultTest is BaseTest {
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
+    }
+
+    function testFuzz_validateUserOp_singleUserOp_singlePasskey_dummySignature(
+        PackedUserOperation calldata _userOp,
+        uint256 _missingAccountsFund
+    )
+        public
+    {
+        vm.deal(address(vault), _missingAccountsFund);
+
+        bytes32 hash = getUserOpHash(_userOp);
+        WebAuthnInfo memory webAuthn = Utils.getWebAuthnStruct(hash);
+
+        MultiSignerLib.SignatureWrapper[] memory sigs = new MultiSignerLib.SignatureWrapper[](1);
+        sigs[0] = MultiSignerLib.SignatureWrapper(
+            2,
+            abi.encode(
+                WebAuthn.WebAuthnAuth({
+                    authenticatorData: webAuthn.authenticatorData,
+                    clientDataJSON: webAuthn.clientDataJSON,
+                    typeIndex: 1,
+                    challengeIndex: 23,
+                    r: (FCL_Elliptic_ZZ.n / 2) - 1,
+                    s: (FCL_Elliptic_ZZ.n / 2) - 1
+                })
+            )
+        );
+
+        PackedUserOperation memory userOp = _userOp;
+        userOp.signature = getUserOpSignature(sigs);
+
+        vm.prank(ENTRY_POINT);
+        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 1);
     }
 
     function testFuzz_validateUserOp_singleUserOp_RevertsWhen_emptySignatures(
