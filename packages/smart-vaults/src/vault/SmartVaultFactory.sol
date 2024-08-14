@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import { MultiSignerLib } from "../library/MultiSignerLib.sol";
+import { MultiSignerLib } from "../signers/MultiSigner.sol";
 import { Signer } from "../signers/Signer.sol";
 import { SmartVault } from "./SmartVault.sol";
 

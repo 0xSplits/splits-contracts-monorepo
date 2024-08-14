@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.23;
 
-import { MultiSignerLib, MultiSignerStorage } from "../library/MultiSignerLib.sol";
+import { MultiSigner } from "../signers/MultiSigner.sol";
 import { Signer } from "../signers/Signer.sol";
 
 /**
- * @title Multi Signer
+ * @title Multi Signer Auth
  * @custom:security-contract security@splits.org
  * @author Splits (https://splits.org)
  * @notice Auth contract allowing multiple signers, each identified as `Signer` with a specified threshold.
  * @dev Based on Coinbase's Smart Wallet Multi Ownable (https://github.com/coinbase/smart-wallet)
  */
-abstract contract MultiSigner {
+abstract contract MultiSignerAuth {
     /* -------------------------------------------------------------------------- */
     /*                                  CONSTANTS                                 */
     /* -------------------------------------------------------------------------- */
@@ -19,11 +19,20 @@ abstract contract MultiSigner {
     /**
      * @dev Slot for the `MultiSignerStorage` struct in storage.
      *      Computed from
-     *      keccak256(abi.encode(uint256(keccak256("splits.storage.MultiSigner")) - 1)) & ~bytes32(uint256(0xff))
+     *      keccak256(abi.encode(uint256(keccak256("splits.storage.multiSignerAuth")) - 1)) & ~bytes32(uint256(0xff))
      *      Follows ERC-7201 (see https://eips.ethereum.org/EIPS/eip-7201).
      */
-    bytes32 private constant _MUTLI_SIGNER_STORAGE_LOCATION =
-        0xc6b44c835744ff7e5272b762d148484b103b956d9f16ac625b855244e8132a00;
+    bytes32 private constant _MUTLI_SIGNER_AUTH_STORAGE_LOCATION =
+        0x3e5431599761dc1a6f375d94085bdcd73bc8fa7c6b3d455d31679f3080214700;
+
+    /* -------------------------------------------------------------------------- */
+    /*                                   STRUCT                                   */
+    /* -------------------------------------------------------------------------- */
+
+    /// @custom:storage-location erc7201:splits.storage.multiSignerAuth
+    struct MultiSignerAuthStorage {
+        MultiSigner signers;
+    }
 
     /* -------------------------------------------------------------------------- */
     /*                                   ERRORS                                   */
@@ -85,18 +94,18 @@ abstract contract MultiSigner {
     /* -------------------------------------------------------------------------- */
 
     /// @notice Returns the owner bytes at the given `index`.
-    function getSignerAtIndex(uint8 index_) public view virtual returns (Signer memory) {
-        return _getMultiSignerStorage().signers[index_];
+    function getSigner(uint8 index_) public view virtual returns (Signer memory) {
+        return _getMultiSignerAuthStorage().signers.getSigner(index_);
     }
 
     /// @notice Returns the current number of signers
-    function getSignerCount() public view virtual returns (uint256) {
-        return _getMultiSignerStorage().signerCount;
+    function getSignerCount() public view virtual returns (uint8) {
+        return _getMultiSignerAuthStorage().signers.getSignerCount();
     }
 
     /// @notice Returns the threshold
     function getThreshold() public view virtual returns (uint8) {
-        return _getMultiSignerStorage().threshold;
+        return _getMultiSignerAuthStorage().signers.getThreshold();
     }
 
     /* -------------------------------------------------------------------------- */
@@ -111,13 +120,13 @@ abstract contract MultiSigner {
      * @param signer_ The owner raw bytes to register.
      * @param index_ The index to register the signer.
      */
-    function addSigner(Signer calldata signer_, uint8 index_) public onlyAuthorized {
-        MultiSignerStorage storage $ = _getMultiSignerStorage();
+    function addSigner(Signer calldata signer_, uint8 index_) external onlyAuthorized {
+        MultiSignerAuthStorage storage $ = _getMultiSignerAuthStorage();
 
-        if (!$.signers[index_].isEmptyMem()) revert SignerAlreadyPresent(index_);
+        if (!$.signers.getSigner(index_).isEmptyMem()) revert SignerAlreadyPresent(index_);
 
-        $.setSigner(signer_, index_);
-        $.signerCount += 1;
+        $.signers.addSigner(signer_, index_);
+        $.signers.updateSignerCount($.signers.getSignerCount() + 1);
 
         emit AddSigner(index_, signer_);
     }
@@ -130,19 +139,19 @@ abstract contract MultiSigner {
      *
      * @param index_ The index of the signer to be removed.
      */
-    function removeSigner(uint8 index_) public onlyAuthorized {
-        MultiSignerStorage storage $ = _getMultiSignerStorage();
+    function removeSigner(uint8 index_) external onlyAuthorized {
+        MultiSignerAuthStorage storage $ = _getMultiSignerAuthStorage();
 
-        uint8 signerCount = $.signerCount;
+        uint8 signerCount = $.signers.getSignerCount();
 
-        if (signerCount == $.threshold) revert InvalidThreshold();
+        if (signerCount == $.signers.getThreshold()) revert InvalidThreshold();
 
-        Signer memory signer = $.signers[index_];
+        Signer memory signer = $.signers.getSigner(index_);
 
         if (signer.isEmptyMem()) revert SignerNotPresent(index_);
 
-        delete $.signers[index_];
-        $.signerCount = signerCount - 1;
+        $.signers.removeSigner(index_);
+        $.signers.updateSignerCount(signerCount - 1);
 
         emit RemoveSigner(index_, signer);
     }
@@ -155,13 +164,13 @@ abstract contract MultiSigner {
      *
      * @param threshold_ The new signer set threshold.
      */
-    function updateThreshold(uint8 threshold_) public onlyAuthorized {
+    function updateThreshold(uint8 threshold_) external onlyAuthorized {
         if (threshold_ == 0) revert InvalidThreshold();
 
-        MultiSignerStorage storage $ = _getMultiSignerStorage();
-        if ($.signerCount < threshold_) revert InvalidThreshold();
+        MultiSignerAuthStorage storage $ = _getMultiSignerAuthStorage();
+        if ($.signers.getSignerCount() < threshold_) revert InvalidThreshold();
 
-        $.threshold = threshold_;
+        $.signers.updateThreshold(threshold_);
 
         emit UpdateThreshold(threshold_);
     }
@@ -173,9 +182,9 @@ abstract contract MultiSigner {
     function _authorize() internal virtual;
 
     /// @notice Helper function to get storage reference to the `MultiSignerStorage` struct.
-    function _getMultiSignerStorage() internal pure returns (MultiSignerStorage storage $) {
+    function _getMultiSignerAuthStorage() internal pure returns (MultiSignerAuthStorage storage $) {
         assembly ("memory-safe") {
-            $.slot := _MUTLI_SIGNER_STORAGE_LOCATION
+            $.slot := _MUTLI_SIGNER_AUTH_STORAGE_LOCATION
         }
     }
 
@@ -198,16 +207,16 @@ abstract contract MultiSigner {
 
         if (numSigners < threshold_ || threshold_ < 1) revert InvalidThreshold();
 
-        MultiSignerStorage storage $ = _getMultiSignerStorage();
+        MultiSignerAuthStorage storage $ = _getMultiSignerAuthStorage();
 
         for (uint8 i; i < numSigners; i++) {
-            $.setSigner(signers_[i], i);
+            $.signers.addSigner(signers_[i], i);
 
             emit AddSigner(i, signers_[i]);
         }
 
-        $.signerCount = numSigners;
-        $.threshold = threshold_;
+        $.signers.updateSignerCount(numSigners);
+        $.signers.updateThreshold(threshold_);
 
         emit UpdateThreshold(threshold_);
     }
