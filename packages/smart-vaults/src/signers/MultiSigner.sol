@@ -52,6 +52,18 @@ library MultiSignerLib {
     /// @notice Thrown when number of signers is more than 256.
     error InvalidNumberOfSigners();
 
+    /**
+     * @notice Thrown when trying to remove an empty signer.
+     * @param index Index of the empty signer.
+     */
+    error SignerNotPresent(uint8 index);
+
+    /**
+     * @notice Thrown when trying to replace an existing signer.
+     * @param index Index of the existing signer.
+     */
+    error SignerAlreadyPresent(uint8 index);
+
     /* -------------------------------------------------------------------------- */
     /*                                  FUNCTIONS                                 */
     /* -------------------------------------------------------------------------- */
@@ -74,13 +86,91 @@ library MultiSignerLib {
     /**
      * @notice Adds signer at index in storage.
      *
+     * @dev Throws error when a signer is already present at index.
      * @dev Throws error when signer is not EOA or Passkey.
      *
      * @param $_ Multi signer storage reference.
      * @param signer_ Signer to be set.
-     * @param index_ Index to set signer at. Assumed to be currently unoccupied.
+     * @param index_ Index to set signer at.
      */
     function addSigner(MultiSigner storage $_, Signer calldata signer_, uint8 index_) internal {
+        if (!$_.signers[index_].isEmptyMem()) revert SignerAlreadyPresent(index_);
+
+        _addSigner($_, signer_, index_);
+
+        $_.signerCount = $_.signerCount + 1;
+    }
+
+    /**
+     * @notice Removes signer at the given `index`.
+     *
+     * @dev Reverts if 'threshold' is equal to signer count.
+     * @dev Reverts if signer is empty at `index`.
+     *
+     * @param $_ Multi signer storage reference.
+     * @param index_ The index of the signer to be removed.
+     * @return signer Signer being removed.
+     */
+    function removeSigner(MultiSigner storage $_, uint8 index_) internal returns (Signer memory signer) {
+        uint8 signerCount = $_.signerCount;
+
+        if (signerCount == $_.threshold) revert InvalidThreshold();
+
+        signer = $_.signers[index_];
+
+        if (signer.isEmptyMem()) revert SignerNotPresent(index_);
+
+        delete $_.signers[index_];
+        $_.signerCount = signerCount - 1;
+    }
+
+    /**
+     * @notice Updates threshold of the signer set.
+     *
+     * @dev Reverts if 'threshold' is greater than signer count.
+     * @dev Reverts if 'threshold' is 0.
+     *
+     * @param $_ Multi signer storage reference.
+     * @param threshold_ The new signer set threshold.
+     */
+    function updateThreshold(MultiSigner storage $_, uint8 threshold_) internal {
+        if (threshold_ == 0) revert InvalidThreshold();
+
+        if ($_.signerCount < threshold_) revert InvalidThreshold();
+
+        $_.threshold = threshold_;
+    }
+
+    /**
+     * @notice Initialize the signers.
+     *
+     * @dev Intended to be called when initializing the signer set.
+     * @dev Reverts if signer is neither an EOA or a passkey.
+     * @dev Reverts if 'threshold' is less than number of signers.
+     * @dev Reverts if 'threshold' is 0.
+     * @dev Reverts if number of signers is more than 256.
+     *
+     * @param signers_ The initial set of signers.
+     * @param threshold_ The number of signers needed for approval.
+     */
+    function initializeSigners(MultiSigner storage $_, Signer[] calldata signers_, uint8 threshold_) internal {
+        if (signers_.length > type(uint8).max || signers_.length == 0) revert InvalidNumberOfSigners();
+
+        uint8 numSigners = uint8(signers_.length);
+
+        if (numSigners < threshold_ || threshold_ < 1) revert InvalidThreshold();
+
+        for (uint8 i; i < numSigners; i++) {
+            _addSigner($_, signers_[i], i);
+        }
+
+        $_.signerCount = numSigners;
+        $_.threshold = threshold_;
+    }
+
+    /// @dev reverts if signer is neither an EOA or a Passkey.
+    /// @dev replaces signer at `index`. Should be used with proper checks.
+    function _addSigner(MultiSigner storage $_, Signer calldata signer_, uint8 index_) private {
         if (signer_.isPasskey()) {
             /// if passkey store signer as is.
             $_.signers[index_] = signer_;
@@ -92,35 +182,9 @@ library MultiSignerLib {
         }
     }
 
-    /**
-     * @notice Removes signer at the given `index`.
-     *
-     * @param $_ Multi signer storage reference.
-     * @param index_ The index of the signer to be removed.
-     */
-    function removeSigner(MultiSigner storage $_, uint8 index_) internal {
-        delete $_.signers[index_];
-    }
-
-    /**
-     * @notice Updates threshold of the signer set.
-     *
-     * @param $_ Multi signer storage reference.
-     * @param threshold_ The new signer set threshold.
-     */
-    function updateThreshold(MultiSigner storage $_, uint8 threshold_) internal {
-        $_.threshold = threshold_;
-    }
-
-    /**
-     * @notice Updates signer count of the signer set.
-     *
-     * @param $_ Multi signer storage reference.
-     * @param signerCount_ The new signer count.
-     */
-    function updateSignerCount(MultiSigner storage $_, uint8 signerCount_) internal {
-        $_.signerCount = signerCount_;
-    }
+    /* -------------------------------------------------------------------------- */
+    /*                              VALIDATE SIGNERS                              */
+    /* -------------------------------------------------------------------------- */
 
     /**
      * @notice Validates the list of `signers` and `threshold`.
@@ -151,6 +215,10 @@ library MultiSignerLib {
     function validateSigner(Signer calldata signer_) internal pure {
         if (!signer_.isValid()) revert InvalidSigner(signer_);
     }
+
+    /* -------------------------------------------------------------------------- */
+    /*                             VALIDATE SIGNATURES                            */
+    /* -------------------------------------------------------------------------- */
 
     /**
      * @notice validates if `hash_` was signed by the signer set present in `$_`

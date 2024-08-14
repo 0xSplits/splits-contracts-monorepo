@@ -47,9 +47,7 @@ contract MultiSignerTest is BaseTest {
 
     function test_initialize_signers() public {
         vm.expectEmit();
-        emit MultiSignerAuth.AddSigner(0, createSigner(ALICE.addr));
-        emit MultiSignerAuth.AddSigner(1, createSigner(BOB.addr));
-        emit MultiSignerAuth.AddSigner(2, createSigner(MIKE.x, MIKE.y));
+        emit MultiSignerAuth.InitializedSigners(signers, 1);
         initializeSigners();
 
         assertEq(multiSigner.getSigner(0), createSigner(ALICE.addr));
