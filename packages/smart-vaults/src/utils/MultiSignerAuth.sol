@@ -107,9 +107,7 @@ abstract contract MultiSignerAuth {
      * @param index_ The index to register the signer.
      */
     function addSigner(Signer calldata signer_, uint8 index_) external onlyAuthorized {
-        MultiSigner storage $ = _getMultiSignerStorage();
-
-        $.addSigner(signer_, index_);
+        _getMultiSignerStorage().addSigner(signer_, index_);
 
         emit AddSigner(index_, signer_);
     }
@@ -123,9 +121,7 @@ abstract contract MultiSignerAuth {
      * @param index_ The index of the signer to be removed.
      */
     function removeSigner(uint8 index_) external onlyAuthorized {
-        MultiSigner storage $ = _getMultiSignerStorage();
-
-        Signer memory signer = $.removeSigner(index_);
+        Signer memory signer = _getMultiSignerStorage().removeSigner(index_);
 
         emit RemoveSigner(index_, signer);
     }
@@ -139,9 +135,7 @@ abstract contract MultiSignerAuth {
      * @param threshold_ The new signer set threshold.
      */
     function updateThreshold(uint8 threshold_) external onlyAuthorized {
-        MultiSigner storage $ = _getMultiSignerStorage();
-
-        $.updateThreshold(threshold_);
+        _getMultiSignerStorage().updateThreshold(threshold_);
 
         emit UpdateThreshold(threshold_);
     }
@@ -174,8 +168,7 @@ abstract contract MultiSignerAuth {
      * @param threshold_ The number of signers needed for approval.
      */
     function _initializeMultiSignerAuth(Signer[] calldata signers_, uint8 threshold_) internal {
-        MultiSigner storage $ = _getMultiSignerStorage();
-        $.initializeSigners(signers_, threshold_);
+        _getMultiSignerStorage().initializeSigners(signers_, threshold_);
 
         emit InitializedSigners(signers_, threshold_);
     }

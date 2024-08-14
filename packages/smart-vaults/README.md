@@ -13,7 +13,7 @@ Currently, these smart accounts are compatible with entry point [v0.7](https://g
 * **Token Support**: Accepts **ERC721** and **ERC1155**(single and batch) tokens.
 * **Fallback Manager**: Allows users to extend their smart accounts to handle future callback-based interactions, such as those involving **ERC721** tokens, ensuring future-proofing.
 * **Module Manager**: Provides users the ability to add trusted modules that can interact on behalf of the smart account.
-* **Contract Deployment**: Enables the deployment of new contracts using `create` from within the smart account during a UserOP.
+* **Contract Deployment**: Enables the deployment of new contracts using `create` from within the smart account during a UserOp.
 * **[Merkelized User Operations](#merkelized-user-operations)**: Supports signing once for multiple user operations across different networks and accounts using Merkle trees.
 * **[Light User Operation](#light-user-operation)**: When multiple signatures are required, allows the last signer to set gas according to current market conditions.
 
