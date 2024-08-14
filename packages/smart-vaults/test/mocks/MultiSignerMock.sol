@@ -32,7 +32,7 @@ contract MultiSignerMock is MultiSignerAuth, Ownable {
     function initialize(address _root, Signer[] calldata _signers, uint8 _threshold) external {
         if (msg.sender != deployer) revert();
         _initializeOwner(_root);
-        _initializeSigners(_signers, _threshold);
+        _initializeMultiSignerAuth(_signers, _threshold);
     }
 
     function _authorize() internal view override(MultiSignerAuth) onlyOwner { }

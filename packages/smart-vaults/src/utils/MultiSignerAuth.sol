@@ -35,30 +35,15 @@ abstract contract MultiSignerAuth {
     }
 
     /* -------------------------------------------------------------------------- */
-    /*                                   ERRORS                                   */
-    /* -------------------------------------------------------------------------- */
-
-    /// @notice Thrown when threshold is greater than number of signers or when zero.
-    error InvalidThreshold();
-
-    /// @notice Thrown when number of signers is more than 256.
-    error InvalidNumberOfSigners();
-
-    /**
-     * @notice Thrown when trying to remove an empty signer.
-     * @param index Index of the empty signer.
-     */
-    error SignerNotPresent(uint8 index);
-
-    /**
-     * @notice Thrown when trying to replace an existing signer.
-     * @param index Index of the existing signer.
-     */
-    error SignerAlreadyPresent(uint8 index);
-
-    /* -------------------------------------------------------------------------- */
     /*                                   EVENTS                                   */
     /* -------------------------------------------------------------------------- */
+
+    /**
+     * @notice Emitted when MultiSigner is initialized.
+     * @param signers Initial set of signers.
+     * @param threshold Initial threshold for the signer set.
+     */
+    event InitializedSigners(Signer[] signers, uint8 threshold);
 
     /**
      * @notice Emitted when a new signer is registered.
@@ -93,19 +78,19 @@ abstract contract MultiSignerAuth {
     /*                            PUBLIC VIEW FUNCTIONS                           */
     /* -------------------------------------------------------------------------- */
 
-    /// @notice Returns the owner bytes at the given `index`.
-    function getSigner(uint8 index_) public view virtual returns (Signer memory) {
-        return _getMultiSignerAuthStorage().signers.getSigner(index_);
+    /// @notice Returns the Signer at the given `index`.
+    function getSigner(uint8 index_) public view returns (Signer memory) {
+        return _getMultiSignerStorage().getSigner(index_);
     }
 
     /// @notice Returns the current number of signers
-    function getSignerCount() public view virtual returns (uint8) {
-        return _getMultiSignerAuthStorage().signers.getSignerCount();
+    function getSignerCount() public view returns (uint8) {
+        return _getMultiSignerStorage().getSignerCount();
     }
 
     /// @notice Returns the threshold
-    function getThreshold() public view virtual returns (uint8) {
-        return _getMultiSignerAuthStorage().signers.getThreshold();
+    function getThreshold() public view returns (uint8) {
+        return _getMultiSignerStorage().getThreshold();
     }
 
     /* -------------------------------------------------------------------------- */
@@ -115,18 +100,14 @@ abstract contract MultiSignerAuth {
     /**
      * @notice Adds a `signer` at the `index`.
      *
+     * @dev Throws error when a signer is already present at index.
      * @dev Reverts if Signer is neither EOA or Passkey.
      *
      * @param signer_ The owner raw bytes to register.
      * @param index_ The index to register the signer.
      */
     function addSigner(Signer calldata signer_, uint8 index_) external onlyAuthorized {
-        MultiSignerAuthStorage storage $ = _getMultiSignerAuthStorage();
-
-        if (!$.signers.getSigner(index_).isEmptyMem()) revert SignerAlreadyPresent(index_);
-
-        $.signers.addSigner(signer_, index_);
-        $.signers.updateSignerCount($.signers.getSignerCount() + 1);
+        _getMultiSignerStorage().addSigner(signer_, index_);
 
         emit AddSigner(index_, signer_);
     }
@@ -140,18 +121,7 @@ abstract contract MultiSignerAuth {
      * @param index_ The index of the signer to be removed.
      */
     function removeSigner(uint8 index_) external onlyAuthorized {
-        MultiSignerAuthStorage storage $ = _getMultiSignerAuthStorage();
-
-        uint8 signerCount = $.signers.getSignerCount();
-
-        if (signerCount == $.signers.getThreshold()) revert InvalidThreshold();
-
-        Signer memory signer = $.signers.getSigner(index_);
-
-        if (signer.isEmptyMem()) revert SignerNotPresent(index_);
-
-        $.signers.removeSigner(index_);
-        $.signers.updateSignerCount(signerCount - 1);
+        Signer memory signer = _getMultiSignerStorage().removeSigner(index_);
 
         emit RemoveSigner(index_, signer);
     }
@@ -165,12 +135,7 @@ abstract contract MultiSignerAuth {
      * @param threshold_ The new signer set threshold.
      */
     function updateThreshold(uint8 threshold_) external onlyAuthorized {
-        if (threshold_ == 0) revert InvalidThreshold();
-
-        MultiSignerAuthStorage storage $ = _getMultiSignerAuthStorage();
-        if ($.signers.getSignerCount() < threshold_) revert InvalidThreshold();
-
-        $.signers.updateThreshold(threshold_);
+        _getMultiSignerStorage().updateThreshold(threshold_);
 
         emit UpdateThreshold(threshold_);
     }
@@ -182,10 +147,12 @@ abstract contract MultiSignerAuth {
     function _authorize() internal virtual;
 
     /// @notice Helper function to get storage reference to the `MultiSignerStorage` struct.
-    function _getMultiSignerAuthStorage() internal pure returns (MultiSignerAuthStorage storage $) {
+    function _getMultiSignerStorage() internal view returns (MultiSigner storage) {
+        MultiSignerAuthStorage storage $;
         assembly ("memory-safe") {
             $.slot := _MUTLI_SIGNER_AUTH_STORAGE_LOCATION
         }
+        return $.signers;
     }
 
     /**
@@ -200,24 +167,9 @@ abstract contract MultiSignerAuth {
      * @param signers_ The initial set of signers.
      * @param threshold_ The number of signers needed for approval.
      */
-    function _initializeSigners(Signer[] calldata signers_, uint8 threshold_) internal virtual {
-        if (signers_.length > type(uint8).max || signers_.length == 0) revert InvalidNumberOfSigners();
+    function _initializeMultiSignerAuth(Signer[] calldata signers_, uint8 threshold_) internal {
+        _getMultiSignerStorage().initializeSigners(signers_, threshold_);
 
-        uint8 numSigners = uint8(signers_.length);
-
-        if (numSigners < threshold_ || threshold_ < 1) revert InvalidThreshold();
-
-        MultiSignerAuthStorage storage $ = _getMultiSignerAuthStorage();
-
-        for (uint8 i; i < numSigners; i++) {
-            $.signers.addSigner(signers_[i], i);
-
-            emit AddSigner(i, signers_[i]);
-        }
-
-        $.signers.updateSignerCount(numSigners);
-        $.signers.updateThreshold(threshold_);
-
-        emit UpdateThreshold(threshold_);
+        emit InitializedSigners(signers_, threshold_);
     }
 }

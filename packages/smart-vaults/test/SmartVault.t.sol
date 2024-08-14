@@ -149,7 +149,7 @@ contract SmartVaultTest is BaseTest {
     }
 
     function test_initialize_RevertsWhen_signersIsZero() public {
-        vm.expectRevert(abi.encodeWithSelector(InvalidNumberOfSigners.selector));
+        vm.expectRevert(abi.encodeWithSelector(InvalidThreshold.selector));
         vm.prank(address(smartVaultFactory));
         vault.initialize(root, new Signer[](0), 1);
     }

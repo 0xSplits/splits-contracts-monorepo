@@ -168,7 +168,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
         if (msg.sender != FACTORY) revert OnlyFactory();
 
         _initializeOwner(owner_);
-        _initializeSigners(signers_, threshold_);
+        _initializeMultiSignerAuth(signers_, threshold_);
     }
 
     /**
@@ -313,9 +313,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
 
     /// @dev validates if the given hash (ERC1271) was signed by the signers.
     function _isValidSignature(bytes32 hash_, bytes calldata signature_) internal view override returns (bool) {
-        return _getMultiSignerAuthStorage().signers.isValidSignature(
-            hash_, abi.decode(signature_, (ERC1271Signature)).signatures
-        );
+        return _getMultiSignerStorage().isValidSignature(hash_, abi.decode(signature_, (ERC1271Signature)).signatures);
     }
 
     function _validateSingleUserOp(
@@ -361,9 +359,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
         view
         returns (uint256 validationData)
     {
-        MultiSignerAuthStorage storage $ = _getMultiSignerAuthStorage();
-
-        return $.signers.isValidSignature(lightHash_, hash_, signatures)
+        return _getMultiSignerStorage().isValidSignature(lightHash_, hash_, signatures)
             ? UserOperationLib.VALID_SIGNATURE
             : UserOperationLib.INVALID_SIGNATURE;
     }
