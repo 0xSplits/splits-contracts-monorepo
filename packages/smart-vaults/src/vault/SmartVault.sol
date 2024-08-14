@@ -306,6 +306,25 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
 
     function _authorize() internal view override(MultiSignerAuth, FallbackManager, ModuleManager) onlySelf { }
 
+    /**
+     * @dev Conditions for a valid owner check:
+     *      if owner is non zero, caller must be owner.
+     *      If owner is address(0), contract can call itself.
+     */
+    function _checkOwner() internal view override {
+        address owner;
+        address caller = msg.sender;
+
+        /// @solidity memory-safe-assembly
+        assembly {
+            owner := sload(_OWNER_SLOT)
+        }
+
+        if (owner == caller) return;
+        if (owner == address(0) && caller == address(this)) return;
+        revert Unauthorized();
+    }
+
     /// @dev Get light user op hash of the Packed user operation.
     function _getLightUserOpHash(PackedUserOperation calldata userOp_) internal view returns (bytes32) {
         return keccak256(abi.encode(userOp_.hashLight(), entryPoint(), block.chainid));

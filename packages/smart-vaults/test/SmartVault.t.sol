@@ -6,6 +6,7 @@ import "@web-authn/../test/Utils.sol";
 import "@web-authn/WebAuthn.sol";
 import { FCL_Elliptic_ZZ } from "FreshCryptoLib/FCL_elliptic.sol";
 
+import { UUPSUpgradeable } from "solady/utils/UUPSUpgradeable.sol";
 import { UserOperationLib } from "src/library/UserOperationLib.sol";
 import { MultiSignerLib } from "src/signers/MultiSigner.sol";
 
@@ -821,6 +822,19 @@ contract SmartVaultTest is BaseTest {
         vault.transferOwnership(BOB.addr);
     }
 
+    function test_transferOwnership_when_ownerIsZero() public {
+        vm.prank(vault.owner());
+        vault.renounceOwnership();
+
+        Caller.Call memory call =
+            Caller.Call(address(vault), 0, abi.encodeWithSelector(Ownable.transferOwnership.selector, BOB.addr));
+
+        vm.prank(ENTRY_POINT);
+        vault.execute(call);
+
+        assertEq(vault.owner(), BOB.addr);
+    }
+
     /* -------------------------------------------------------------------------- */
     /*                             SIGNER SET UPDATES                             */
     /* -------------------------------------------------------------------------- */
@@ -1095,5 +1109,72 @@ contract SmartVaultTest is BaseTest {
         vm.expectRevert(OnlyModule.selector);
         vm.prank(caller_);
         vault.executeFromModule(calls_);
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*                               ONLY SELF TESTS                              */
+    /* -------------------------------------------------------------------------- */
+
+    function test_onlySelf_addSigner() public {
+        Caller.Call memory call = Caller.Call(
+            address(vault), 0, abi.encodeWithSelector(MultiSignerAuth.addSigner.selector, createSigner(BOB.addr), 4)
+        );
+
+        vm.prank(ENTRY_POINT);
+        vault.execute(call);
+
+        assertEq(vault.getSigner(4), createSigner(BOB.addr));
+        assertEq(vault.getSignerCount(), 4);
+    }
+
+    function test_onlySelf_removeSigner() public {
+        Caller.Call memory call =
+            Caller.Call(address(vault), 0, abi.encodeWithSelector(MultiSignerAuth.removeSigner.selector, 0));
+
+        vm.prank(ENTRY_POINT);
+        vault.execute(call);
+
+        assertEq(vault.getSigner(0), createSigner(address(0)));
+        assertEq(vault.getSignerCount(), 2);
+    }
+
+    function test_onlySelf_updateThreshold() public {
+        Caller.Call memory call =
+            Caller.Call(address(vault), 0, abi.encodeWithSelector(MultiSignerAuth.updateThreshold.selector, 2));
+
+        vm.prank(ENTRY_POINT);
+        vault.execute(call);
+
+        assertEq(vault.getThreshold(), 2);
+    }
+
+    function test_onlySelf_upgradeImplementation_when_ownerIsZero() public {
+        vm.prank(vault.owner());
+        vault.renounceOwnership();
+
+        address newImplementation = address(new SmartVault());
+        Caller.Call memory call = Caller.Call(
+            address(vault),
+            0,
+            abi.encodeWithSelector(UUPSUpgradeable.upgradeToAndCall.selector, newImplementation, new bytes(0))
+        );
+
+        vm.prank(ENTRY_POINT);
+        vault.execute(call);
+
+        assertEq(vault.getImplementation(), newImplementation);
+    }
+
+    function test_onlySelf_upgradeImplementation_revertsWhen_ownerIsNotZero() public {
+        address newImplementation = address(new SmartVault());
+        Caller.Call memory call = Caller.Call(
+            address(vault),
+            0,
+            abi.encodeWithSelector(UUPSUpgradeable.upgradeToAndCall.selector, newImplementation, new bytes(0))
+        );
+
+        vm.prank(ENTRY_POINT);
+        vm.expectRevert(abi.encodeWithSelector(Unauthorized.selector));
+        vault.execute(call);
     }
 }
