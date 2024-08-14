@@ -14,7 +14,7 @@ struct MultiSigner {
     /// @dev number of signers
     uint8 signerCount;
     /// @dev signers of type `Signer`;
-    mapping(uint8 => Signer) signers;
+    Signer[256] signers;
 }
 
 using MultiSignerLib for MultiSigner global;
@@ -154,7 +154,7 @@ library MultiSignerLib {
      * @param threshold_ The number of signers needed for approval.
      */
     function initializeSigners(MultiSigner storage $_, Signer[] calldata signers_, uint8 threshold_) internal {
-        if (signers_.length > type(uint8).max || signers_.length == 0) revert InvalidNumberOfSigners();
+        if (signers_.length > type(uint8).max) revert InvalidNumberOfSigners();
 
         uint8 numSigners = uint8(signers_.length);
 
@@ -196,7 +196,7 @@ library MultiSignerLib {
      * @param threshold_ minimum number of signers required for approval.
      */
     function validateSigners(Signer[] calldata signers_, uint8 threshold_) internal pure {
-        if (signers_.length > type(uint8).max || signers_.length == 0) revert InvalidNumberOfSigners();
+        if (signers_.length > type(uint8).max) revert InvalidNumberOfSigners();
 
         uint8 numberOfSigners = uint8(signers_.length);
 

@@ -68,7 +68,7 @@ contract MultiSignerTest is BaseTest {
     }
 
     function test_initialize_signers_RevertWhen_zeroSigners() public {
-        vm.expectRevert(InvalidNumberOfSigners.selector);
+        vm.expectRevert(InvalidThreshold.selector);
         multiSigner.initialize(ALICE.addr, new Signer[](0), 1);
     }
 
