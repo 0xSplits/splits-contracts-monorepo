@@ -78,7 +78,7 @@ library MultiSignerLib {
      *
      * @param $_ Multi signer storage reference.
      * @param signer_ Signer to be set.
-     * @param index_ Index to set signer at.
+     * @param index_ Index to set signer at. Assumed to be currently unoccupied.
      */
     function addSigner(MultiSigner storage $_, Signer calldata signer_, uint8 index_) internal {
         if (signer_.isPasskey()) {
