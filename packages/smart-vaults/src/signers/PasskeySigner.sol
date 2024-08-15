@@ -12,6 +12,7 @@ struct PasskeySigner {
     uint256 y;
 }
 
+/// @notice converts Signer to PasskeySigner.
 function decodePasskeySigner(Signer memory signer_) pure returns (PasskeySigner memory) {
     return PasskeySigner(uint256(signer_.slot1), uint256(signer_.slot2));
 }

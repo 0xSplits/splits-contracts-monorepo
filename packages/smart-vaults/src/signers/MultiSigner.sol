@@ -225,7 +225,7 @@ library MultiSignerLib {
      *
      * @param $_ Multi signer storage reference.
      * @param hash_ blob of data that needs to be verified.
-     * @param signatures_ List of signatureWrapper
+     * @param signatures_ List of signatureWrapper.
      */
     function isValidSignature(
         MultiSigner storage $_,
@@ -245,7 +245,7 @@ library MultiSignerLib {
      * @param $_ Multi signer storage reference.
      * @param frontHash_ blob of data that should be signed by all but the last signer.
      * @param backHash_ blob of data that should be signed by the last signer.
-     * @param signatures_ List of signatureWrapper
+     * @param signatures_ List of signatureWrapper.
      */
     function isValidSignature(
         MultiSigner storage $_,

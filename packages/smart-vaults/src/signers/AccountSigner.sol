@@ -9,6 +9,7 @@ import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
  */
 type AccountSigner is address;
 
+/// @notice converts Signer to AccountSigner.
 function decodeAccountSigner(Signer memory signer_) pure returns (AccountSigner) {
     return AccountSigner.wrap(address(uint160(uint256(signer_.slot1))));
 }
