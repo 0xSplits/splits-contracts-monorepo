@@ -22,7 +22,7 @@ abstract contract MultiSignerAuth {
      *      keccak256(abi.encode(uint256(keccak256("splits.storage.multiSignerAuth")) - 1)) & ~bytes32(uint256(0xff))
      *      Follows ERC-7201 (see https://eips.ethereum.org/EIPS/eip-7201).
      */
-    bytes32 private constant _MUTLI_SIGNER_AUTH_STORAGE_LOCATION =
+    bytes32 private constant _MUTLI_SIGNER_AUTH_STORAGE_SLOT =
         0x3e5431599761dc1a6f375d94085bdcd73bc8fa7c6b3d455d31679f3080214700;
 
     /* -------------------------------------------------------------------------- */
@@ -83,12 +83,12 @@ abstract contract MultiSignerAuth {
         return _getMultiSignerStorage().getSigner(index_);
     }
 
-    /// @notice Returns the current number of signers
+    /// @notice Returns the current number of signers.
     function getSignerCount() public view returns (uint8) {
         return _getMultiSignerStorage().getSignerCount();
     }
 
-    /// @notice Returns the threshold
+    /// @notice Returns the threshold.
     function getThreshold() public view returns (uint8) {
         return _getMultiSignerStorage().getThreshold();
     }
@@ -103,7 +103,7 @@ abstract contract MultiSignerAuth {
      * @dev Throws error when a signer is already present at index.
      * @dev Reverts if Signer is neither EOA or Passkey.
      *
-     * @param signer_ The owner raw bytes to register.
+     * @param signer_ The Signer to register.
      * @param index_ The index to register the signer.
      */
     function addSigner(Signer calldata signer_, uint8 index_) external onlyAuthorized {
@@ -150,7 +150,7 @@ abstract contract MultiSignerAuth {
     function _getMultiSignerStorage() internal view returns (MultiSigner storage) {
         MultiSignerAuthStorage storage $;
         assembly ("memory-safe") {
-            $.slot := _MUTLI_SIGNER_AUTH_STORAGE_LOCATION
+            $.slot := _MUTLI_SIGNER_AUTH_STORAGE_SLOT
         }
         return $.signers;
     }

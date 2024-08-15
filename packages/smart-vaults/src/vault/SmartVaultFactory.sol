@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.23;
 
 import { MultiSignerLib } from "../signers/MultiSigner.sol";
@@ -25,6 +25,7 @@ contract SmartVaultFactory {
     /*                                   EVENTS                                   */
     /* -------------------------------------------------------------------------- */
 
+    /// @notice Event emitted when a new smart vault/account is created.
     event SmartVaultCreated(address indexed vault, address owner, Signer[] signers, uint8 threshold, uint256 salt);
 
     /* -------------------------------------------------------------------------- */
@@ -47,9 +48,9 @@ contract SmartVaultFactory {
      *
      * @param owner_ Owner of the smart vault.
      * @param signers_ Array of initial signers. Each signer is of type `Signer`.
-     * @param threshold_ Number of approvals needed for a valid user op/hash.
+     * @param threshold_ Number of signers needed for a valid userOp/signature.
      * @param salt_  The salt of the account, a caller defined value which allows multiple accounts
-     *               with the same `signers` to exist at different addresses.
+     *               with the same `owner`, `signers` and `threshold` to exist at different addresses.
      *
      * @return account The address of the ERC-1967 proxy created.
      */
@@ -90,7 +91,7 @@ contract SmartVaultFactory {
      *
      * @param owner_ Owner of the smart vault.
      * @param signers_ Array of initial signers. Each signer is of type `Signer`.
-     * @param threshold_ Number of approvals needed for a valid user op/hash.
+     * @param threshold_ Number of signers needed for a valid userOp/signature.
      * @param salt_  The salt provided to `createAccount()`.
      *
      * @return The predicted account deployment address.

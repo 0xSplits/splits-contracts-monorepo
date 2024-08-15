@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.23;
 
 import { UserOperationLib } from "../library/UserOperationLib.sol";
@@ -180,6 +180,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
      *
      * @dev Must validate caller is the entryPoint.
      *      Must validate the signature and nonce
+     *
      * @param userOp_              - The operation that is about to be executed.
      * @param userOpHash_          - Hash of the user's request data. can be used as the basis for signature.
      * @param missingAccountFunds_ - Missing funds on the account's deposit in the entrypoint.
@@ -214,8 +215,8 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
         if (signatureType == SignatureTypes.SingleUserOp) {
             SingleUserOpSignature memory signature = abi.decode(userOp_.signature[1:], (SingleUserOpSignature));
 
-            // if threshold is greater than 1, `threshold - 1` signers will sign over the light user op hash. We lazily
-            // calculate light user op hash based on number of signatures. If threshold is 1 then light user op hash
+            // if threshold is greater than 1, `threshold - 1` signers will sign over the light userOp hash. We lazily
+            // calculate light userOp hash based on number of signatures. If threshold is 1 then light userOp hash
             // won't be needed.
             if (signature.signatures.length > 1) lightHash = _getLightUserOpHash(userOp_);
 
@@ -224,8 +225,8 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
             MerkelizedUserOpSignature memory signature = abi.decode(userOp_.signature[1:], (MerkelizedUserOpSignature));
 
             // if threshold is greater than 1, `threshold - 1` signers will sign over the merkle tree root of light user
-            // op hash(s). We lazily calculate light user op hash based on value of light merkle tree root. If threshold
-            // is 1 then light user op hash won't be needed.
+            // op hash(s). We lazily calculate light userOp hash based on value of light merkle tree root. If threshold
+            // is 1 then light userOp hash won't be needed.
             if (signature.lightMerkleTreeRoot != bytes32(0)) lightHash = _getLightUserOpHash(userOp_);
 
             return _validateMerkelizedUserOp(lightHash, userOpHash_, signature);
@@ -283,6 +284,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
      * we do not sanity check the `initCode` length. Note that if `msg.value` is non-zero,
      * `initCode` must have a `payable` constructor.
      * @dev Can only be called by this contract.
+     * @dev Reverts when new contract is address(0) or code.length is zero.
      *
      * @param initCode_ The creation bytecode.
      * @return newContract The 20-byte address where the contract was deployed.
@@ -304,6 +306,8 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
     /// @dev authorizes caller to upgrade the implementation of this contract.
     function _authorizeUpgrade(address) internal view virtual override(UUPSUpgradeable) onlyOwner { }
 
+    /// @dev authorizes caller to update signer set, fallback handlers and modules.
+    /// @dev can only be called by this contract.
     function _authorize() internal view override(MultiSignerAuth, FallbackManager, ModuleManager) onlySelf { }
 
     /**
@@ -315,8 +319,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
         address owner;
         address caller = msg.sender;
 
-        /// @solidity memory-safe-assembly
-        assembly {
+        assembly ("memory-safe") {
             owner := sload(_OWNER_SLOT)
         }
 
@@ -325,7 +328,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
         revert Unauthorized();
     }
 
-    /// @dev Get light user op hash of the Packed user operation.
+    /// @dev Get light userOp hash of the Packed user operation.
     function _getLightUserOpHash(PackedUserOperation calldata userOp_) internal view returns (bytes32) {
         return keccak256(abi.encode(userOp_.hashLight(), entryPoint(), block.chainid));
     }
@@ -335,6 +338,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
         return _getMultiSignerStorage().isValidSignature(hash_, abi.decode(signature_, (ERC1271Signature)).signatures);
     }
 
+    /// @dev validates single userOp signature.
     function _validateSingleUserOp(
         bytes32 lightHash_,
         bytes32 userOpHash_,
@@ -347,6 +351,10 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
         return _isValidSignature(lightHash_, userOpHash_, signature.signatures);
     }
 
+    /**
+     * @dev validates merkelized userOp signature.
+     * @dev Reverts when merkle proof is invalid.
+     */
     function _validateMerkelizedUserOp(
         bytes32 lightHash_,
         bytes32 userOpHash_,

@@ -70,7 +70,7 @@ abstract contract ModuleManager is Caller {
     /**
      * @notice Adds `module` to the allowlist.
      *
-     * @dev access is controlled by `_authorize()`
+     * @dev access is controlled by `_authorize()`.
      *
      * @param module_ address of module.
      */
@@ -83,7 +83,7 @@ abstract contract ModuleManager is Caller {
     /**
      * @notice Adds `module` to the allowlist and makes a call to the `setupContract` passing `data_`.
      *
-     * @dev access is controlled by `_authorize()`
+     * @dev access is controlled by `_authorize()`.
      *
      * @param module_ address of module.
      * @param setupContract_ address of contract to call to setup module.
@@ -100,7 +100,7 @@ abstract contract ModuleManager is Caller {
     /**
      * @notice Removes module from the allowlist.
      *
-     * @dev access is controlled by `_authorize()`
+     * @dev access is controlled by `_authorize()`.
      *
      * @param module_ address of module.
      */
@@ -113,7 +113,7 @@ abstract contract ModuleManager is Caller {
     /**
      * @notice Removes `module` from the allowlist and makes a call to the `teardownContract_` passing `data_`.
      *
-     * @dev access is controlled by `_authorize()`
+     * @dev access is controlled by `_authorize()`.
      *
      * @param module_ address of module.
      * @param teardownContract_ address of contract to call to teardown module.
