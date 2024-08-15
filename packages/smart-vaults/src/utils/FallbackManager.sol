@@ -43,6 +43,11 @@ abstract contract FallbackManager is Receiver {
     /// @notice Event emitted when this contract receives ETH.
     event ReceiveEth(address indexed sender, uint256 amount);
 
+    /// @notice Event emitted when a call is made to a fallback handler.
+    event FallbackHandlerCalled(
+        address indexed sender, address indexed handler, bytes data, bool success, bytes result
+    );
+
     /* -------------------------------------------------------------------------- */
     /*                                   ERRORS                                   */
     /* -------------------------------------------------------------------------- */
@@ -66,7 +71,11 @@ abstract contract FallbackManager is Receiver {
             revert FunctionNotSupported(msg.sig);
         }
 
-        (bool success, bytes memory result) = handler.call(msg.data);
+        bytes calldata data = msg.data;
+
+        (bool success, bytes memory result) = handler.call(data);
+
+        emit FallbackHandlerCalled(msg.sender, handler, data, success, result);
 
         if (!success) {
             assembly ("memory-safe") {
