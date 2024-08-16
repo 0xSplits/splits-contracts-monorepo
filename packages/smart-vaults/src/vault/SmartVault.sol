@@ -37,11 +37,22 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
 
     /// @notice Single User Op Signature Scheme.
     struct SingleUserOpSignature {
+        /// @notice Upper limit for Max Priority Fee Per Gas that should be charged by the userOp. This is included in
+        /// the light userOp hash to ensure last signer does not exceed the specified gas price. Can be left empty if
+        /// threshold is 1.
+        uint256 maxPriorityFeePerGasLimit;
+        /// @notice list of signatures where threshold - 1
+        /// signatures will be verified against the light userOp hash and the final signature will be verified
+        /// against the userOp hash.
         MultiSignerLib.SignatureWrapper[] signatures;
     }
 
     /// @notice Merkelized User Op Signature Scheme.
     struct MerkelizedUserOpSignature {
+        /// @notice Upper limit for Max Priority Fee Per Gas that should be charged by the userOp. This is included in
+        /// the light userOp hash to ensure last signer does not exceed the specified gas price. Can be left empty if
+        /// threshold is 1.
+        uint256 maxPriorityFeePerGasLimit;
         /// @notice merkleRoot of all the light(userOp) in the Merkle Tree. If threshold is 1, this will be
         /// bytes32(0).
         bytes32 lightMerkleTreeRoot;
@@ -91,6 +102,9 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
 
     /// @notice Thrown when merkle root validation fails.
     error InvalidMerkleProof();
+
+    /// @notice Thrown when final gas price is greater than the limit.
+    error InvalidMaxPriorityFeePerGas();
 
     /* -------------------------------------------------------------------------- */
     /*                                  MODIFIERS                                 */
@@ -218,7 +232,10 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
             // if threshold is greater than 1, `threshold - 1` signers will sign over the light userOp hash. We lazily
             // calculate light userOp hash based on number of signatures. If threshold is 1 then light userOp hash
             // won't be needed.
-            if (signature.signatures.length > 1) lightHash = _getLightUserOpHash(userOp_);
+            if (signature.signatures.length > 1) {
+                _verifyGasFees(signature.maxPriorityFeePerGasLimit, userOp_.gasFees);
+                lightHash = _getLightUserOpHash(userOp_, signature.maxPriorityFeePerGasLimit);
+            }
 
             return _validateSingleUserOp(lightHash, userOpHash_, signature);
         } else if (signatureType == SignatureTypes.MerkelizedUserOp) {
@@ -227,7 +244,10 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
             // if threshold is greater than 1, `threshold - 1` signers will sign over the merkle tree root of light user
             // op hash(s). We lazily calculate light userOp hash based on value of light merkle tree root. If threshold
             // is 1 then light userOp hash won't be needed.
-            if (signature.lightMerkleTreeRoot != bytes32(0)) lightHash = _getLightUserOpHash(userOp_);
+            if (signature.lightMerkleTreeRoot != bytes32(0)) {
+                _verifyGasFees(signature.maxPriorityFeePerGasLimit, userOp_.gasFees);
+                lightHash = _getLightUserOpHash(userOp_, signature.maxPriorityFeePerGasLimit);
+            }
 
             return _validateMerkelizedUserOp(lightHash, userOpHash_, signature);
         } else {
@@ -329,8 +349,15 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
     }
 
     /// @dev Get light userOp hash of the Packed user operation.
-    function _getLightUserOpHash(PackedUserOperation calldata userOp_) internal view returns (bytes32) {
-        return keccak256(abi.encode(userOp_.hashLight(), entryPoint(), block.chainid));
+    function _getLightUserOpHash(
+        PackedUserOperation calldata userOp_,
+        uint256 maxPriorityFeePerGas_
+    )
+        internal
+        view
+        returns (bytes32)
+    {
+        return keccak256(abi.encode(userOp_.hashLight(), maxPriorityFeePerGas_, entryPoint(), block.chainid));
     }
 
     /// @dev validates if the given hash (ERC1271) was signed by the signers.
@@ -393,5 +420,11 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
 
     function _getSignatureType(bytes1 signatureType_) internal pure returns (SignatureTypes) {
         return SignatureTypes(uint8(signatureType_));
+    }
+
+    function _verifyGasFees(uint256 maxPriorityFeePerGasLimit_, bytes32 userOpGasFees_) internal pure {
+        (uint256 userOpMaxPriorityFeePerGas,) = UserOperationLib.unpackUints(userOpGasFees_);
+
+        if (userOpMaxPriorityFeePerGas > maxPriorityFeePerGasLimit_) revert InvalidMaxPriorityFeePerGas();
     }
 }

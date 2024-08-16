@@ -113,4 +113,8 @@ library UserOperationLib {
     function hash(PackedUserOperation calldata userOp_) internal pure returns (bytes32) {
         return keccak256(encode(userOp_));
     }
+
+    function unpackUints(bytes32 packed) internal pure returns (uint256 high128, uint256 low128) {
+        return (uint128(bytes16(packed)), uint128(uint256(packed)));
+    }
 }
