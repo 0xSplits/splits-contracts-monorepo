@@ -922,6 +922,22 @@ contract SmartVaultTest is BaseTest {
         erc7211.transfer(from_, address(vault), tokenId_);
     }
 
+    function testFuzz_FallbackHandler_RevertsWhen_receivingERC7211HandlerCorrupt(
+        address from_,
+        uint256 tokenId_
+    )
+        public
+    {
+        MockERC7211 erc7211 = new MockERC7211();
+
+        address fallbackHandler = address(this);
+        vm.prank(address(vault));
+        vault.updateFallbackHandler(IERC7211Receiver.onERC7211Received.selector, fallbackHandler);
+
+        vm.expectRevert();
+        erc7211.transfer(from_, address(vault), tokenId_);
+    }
+
     function testFuzz_FallbackHandler_receiveEth(address sender_, uint256 amount_) public {
         vm.deal(sender_, amount_);
 
