@@ -38,7 +38,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
     /// @notice Single User Op Signature Scheme.
     struct SingleUserOpSignature {
         /// @notice Upper limit for Max Priority Fee Per Gas that should be charged by the userOp. This is included in
-        /// the light userOp hash to ensure last signer does not exceed the specified gas price. Can be left empty if
+        /// the light userOp hash to ensure last signer does not exceed the specified gas price. Can be `0` if
         /// threshold is 1.
         uint256 maxPriorityFeePerGasLimit;
         /// @notice list of signatures where threshold - 1
@@ -50,7 +50,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
     /// @notice Merkelized User Op Signature Scheme.
     struct MerkelizedUserOpSignature {
         /// @notice Upper limit for Max Priority Fee Per Gas that should be charged by the userOp. This is included in
-        /// the light userOp hash to ensure last signer does not exceed the specified gas price. Can be left empty if
+        /// the light userOp hash to ensure last signer does not exceed the specified gas price. Can be `0` if
         /// threshold is 1.
         uint256 maxPriorityFeePerGasLimit;
         /// @notice merkleRoot of all the light(userOp) in the Merkle Tree. If threshold is 1, this will be
