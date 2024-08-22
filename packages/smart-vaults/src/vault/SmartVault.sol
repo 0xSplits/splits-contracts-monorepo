@@ -35,12 +35,19 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
         ERC1271
     }
 
+    /// @notice Upper limits for maxPriorityFeePerGas, preVerificationGas and callGasLimit that should be charged by the
+    /// userOp. This is included in the light userOp hash to ensure last signer does not exceed the specified gas
+    /// price/limits. These values will be ignored when threshold is 1.
+    struct LightUserOpGasLimits {
+        uint256 maxPriorityFeePerGas;
+        uint256 preVerificationGas;
+        uint256 callGasLimit;
+    }
+
     /// @notice Single User Op Signature Scheme.
     struct SingleUserOpSignature {
-        /// @notice Upper limit for Max Priority Fee Per Gas that should be charged by the userOp. This is included in
-        /// the light userOp hash to ensure last signer does not exceed the specified gas price. Can be `0` if
-        /// threshold is 1.
-        uint256 maxPriorityFeePerGasLimit;
+        /// @notice light user op gas limits.
+        LightUserOpGasLimits gasLimits;
         /// @notice list of signatures where threshold - 1
         /// signatures will be verified against the light userOp hash and the final signature will be verified
         /// against the userOp hash.
@@ -49,10 +56,8 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
 
     /// @notice Merkelized User Op Signature Scheme.
     struct MerkelizedUserOpSignature {
-        /// @notice Upper limit for Max Priority Fee Per Gas that should be charged by the userOp. This is included in
-        /// the light userOp hash to ensure last signer does not exceed the specified gas price. Can be `0` if
-        /// threshold is 1.
-        uint256 maxPriorityFeePerGasLimit;
+        /// @notice light user op gas limits.
+        LightUserOpGasLimits gasLimits;
         /// @notice merkleRoot of all the light(userOp) in the Merkle Tree. If threshold is 1, this will be
         /// bytes32(0).
         bytes32 lightMerkleTreeRoot;
@@ -103,8 +108,8 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
     /// @notice Thrown when merkle root validation fails.
     error InvalidMerkleProof();
 
-    /// @notice Thrown when final gas price is greater than the limit.
-    error InvalidMaxPriorityFeePerGas();
+    /// @notice Thrown when LightUserOpGasLimits have been breached.
+    error InvalidGasLimits();
 
     /* -------------------------------------------------------------------------- */
     /*                                  MODIFIERS                                 */
@@ -233,8 +238,8 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
             // calculate light userOp hash based on number of signatures. If threshold is 1 then light userOp hash
             // won't be needed.
             if (signature.signatures.length > 1) {
-                _verifyGasFees(signature.maxPriorityFeePerGasLimit, userOp_.gasFees);
-                lightHash = _getLightUserOpHash(userOp_, signature.maxPriorityFeePerGasLimit);
+                _verifyGasLimits(signature.gasLimits, userOp_);
+                lightHash = _getLightUserOpHash(userOp_, signature.gasLimits);
             }
 
             return _validateSingleUserOp(lightHash, userOpHash_, signature);
@@ -245,8 +250,8 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
             // op hash(s). We lazily calculate light userOp hash based on value of light merkle tree root. If threshold
             // is 1 then light userOp hash won't be needed.
             if (signature.lightMerkleTreeRoot != bytes32(0)) {
-                _verifyGasFees(signature.maxPriorityFeePerGasLimit, userOp_.gasFees);
-                lightHash = _getLightUserOpHash(userOp_, signature.maxPriorityFeePerGasLimit);
+                _verifyGasLimits(signature.gasLimits, userOp_);
+                lightHash = _getLightUserOpHash(userOp_, signature.gasLimits);
             }
 
             return _validateMerkelizedUserOp(lightHash, userOpHash_, signature);
@@ -351,13 +356,13 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
     /// @dev Get light userOp hash of the Packed user operation.
     function _getLightUserOpHash(
         PackedUserOperation calldata userOp_,
-        uint256 maxPriorityFeePerGas_
+        LightUserOpGasLimits memory gasLimits_
     )
         internal
         view
         returns (bytes32)
     {
-        return keccak256(abi.encode(userOp_.hashLight(), maxPriorityFeePerGas_, entryPoint(), block.chainid));
+        return keccak256(abi.encode(userOp_.hashLight(), gasLimits_, entryPoint(), block.chainid));
     }
 
     /// @dev validates if the given hash (ERC1271) was signed by the signers.
@@ -422,9 +427,19 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
         return SignatureTypes(uint8(signatureType_));
     }
 
-    function _verifyGasFees(uint256 maxPriorityFeePerGasLimit_, bytes32 userOpGasFees_) internal pure {
-        (uint256 userOpMaxPriorityFeePerGas,) = UserOperationLib.unpackUints(userOpGasFees_);
+    function _verifyGasLimits(
+        LightUserOpGasLimits memory gasLimits_,
+        PackedUserOperation calldata userOp_
+    )
+        internal
+        pure
+    {
+        (uint256 userOpMaxPriorityFeePerGas,) = UserOperationLib.unpackUints(userOp_.gasFees);
+        (, uint256 callGasLimit) = UserOperationLib.unpackUints(userOp_.accountGasLimits);
 
-        if (userOpMaxPriorityFeePerGas > maxPriorityFeePerGasLimit_) revert InvalidMaxPriorityFeePerGas();
+        if (
+            userOpMaxPriorityFeePerGas > gasLimits_.maxPriorityFeePerGas || callGasLimit > gasLimits_.callGasLimit
+                || userOp_.preVerificationGas > gasLimits_.preVerificationGas
+        ) revert InvalidGasLimits();
     }
 }
