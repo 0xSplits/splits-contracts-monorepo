@@ -42,6 +42,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
         uint256 maxPriorityFeePerGas;
         uint256 preVerificationGas;
         uint256 callGasLimit;
+        uint256 verificationGasLimit;
     }
 
     /// @notice Single User Op Signature Scheme.
@@ -435,11 +436,12 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
         pure
     {
         (uint256 userOpMaxPriorityFeePerGas,) = UserOperationLib.unpackUints(userOp_.gasFees);
-        (, uint256 callGasLimit) = UserOperationLib.unpackUints(userOp_.accountGasLimits);
+        (uint256 verificationGasLimit, uint256 callGasLimit) = UserOperationLib.unpackUints(userOp_.accountGasLimits);
 
         if (
             userOpMaxPriorityFeePerGas > gasLimits_.maxPriorityFeePerGas || callGasLimit > gasLimits_.callGasLimit
                 || userOp_.preVerificationGas > gasLimits_.preVerificationGas
+                || verificationGasLimit > gasLimits_.verificationGasLimit
         ) revert InvalidGasLimits();
     }
 }

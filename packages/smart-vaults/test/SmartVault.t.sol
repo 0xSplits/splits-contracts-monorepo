@@ -104,12 +104,19 @@ contract SmartVaultTest is BaseTest {
         return gasLimit;
     }
 
+    function getVerificationGasLimit(PackedUserOperation memory userOp) internal pure returns (uint256) {
+        (uint256 gasLimit,) = UserOperationLib.unpackUints(userOp.accountGasLimits);
+        return gasLimit;
+    }
+
     function getGasLimits(PackedUserOperation memory userOp)
         internal
         pure
         returns (SmartVault.LightUserOpGasLimits memory)
     {
-        return SmartVault.LightUserOpGasLimits(getMaxFee(userOp), userOp.preVerificationGas, getGasLimit(userOp));
+        return SmartVault.LightUserOpGasLimits(
+            getMaxFee(userOp), userOp.preVerificationGas, getGasLimit(userOp), getVerificationGasLimit(userOp)
+        );
     }
 
     function getERC1271Signature(MultiSignerLib.SignatureWrapper[] memory sigs) internal pure returns (bytes memory) {
