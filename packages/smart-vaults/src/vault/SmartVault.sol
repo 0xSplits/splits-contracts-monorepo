@@ -35,9 +35,9 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
         ERC1271
     }
 
-    /// @notice Upper limits for maxPriorityFeePerGas, preVerificationGas and callGasLimit that should be charged by the
-    /// userOp. This is included in the light userOp hash to ensure last signer does not exceed the specified gas
-    /// price/limits. These values will be ignored when threshold is 1.
+    /// @notice Upper limits for maxPriorityFeePerGas, preVerificationGas, verificationGasLimit and callGasLimit that
+    /// should be charged by the userOp. This is included in the light userOp hash to ensure last signer does not exceed
+    /// the specified gas price/limits. These values will be ignored when threshold is 1.
     struct LightUserOpGasLimits {
         uint256 maxPriorityFeePerGas;
         uint256 preVerificationGas;
