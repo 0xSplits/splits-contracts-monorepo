@@ -36,9 +36,9 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
     }
 
     /// @notice Upper limits for maxPriorityFeePerGas, preVerificationGas, verificationGasLimit, callGasLimit,
-    /// paymasterValidationGasLimit and paymasterPostOpGasLimit that should be charged by the userOp. This is included
+    /// paymasterVerificationGasLimit and paymasterPostOpGasLimit that should be charged by the userOp. This is included
     /// in the light userOp hash to ensure last signer does not exceed the specified gas price/limits. These values will
-    /// be ignored when threshold is 1. paymaster, paymasterValidationGasLimit and paymasterPostOpGasLimit will be
+    /// be ignored when threshold is 1. paymaster, paymasterVerificationGasLimit and paymasterPostOpGasLimit will be
     /// ignored if paymasterAndData is empty.
     struct LightUserOpGasLimits {
         uint256 maxPriorityFeePerGas;
@@ -46,7 +46,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
         uint256 callGasLimit;
         uint256 verificationGasLimit;
         address paymaster;
-        uint256 paymasterValidationGasLimit;
+        uint256 paymasterVerificationGasLimit;
         uint256 paymasterPostOpGasLimit;
     }
 
@@ -458,7 +458,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
 
             if (
                 gasLimits_.paymaster != paymaster
-                    || paymasterVerificationGasLimit > gasLimits_.paymasterValidationGasLimit
+                    || paymasterVerificationGasLimit > gasLimits_.paymasterVerificationGasLimit
                     || paymasterPostOpGasLimit > gasLimits_.paymasterPostOpGasLimit
             ) {
                 revert InvalidPaymasterData();
