@@ -256,7 +256,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
             MerkelizedUserOpSignature memory signature = abi.decode(userOp_.signature[1:], (MerkelizedUserOpSignature));
 
             // if threshold is greater than 1, `threshold - 1` signers will sign over the merkle tree root of light user
-            // op hash(s). We lazily calculate light userOp hash based on value of light merkle tree root. If threshold
+            // op hash(s). We lazily calculate light userOp hash based on number of signatures. If threshold
             // is 1 then light userOp hash won't be needed.
             if (signature.signatures.length > 1) {
                 _verifyGasLimits(userOp_, signature.gasLimits);
