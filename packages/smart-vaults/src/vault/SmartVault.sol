@@ -35,14 +35,19 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
         ERC1271
     }
 
-    /// @notice Upper limits for maxPriorityFeePerGas, preVerificationGas, verificationGasLimit and callGasLimit that
-    /// should be charged by the userOp. This is included in the light userOp hash to ensure last signer does not exceed
-    /// the specified gas price/limits. These values will be ignored when threshold is 1.
+    /// @notice Upper limits for maxPriorityFeePerGas, preVerificationGas, verificationGasLimit, callGasLimit,
+    /// paymasterValidationGasLimit and paymasterPostOpGasLimit that should be charged by the userOp. This is included
+    /// in the light userOp hash to ensure last signer does not exceed the specified gas price/limits. These values will
+    /// be ignored when threshold is 1. paymaster, paymasterValidationGasLimit and paymasterPostOpGasLimit will be
+    /// ignored if paymasterAndData is empty.
     struct LightUserOpGasLimits {
         uint256 maxPriorityFeePerGas;
         uint256 preVerificationGas;
         uint256 callGasLimit;
         uint256 verificationGasLimit;
+        address paymaster;
+        uint256 paymasterValidationGasLimit;
+        uint256 paymasterPostOpGasLimit;
     }
 
     /// @notice Single User Op Signature Scheme.
@@ -111,6 +116,9 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
 
     /// @notice Thrown when LightUserOpGasLimits have been breached.
     error InvalidGasLimits();
+
+    /// @notice Thrown when Paymaster LightUserOpGasLimits have been breached.
+    error InvalidPaymasterData();
 
     /* -------------------------------------------------------------------------- */
     /*                                  MODIFIERS                                 */
@@ -443,5 +451,18 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
                 || userOp_.preVerificationGas > gasLimits_.preVerificationGas
                 || verificationGasLimit > gasLimits_.verificationGasLimit
         ) revert InvalidGasLimits();
+
+        if (userOp_.paymasterAndData.length > 0) {
+            (address paymaster, uint256 paymasterVerificationGasLimit, uint256 paymasterPostOpGasLimit) =
+                UserOperationLib.unpackPaymasterStaticFields(userOp_.paymasterAndData);
+
+            if (
+                gasLimits_.paymaster != paymaster
+                    || paymasterVerificationGasLimit > gasLimits_.paymasterValidationGasLimit
+                    || paymasterPostOpGasLimit > gasLimits_.paymasterPostOpGasLimit
+            ) {
+                revert InvalidPaymasterData();
+            }
+        }
     }
 }
