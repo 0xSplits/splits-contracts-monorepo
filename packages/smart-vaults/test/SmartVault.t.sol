@@ -580,7 +580,8 @@ contract SmartVaultTest is BaseTest {
         userOp.paymasterAndData = new bytes(0);
 
         vm.prank(ENTRY_POINT);
-        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 1);
+        vm.expectRevert(abi.encodeWithSelector(DuplicateSigner.selector, 1));
+        vault.validateUserOp(userOp, hash, _missingAccountsFund);
     }
 
     function testFuzz_validateUserOp_singleUserOp_fakedSignature(

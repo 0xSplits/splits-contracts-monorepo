@@ -276,8 +276,9 @@ library MultiSignerLib {
             signerIndex = signatures_[i].signerIndex;
             mask = (1 << signerIndex);
 
+            if (alreadySigned & mask != 0) revert DuplicateSigner(signerIndex);
+
             if ($_.signers[signerIndex].isValidSignature(frontHash_, signatures_[i].signatureData)) {
-                if (alreadySigned & mask != 0) revert DuplicateSigner(signerIndex);
                 alreadySigned |= mask;
             } else {
                 isValid = false;
@@ -287,8 +288,9 @@ library MultiSignerLib {
         signerIndex = signatures_[i].signerIndex;
         mask = (1 << signerIndex);
 
+        if (alreadySigned & mask != 0) revert DuplicateSigner(signerIndex);
+
         if ($_.signers[signerIndex].isValidSignature(backHash_, signatures_[i].signatureData)) {
-            if (alreadySigned & mask != 0) revert DuplicateSigner(signerIndex);
             alreadySigned |= mask;
         } else {
             isValid = false;
