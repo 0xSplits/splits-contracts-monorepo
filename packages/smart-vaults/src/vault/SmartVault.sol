@@ -247,7 +247,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
             // calculate light userOp hash based on number of signatures. If threshold is 1 then light userOp hash
             // won't be needed.
             if (signature.signatures.length > 1) {
-                _verifyGasLimits(signature.gasLimits, userOp_);
+                _verifyGasLimits(userOp_, signature.gasLimits);
                 lightHash = _getLightUserOpHash(userOp_, signature.gasLimits);
             }
 
@@ -259,7 +259,7 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
             // op hash(s). We lazily calculate light userOp hash based on value of light merkle tree root. If threshold
             // is 1 then light userOp hash won't be needed.
             if (signature.lightMerkleTreeRoot != bytes32(0)) {
-                _verifyGasLimits(signature.gasLimits, userOp_);
+                _verifyGasLimits(userOp_, signature.gasLimits);
                 lightHash = _getLightUserOpHash(userOp_, signature.gasLimits);
             }
 
@@ -437,8 +437,8 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
     }
 
     function _verifyGasLimits(
-        LightUserOpGasLimits memory gasLimits_,
-        PackedUserOperation calldata userOp_
+        PackedUserOperation calldata userOp_,
+        LightUserOpGasLimits memory gasLimits_
     )
         internal
         pure
