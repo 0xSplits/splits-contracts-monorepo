@@ -31,6 +31,8 @@ The Program does NOT cover the following:
 Vulnerabilities contingent upon the occurrence of any of the following also are outside the scope of this Program:
 
 - Front-end bugs (clickjacking etc.)
+- Network failure
+- Bugs requiring unreasonable amounts of compute (i.e. brute-forced hash collisions)
 - DDoS attacks
 - Spamming
 - Phishing
