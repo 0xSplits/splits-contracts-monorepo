@@ -12,7 +12,7 @@ Starting on September 1, 2024, the [Splits contracts monorepo](https://github.co
 the Splits Contracts Monorepo Bug Bounty (the "Program") to incentivize responsible bug disclosure.
 
 We are limiting the scope of the Program to [critical and high severity bugs](https://immunefi.com/immunefi-vulnerability-severity-classification-system-v2-3/), and are offering a reward of up to
-$25,000. Happy hunting!
+$50,000. Happy hunting!
 
 ### Scope
 
@@ -44,7 +44,7 @@ Vulnerabilities contingent upon the occurrence of any of the following also are 
 ### Rewards
 
 Rewards will be allocated based on the severity of the bug disclosed and will be evaluated and rewarded at the
-discretion of the Splits team. For critical bugs that lead to any loss of user funds, rewards of up to $25,000
+discretion of the Splits team. For critical bugs that lead to any loss of user funds, rewards of up to $50,000
 will be granted. Lower severity bugs will be rewarded at the discretion of the team.
 
 ### Disclosure
