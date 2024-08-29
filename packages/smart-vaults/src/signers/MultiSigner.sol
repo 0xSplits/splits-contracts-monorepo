@@ -64,6 +64,12 @@ library MultiSignerLib {
      */
     error SignerAlreadyPresent(uint8 index);
 
+    /**
+     * @notice Thrown when same signer is used for signature verification.
+     * @param index Index of duplicate signer.
+     */
+    error DuplicateSigner(uint8 index);
+
     /* -------------------------------------------------------------------------- */
     /*                                  FUNCTIONS                                 */
     /* -------------------------------------------------------------------------- */
@@ -270,10 +276,9 @@ library MultiSignerLib {
             signerIndex = signatures_[i].signerIndex;
             mask = (1 << signerIndex);
 
-            if (
-                $_.signers[signerIndex].isValidSignature(frontHash_, signatures_[i].signatureData)
-                    && alreadySigned & mask == 0
-            ) {
+            if (alreadySigned & mask != 0) revert DuplicateSigner(signerIndex);
+
+            if ($_.signers[signerIndex].isValidSignature(frontHash_, signatures_[i].signatureData)) {
                 alreadySigned |= mask;
             } else {
                 isValid = false;
@@ -283,10 +288,9 @@ library MultiSignerLib {
         signerIndex = signatures_[i].signerIndex;
         mask = (1 << signerIndex);
 
-        if (
-            $_.signers[signerIndex].isValidSignature(backHash_, signatures_[i].signatureData)
-                && alreadySigned & mask == 0
-        ) {
+        if (alreadySigned & mask != 0) revert DuplicateSigner(signerIndex);
+
+        if ($_.signers[signerIndex].isValidSignature(backHash_, signatures_[i].signatureData)) {
             alreadySigned |= mask;
         } else {
             isValid = false;

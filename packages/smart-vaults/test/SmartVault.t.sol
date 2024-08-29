@@ -62,6 +62,7 @@ contract SmartVaultTest is BaseTest {
     error FunctionNotSupported(bytes4 sig);
     error InvalidGasLimits();
     error InvalidPaymasterData();
+    error DuplicateSigner(uint8 index);
 
     event UpdatedFallbackHandler(bytes4 indexed sig, address indexed handler);
     event ReceiveEth(address indexed sender, uint256 amount);
@@ -499,7 +500,8 @@ contract SmartVaultTest is BaseTest {
         userOp.paymasterAndData = new bytes(0);
 
         vm.prank(ENTRY_POINT);
-        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 1);
+        vm.expectRevert(abi.encodeWithSelector(DuplicateSigner.selector, 0));
+        vault.validateUserOp(userOp, hash, _missingAccountsFund);
     }
 
     function testFuzz_validateUserOp_singleUserOp_incorrectSignerIndex(
@@ -578,7 +580,8 @@ contract SmartVaultTest is BaseTest {
         userOp.paymasterAndData = new bytes(0);
 
         vm.prank(ENTRY_POINT);
-        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 1);
+        vm.expectRevert(abi.encodeWithSelector(DuplicateSigner.selector, 1));
+        vault.validateUserOp(userOp, hash, _missingAccountsFund);
     }
 
     function testFuzz_validateUserOp_singleUserOp_fakedSignature(
