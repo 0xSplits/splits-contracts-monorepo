@@ -327,7 +327,7 @@ contract SmartVaultTest is BaseTest {
         userOp.signature = getUserOpSignature(sigs);
 
         vm.prank(ENTRY_POINT);
-        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 1);
+        assertEq(vault.validateUserOp(userOp, bytes32(uint256(hash) - 1), _missingAccountsFund), 1);
     }
 
     function testFuzz_validateUserOp_singleUserOp_RevertsWhen_emptySignatures(
