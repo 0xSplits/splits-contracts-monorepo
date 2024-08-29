@@ -32,11 +32,24 @@ library SignerLib {
     bytes32 constant ZERO = bytes32(0);
 
     /* -------------------------------------------------------------------------- */
+    /*                                   ERRORS                                   */
+    /* -------------------------------------------------------------------------- */
+
+    /// @notice Thrown when signer is neither EOA or Passkey.
+    error InvalidSigner();
+
+    /* -------------------------------------------------------------------------- */
     /*                                  FUNCTIONS                                 */
     /* -------------------------------------------------------------------------- */
 
     /// @notice checks if slot2 is zero and slot1 is a valid address.
     function isEOA(Signer calldata signer_) internal pure returns (bool) {
+        uint256 slot1 = uint256(bytes32(signer_.slot1));
+        return signer_.slot2 == ZERO && slot1 <= type(uint160).max && slot1 > 0;
+    }
+
+    /// @notice checks if slot2 is zero and slot1 is a valid address.
+    function isEOAMem(Signer memory signer_) internal pure returns (bool) {
         uint256 slot1 = uint256(bytes32(signer_.slot1));
         return signer_.slot2 == ZERO && slot1 <= type(uint160).max && slot1 > 0;
     }
@@ -79,8 +92,10 @@ library SignerLib {
     {
         if (isPasskeyMem(signer_)) {
             return decodePasskeySigner(signer_).isValidSignature(hash_, signature_);
-        } else {
+        } else if (isEOAMem(signer_)) {
             return decodeAccountSigner(signer_).isValidSignature(hash_, signature_);
+        } else {
+            revert InvalidSigner();
         }
     }
 }
