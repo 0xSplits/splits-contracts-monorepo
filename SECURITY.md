@@ -63,6 +63,7 @@ provide as much information about the vulnerability as possible, including:
 - The steps needed to reproduce the bug or, preferably, a proof of concept.
 - The potential implications of the vulnerability being abused.
 
+Here is a [template](https://immunefisupport.zendesk.com/hc/en-us/articles/12435277406481-Bug-Report-Template).
 Anyone who reports a unique, previously-unreported vulnerability that results in a change to the code or a configuration
 change and who keeps such vulnerability confidential until it has been resolved by our engineers will be recognized
 publicly for their contribution if they so choose.
