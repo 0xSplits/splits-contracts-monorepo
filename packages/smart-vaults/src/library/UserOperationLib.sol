@@ -20,6 +20,12 @@ library UserOperationLib {
 
     uint256 public constant INVALID_SIGNATURE = 1;
 
+    uint256 public constant PAYMASTER_VALIDATION_GAS_OFFSET = 20;
+
+    uint256 public constant PAYMASTER_POSTOP_GAS_OFFSET = 36;
+
+    uint256 public constant PAYMASTER_DATA_OFFSET = 52;
+
     /* -------------------------------------------------------------------------- */
     /*                                  FUNCTIONS                                 */
     /* -------------------------------------------------------------------------- */
@@ -112,5 +118,21 @@ library UserOperationLib {
      */
     function hash(PackedUserOperation calldata userOp_) internal pure returns (bytes32) {
         return keccak256(encode(userOp_));
+    }
+
+    function unpackUints(bytes32 packed) internal pure returns (uint256 high128, uint256 low128) {
+        return (uint128(bytes16(packed)), uint128(uint256(packed)));
+    }
+
+    function unpackPaymasterStaticFields(bytes calldata paymasterAndData)
+        internal
+        pure
+        returns (address paymaster, uint256 validationGasLimit, uint256 postOpGasLimit)
+    {
+        return (
+            address(bytes20(paymasterAndData[:PAYMASTER_VALIDATION_GAS_OFFSET])),
+            uint128(bytes16(paymasterAndData[PAYMASTER_VALIDATION_GAS_OFFSET:PAYMASTER_POSTOP_GAS_OFFSET])),
+            uint128(bytes16(paymasterAndData[PAYMASTER_POSTOP_GAS_OFFSET:PAYMASTER_DATA_OFFSET]))
+        );
     }
 }

@@ -35,13 +35,35 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
         ERC1271
     }
 
+    /// @notice Upper limits for maxPriorityFeePerGas, preVerificationGas, verificationGasLimit, callGasLimit,
+    /// paymasterVerificationGasLimit and paymasterPostOpGasLimit that should be charged by the userOp. This is included
+    /// in the light userOp hash to ensure last signer does not exceed the specified gas price/limits. These values will
+    /// be ignored when threshold is 1. paymaster, paymasterVerificationGasLimit and paymasterPostOpGasLimit will be
+    /// ignored if paymasterAndData is empty.
+    struct LightUserOpGasLimits {
+        uint256 maxPriorityFeePerGas;
+        uint256 preVerificationGas;
+        uint256 callGasLimit;
+        uint256 verificationGasLimit;
+        address paymaster;
+        uint256 paymasterVerificationGasLimit;
+        uint256 paymasterPostOpGasLimit;
+    }
+
     /// @notice Single User Op Signature Scheme.
     struct SingleUserOpSignature {
+        /// @notice light user op gas limits.
+        LightUserOpGasLimits gasLimits;
+        /// @notice list of signatures where threshold - 1
+        /// signatures will be verified against the light userOp hash and the final signature will be verified
+        /// against the userOp hash.
         MultiSignerLib.SignatureWrapper[] signatures;
     }
 
     /// @notice Merkelized User Op Signature Scheme.
     struct MerkelizedUserOpSignature {
+        /// @notice light user op gas limits.
+        LightUserOpGasLimits gasLimits;
         /// @notice merkleRoot of all the light(userOp) in the Merkle Tree. If threshold is 1, this will be
         /// bytes32(0).
         bytes32 lightMerkleTreeRoot;
@@ -91,6 +113,12 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
 
     /// @notice Thrown when merkle root validation fails.
     error InvalidMerkleProof();
+
+    /// @notice Thrown when LightUserOpGasLimits have been breached.
+    error InvalidGasLimits();
+
+    /// @notice Thrown when Paymaster LightUserOpGasLimits have been breached.
+    error InvalidPaymasterData();
 
     /* -------------------------------------------------------------------------- */
     /*                                  MODIFIERS                                 */
@@ -218,7 +246,10 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
             // if threshold is greater than 1, `threshold - 1` signers will sign over the light userOp hash. We lazily
             // calculate light userOp hash based on number of signatures. If threshold is 1 then light userOp hash
             // won't be needed.
-            if (signature.signatures.length > 1) lightHash = _getLightUserOpHash(userOp_);
+            if (signature.signatures.length > 1) {
+                _verifyGasLimits(userOp_, signature.gasLimits);
+                lightHash = _getLightUserOpHash(userOp_, signature.gasLimits);
+            }
 
             return _validateSingleUserOp(lightHash, userOpHash_, signature);
         } else if (signatureType == SignatureTypes.MerkelizedUserOp) {
@@ -227,7 +258,10 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
             // if threshold is greater than 1, `threshold - 1` signers will sign over the merkle tree root of light user
             // op hash(s). We lazily calculate light userOp hash based on value of light merkle tree root. If threshold
             // is 1 then light userOp hash won't be needed.
-            if (signature.lightMerkleTreeRoot != bytes32(0)) lightHash = _getLightUserOpHash(userOp_);
+            if (signature.lightMerkleTreeRoot != bytes32(0)) {
+                _verifyGasLimits(userOp_, signature.gasLimits);
+                lightHash = _getLightUserOpHash(userOp_, signature.gasLimits);
+            }
 
             return _validateMerkelizedUserOp(lightHash, userOpHash_, signature);
         } else {
@@ -329,8 +363,15 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
     }
 
     /// @dev Get light userOp hash of the Packed user operation.
-    function _getLightUserOpHash(PackedUserOperation calldata userOp_) internal view returns (bytes32) {
-        return keccak256(abi.encode(userOp_.hashLight(), entryPoint(), block.chainid));
+    function _getLightUserOpHash(
+        PackedUserOperation calldata userOp_,
+        LightUserOpGasLimits memory gasLimits_
+    )
+        internal
+        view
+        returns (bytes32)
+    {
+        return keccak256(abi.encode(userOp_.hashLight(), gasLimits_, entryPoint(), block.chainid));
     }
 
     /// @dev validates if the given hash (ERC1271) was signed by the signers.
@@ -393,5 +434,35 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
 
     function _getSignatureType(bytes1 signatureType_) internal pure returns (SignatureTypes) {
         return SignatureTypes(uint8(signatureType_));
+    }
+
+    function _verifyGasLimits(
+        PackedUserOperation calldata userOp_,
+        LightUserOpGasLimits memory gasLimits_
+    )
+        internal
+        pure
+    {
+        (uint256 userOpMaxPriorityFeePerGas,) = UserOperationLib.unpackUints(userOp_.gasFees);
+        (uint256 verificationGasLimit, uint256 callGasLimit) = UserOperationLib.unpackUints(userOp_.accountGasLimits);
+
+        if (
+            userOpMaxPriorityFeePerGas > gasLimits_.maxPriorityFeePerGas || callGasLimit > gasLimits_.callGasLimit
+                || userOp_.preVerificationGas > gasLimits_.preVerificationGas
+                || verificationGasLimit > gasLimits_.verificationGasLimit
+        ) revert InvalidGasLimits();
+
+        if (userOp_.paymasterAndData.length > 0) {
+            (address paymaster, uint256 paymasterVerificationGasLimit, uint256 paymasterPostOpGasLimit) =
+                UserOperationLib.unpackPaymasterStaticFields(userOp_.paymasterAndData);
+
+            if (
+                gasLimits_.paymaster != paymaster
+                    || paymasterVerificationGasLimit > gasLimits_.paymasterVerificationGasLimit
+                    || paymasterPostOpGasLimit > gasLimits_.paymasterPostOpGasLimit
+            ) {
+                revert InvalidPaymasterData();
+            }
+        }
     }
 }

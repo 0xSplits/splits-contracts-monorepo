@@ -60,6 +60,8 @@ contract SmartVaultTest is BaseTest {
     error InvalidThreshold();
     error InvalidMerkleProof();
     error FunctionNotSupported(bytes4 sig);
+    error InvalidGasLimits();
+    error InvalidPaymasterData();
 
     event UpdatedFallbackHandler(bytes4 indexed sig, address indexed handler);
     event ReceiveEth(address indexed sender, uint256 amount);
@@ -90,7 +92,79 @@ contract SmartVaultTest is BaseTest {
     }
 
     function getLightUserOpHash(PackedUserOperation calldata userOp) internal view returns (bytes32) {
-        return keccak256(abi.encode(userOp.hashLight(), ENTRY_POINT, block.chainid));
+        return keccak256(abi.encode(userOp.hashLight(), getGasLimits(userOp), ENTRY_POINT, block.chainid));
+    }
+
+    function getLightUserOpHash(
+        PackedUserOperation calldata userOp,
+        address paymaster,
+        uint256 validationGasLimit,
+        uint256 postOpGasLimit
+    )
+        internal
+        view
+        returns (bytes32)
+    {
+        return keccak256(
+            abi.encode(
+                userOp.hashLight(),
+                getGasLimits(userOp, paymaster, validationGasLimit, postOpGasLimit),
+                ENTRY_POINT,
+                block.chainid
+            )
+        );
+    }
+
+    function getMaxFee(PackedUserOperation memory userOp) internal pure returns (uint256) {
+        (uint256 maxPriorityFeePerGas,) = UserOperationLib.unpackUints(userOp.gasFees);
+        return maxPriorityFeePerGas;
+    }
+
+    function getGasLimit(PackedUserOperation memory userOp) internal pure returns (uint256) {
+        (, uint256 gasLimit) = UserOperationLib.unpackUints(userOp.accountGasLimits);
+        return gasLimit;
+    }
+
+    function getVerificationGasLimit(PackedUserOperation memory userOp) internal pure returns (uint256) {
+        (uint256 gasLimit,) = UserOperationLib.unpackUints(userOp.accountGasLimits);
+        return gasLimit;
+    }
+
+    function getGasLimits(PackedUserOperation memory userOp)
+        internal
+        pure
+        returns (SmartVault.LightUserOpGasLimits memory)
+    {
+        return SmartVault.LightUserOpGasLimits(
+            getMaxFee(userOp),
+            userOp.preVerificationGas,
+            getGasLimit(userOp),
+            getVerificationGasLimit(userOp),
+            address(0),
+            0,
+            0
+        );
+    }
+
+    function getGasLimits(
+        PackedUserOperation memory userOp,
+        address paymaster,
+        uint256 validationGasLimit,
+        uint256 postOpGasLimit
+    )
+        internal
+        pure
+        returns (SmartVault.LightUserOpGasLimits memory)
+    {
+        return SmartVault.LightUserOpGasLimits(
+            getMaxFee(userOp),
+            userOp.preVerificationGas,
+            getGasLimit(userOp),
+            getVerificationGasLimit(userOp),
+            paymaster,
+            validationGasLimit,
+            postOpGasLimit
+        );
     }
 
     function getERC1271Signature(MultiSignerLib.SignatureWrapper[] memory sigs) internal pure returns (bytes memory) {
@@ -98,14 +172,22 @@ contract SmartVaultTest is BaseTest {
         return abi.encode(sig);
     }
 
-    function getUserOpSignature(MultiSignerLib.SignatureWrapper[] memory sigs) internal pure returns (bytes memory) {
-        SmartVault.SingleUserOpSignature memory sig = SmartVault.SingleUserOpSignature(sigs);
+    function getUserOpSignature(
+        SmartVault.LightUserOpGasLimits memory gasLimits,
+        MultiSignerLib.SignatureWrapper[] memory sigs
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        SmartVault.SingleUserOpSignature memory sig = SmartVault.SingleUserOpSignature(gasLimits, sigs);
         bytes memory signature = abi.encode(sig);
         bytes1 sigType = bytes1(uint8(SmartVault.SignatureTypes.SingleUserOp));
         return bytes.concat(sigType, signature);
     }
 
     function getUserOpSignature(
+        SmartVault.LightUserOpGasLimits memory gasLimits,
         MultiSignerLib.SignatureWrapper[] memory sigs,
         bytes32[] memory proof,
         bytes32[] memory lightProof,
@@ -117,11 +199,18 @@ contract SmartVaultTest is BaseTest {
         returns (bytes memory)
     {
         SmartVault.MerkelizedUserOpSignature memory sig =
-            SmartVault.MerkelizedUserOpSignature(lightRootHash, lightProof, rootHash, proof, sigs);
+            SmartVault.MerkelizedUserOpSignature(gasLimits, lightRootHash, lightProof, rootHash, proof, sigs);
 
         bytes memory signature = abi.encode(sig);
         bytes1 sigType = bytes1(uint8(SmartVault.SignatureTypes.MerkelizedUserOp));
         return bytes.concat(sigType, signature);
+    }
+
+    function packUints(uint256 high128, uint256 low128) internal pure returns (bytes32 packed) {
+        require(high128 <= type(uint128).max, "high128 exceeds 128 bits");
+        require(low128 <= type(uint128).max, "low128 exceeds 128 bits");
+
+        packed = bytes32(uint256(high128) << 128 | low128);
     }
 
     function hashPair(bytes32 a, bytes32 b) private pure returns (bytes32) {
@@ -135,6 +224,18 @@ contract SmartVaultTest is BaseTest {
             mstore(0x20, b)
             value := keccak256(0x00, 0x40)
         }
+    }
+
+    function packPaymasterStaticFields(
+        address paymaster,
+        uint256 validationGasLimit,
+        uint256 postOpGasLimit
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(paymaster, uint128(validationGasLimit), uint128(postOpGasLimit));
     }
 
     /* -------------------------------------------------------------------------- */
@@ -227,7 +328,7 @@ contract SmartVaultTest is BaseTest {
         sigs[0] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         PackedUserOperation memory userOp = _userOp;
-        userOp.signature = getUserOpSignature(sigs);
+        userOp.signature = getUserOpSignature(getGasLimits(userOp), sigs);
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
@@ -253,7 +354,8 @@ contract SmartVaultTest is BaseTest {
         sigs[1] = MultiSignerLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
 
         PackedUserOperation memory userOp = _userOp;
-        userOp.signature = getUserOpSignature(sigs);
+        userOp.signature = getUserOpSignature(getGasLimits(_userOp), sigs);
+        userOp.paymasterAndData = new bytes(0);
 
         vm.prank(address(vault));
         vault.updateThreshold(2);
@@ -291,7 +393,7 @@ contract SmartVaultTest is BaseTest {
         );
 
         PackedUserOperation memory userOp = _userOp;
-        userOp.signature = getUserOpSignature(sigs);
+        userOp.signature = getUserOpSignature(getGasLimits(userOp), sigs);
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
@@ -324,7 +426,7 @@ contract SmartVaultTest is BaseTest {
         );
 
         PackedUserOperation memory userOp = _userOp;
-        userOp.signature = getUserOpSignature(sigs);
+        userOp.signature = getUserOpSignature(getGasLimits(userOp), sigs);
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 1);
@@ -338,8 +440,7 @@ contract SmartVaultTest is BaseTest {
         public
     {
         MultiSignerLib.SignatureWrapper[] memory sigs = new MultiSignerLib.SignatureWrapper[](0);
-
-        _userOp.signature = getUserOpSignature(sigs);
+        _userOp.signature = getUserOpSignature(getGasLimits(_userOp), sigs);
 
         vm.expectRevert();
         vm.prank(ENTRY_POINT);
@@ -362,7 +463,8 @@ contract SmartVaultTest is BaseTest {
 
         MultiSignerLib.SignatureWrapper[] memory sigs = new MultiSignerLib.SignatureWrapper[](1);
         sigs[0] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
-        _userOp.signature = getUserOpSignature(sigs);
+        _userOp.signature = getUserOpSignature(getGasLimits(_userOp), sigs);
+        _userOp.paymasterAndData = new bytes(0);
 
         vm.expectRevert();
         vm.prank(ENTRY_POINT);
@@ -393,7 +495,8 @@ contract SmartVaultTest is BaseTest {
         sigs[1] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         PackedUserOperation memory userOp = _userOp;
-        userOp.signature = getUserOpSignature(sigs);
+        userOp.signature = getUserOpSignature(getGasLimits(_userOp), sigs);
+        userOp.paymasterAndData = new bytes(0);
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 1);
@@ -414,7 +517,7 @@ contract SmartVaultTest is BaseTest {
         sigs[0] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
         PackedUserOperation memory userOp = _userOp;
 
-        userOp.signature = getUserOpSignature(sigs);
+        userOp.signature = getUserOpSignature(getGasLimits(_userOp), sigs);
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 1);
@@ -442,8 +545,8 @@ contract SmartVaultTest is BaseTest {
         sigs[1] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         PackedUserOperation memory userOp = _userOp;
-
-        userOp.signature = getUserOpSignature(sigs);
+        userOp.signature = getUserOpSignature(getGasLimits(_userOp), sigs);
+        userOp.paymasterAndData = new bytes(0);
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 1);
@@ -471,8 +574,8 @@ contract SmartVaultTest is BaseTest {
         sigs[1] = MultiSignerLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
 
         PackedUserOperation memory userOp = _userOp;
-
-        userOp.signature = getUserOpSignature(sigs);
+        userOp.signature = getUserOpSignature(getGasLimits(_userOp), sigs);
+        userOp.paymasterAndData = new bytes(0);
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 1);
@@ -493,8 +596,7 @@ contract SmartVaultTest is BaseTest {
         sigs[0] = MultiSignerLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
 
         PackedUserOperation memory userOp = _userOp;
-
-        userOp.signature = getUserOpSignature(sigs);
+        userOp.signature = getUserOpSignature(getGasLimits(_userOp), sigs);
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 1);
@@ -521,8 +623,8 @@ contract SmartVaultTest is BaseTest {
         sigs[1] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         PackedUserOperation memory userOp = _userOp;
-
-        userOp.signature = getUserOpSignature(sigs);
+        userOp.signature = getUserOpSignature(getGasLimits(_userOp), sigs);
+        userOp.paymasterAndData = new bytes(0);
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 1);
@@ -550,8 +652,256 @@ contract SmartVaultTest is BaseTest {
         sigs[1] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
 
         PackedUserOperation memory userOp = _userOp;
+        userOp.signature = getUserOpSignature(getGasLimits(_userOp), sigs);
+        userOp.paymasterAndData = new bytes(0);
 
-        userOp.signature = getUserOpSignature(sigs);
+        vm.prank(ENTRY_POINT);
+        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 1);
+    }
+
+    function testFuzz_validateUserOp_singleUserOp_multipleEOA_RevertsWhen_userOpMaxGasPriceGreater(
+        PackedUserOperation calldata _userOp,
+        uint256 _missingAccountsFund
+    )
+        public
+    {
+        (uint256 maxPriorityFeePerGas, uint256 maxFeePerGas) = UserOperationLib.unpackUints(_userOp.gasFees);
+
+        vm.assume(uint128(maxPriorityFeePerGas) < type(uint128).max);
+        vm.deal(address(vault), _missingAccountsFund);
+
+        bytes32 hash = getUserOpHash(_userOp);
+        bytes32 lightHash = getLightUserOpHash(_userOp);
+
+        PackedUserOperation memory userOp = _userOp;
+        userOp.gasFees = packUints(maxPriorityFeePerGas + 1, maxFeePerGas);
+
+        MultiSignerLib.SignatureWrapper[] memory sigs = new MultiSignerLib.SignatureWrapper[](2);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, lightHash);
+        sigs[0] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        (v, r, s) = vm.sign(BOB.key, hash);
+        sigs[1] = MultiSignerLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
+
+        userOp.signature = getUserOpSignature(getGasLimits(_userOp), sigs);
+        userOp.paymasterAndData = new bytes(0);
+
+        vm.prank(address(vault));
+        vault.updateThreshold(2);
+
+        vm.prank(ENTRY_POINT);
+        vm.expectRevert(abi.encodeWithSelector(InvalidGasLimits.selector));
+        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
+    }
+
+    function testFuzz_validateUserOp_singleUserOp_multipleEOA_RevertsWhen_userOpCallGasLimitIsGreater(
+        PackedUserOperation calldata _userOp,
+        uint256 _missingAccountsFund
+    )
+        public
+    {
+        (uint256 verificationGasLimit, uint256 callGasLimit) = UserOperationLib.unpackUints(_userOp.accountGasLimits);
+
+        vm.assume(uint128(callGasLimit) < type(uint128).max);
+        vm.deal(address(vault), _missingAccountsFund);
+
+        bytes32 hash = getUserOpHash(_userOp);
+        bytes32 lightHash = getLightUserOpHash(_userOp);
+
+        PackedUserOperation memory userOp = _userOp;
+        userOp.accountGasLimits = packUints(verificationGasLimit, callGasLimit + 1);
+
+        MultiSignerLib.SignatureWrapper[] memory sigs = new MultiSignerLib.SignatureWrapper[](2);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, lightHash);
+        sigs[0] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        (v, r, s) = vm.sign(BOB.key, hash);
+        sigs[1] = MultiSignerLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
+
+        userOp.signature = getUserOpSignature(getGasLimits(_userOp), sigs);
+        userOp.paymasterAndData = new bytes(0);
+
+        vm.prank(address(vault));
+        vault.updateThreshold(2);
+
+        vm.prank(ENTRY_POINT);
+        vm.expectRevert(abi.encodeWithSelector(InvalidGasLimits.selector));
+        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
+    }
+
+    function testFuzz_validateUserOp_singleUserOp_multipleEOA_RevertsWhen_paymasterIsDifferent(
+        PackedUserOperation calldata _userOp,
+        address _paymaster,
+        uint256 _validationGasLimit,
+        uint256 _postOpGasLimit,
+        uint256 _missingAccountsFund
+    )
+        public
+    {
+        vm.deal(address(vault), _missingAccountsFund);
+
+        bytes32 hash = getUserOpHash(_userOp);
+        bytes32 lightHash = getLightUserOpHash(_userOp, _paymaster, _validationGasLimit, _postOpGasLimit);
+
+        PackedUserOperation memory userOp = _userOp;
+        userOp.paymasterAndData = packPaymasterStaticFields(address(1), _validationGasLimit, _postOpGasLimit);
+
+        MultiSignerLib.SignatureWrapper[] memory sigs = new MultiSignerLib.SignatureWrapper[](2);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, lightHash);
+        sigs[0] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        (v, r, s) = vm.sign(BOB.key, hash);
+        sigs[1] = MultiSignerLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
+
+        userOp.signature = getUserOpSignature(getGasLimits(_userOp), sigs);
+
+        vm.prank(address(vault));
+        vault.updateThreshold(2);
+
+        vm.prank(ENTRY_POINT);
+        vm.expectRevert(abi.encodeWithSelector(InvalidPaymasterData.selector));
+        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
+    }
+
+    function testFuzz_validateUserOp_singleUserOp_multipleEOA_RevertsWhen_paymasterValidationLimitBreached(
+        PackedUserOperation calldata _userOp,
+        address _paymaster,
+        uint256 _validationGasLimit,
+        uint256 _postOpGasLimit,
+        uint256 _missingAccountsFund
+    )
+        public
+    {
+        vm.assume(uint128(_validationGasLimit) < type(uint128).max);
+        vm.deal(address(vault), _missingAccountsFund);
+
+        bytes32 hash = getUserOpHash(_userOp);
+        bytes32 lightHash = getLightUserOpHash(_userOp, _paymaster, _validationGasLimit, _postOpGasLimit);
+
+        PackedUserOperation memory userOp = _userOp;
+        userOp.paymasterAndData = packPaymasterStaticFields(_paymaster, _validationGasLimit + 1, _postOpGasLimit);
+
+        MultiSignerLib.SignatureWrapper[] memory sigs = new MultiSignerLib.SignatureWrapper[](2);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, lightHash);
+        sigs[0] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        (v, r, s) = vm.sign(BOB.key, hash);
+        sigs[1] = MultiSignerLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
+
+        userOp.signature = getUserOpSignature(getGasLimits(_userOp), sigs);
+
+        vm.prank(address(vault));
+        vault.updateThreshold(2);
+
+        vm.prank(ENTRY_POINT);
+        vm.expectRevert(abi.encodeWithSelector(InvalidPaymasterData.selector));
+        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
+    }
+
+    function testFuzz_validateUserOp_singleUserOp_multipleEOA_RevertsWhen_paymasterPostOpGasLimitBreached(
+        PackedUserOperation calldata _userOp,
+        address _paymaster,
+        uint256 _validationGasLimit,
+        uint256 _postOpGasLimit,
+        uint256 _missingAccountsFund
+    )
+        public
+    {
+        vm.assume(uint128(_postOpGasLimit) < type(uint128).max);
+        vm.deal(address(vault), _missingAccountsFund);
+
+        bytes32 hash = getUserOpHash(_userOp);
+        bytes32 lightHash = getLightUserOpHash(_userOp, _paymaster, _validationGasLimit, _postOpGasLimit);
+
+        PackedUserOperation memory userOp = _userOp;
+        userOp.paymasterAndData = packPaymasterStaticFields(_paymaster, _validationGasLimit, _postOpGasLimit + 1);
+
+        MultiSignerLib.SignatureWrapper[] memory sigs = new MultiSignerLib.SignatureWrapper[](2);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, lightHash);
+        sigs[0] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        (v, r, s) = vm.sign(BOB.key, hash);
+        sigs[1] = MultiSignerLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
+
+        userOp.signature = getUserOpSignature(getGasLimits(_userOp), sigs);
+
+        vm.prank(address(vault));
+        vault.updateThreshold(2);
+
+        vm.prank(ENTRY_POINT);
+        vm.expectRevert(abi.encodeWithSelector(InvalidPaymasterData.selector));
+        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
+    }
+
+    function testFuzz_validateUserOp_singleUserOp_multipleEOA_RevertsWhen_preVerificationGasIsGreater(
+        PackedUserOperation calldata _userOp,
+        uint256 _missingAccountsFund
+    )
+        public
+    {
+        vm.assume(_userOp.preVerificationGas < type(uint256).max);
+        vm.deal(address(vault), _missingAccountsFund);
+
+        bytes32 hash = getUserOpHash(_userOp);
+        bytes32 lightHash = getLightUserOpHash(_userOp);
+
+        PackedUserOperation memory userOp = _userOp;
+        userOp.preVerificationGas += 1;
+
+        MultiSignerLib.SignatureWrapper[] memory sigs = new MultiSignerLib.SignatureWrapper[](2);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, lightHash);
+        sigs[0] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        (v, r, s) = vm.sign(BOB.key, hash);
+        sigs[1] = MultiSignerLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
+
+        userOp.signature = getUserOpSignature(getGasLimits(_userOp), sigs);
+        userOp.paymasterAndData = new bytes(0);
+
+        vm.prank(address(vault));
+        vault.updateThreshold(2);
+
+        vm.prank(ENTRY_POINT);
+        vm.expectRevert(abi.encodeWithSelector(InvalidGasLimits.selector));
+        assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 0);
+    }
+
+    function testFuzz_validateUserOp_singleUserOp_multipleEOA_userOpMaxGasIncorrect(
+        PackedUserOperation calldata _userOp,
+        uint256 _missingAccountsFund
+    )
+        public
+    {
+        (uint256 maxPriorityFeePerGas, uint256 maxFeePerGas) = UserOperationLib.unpackUints(_userOp.gasFees);
+
+        vm.assume(uint128(maxPriorityFeePerGas) < type(uint128).max);
+        vm.deal(address(vault), _missingAccountsFund);
+
+        bytes32 hash = getUserOpHash(_userOp);
+        bytes32 lightHash = getLightUserOpHash(_userOp);
+
+        PackedUserOperation memory userOp = _userOp;
+        userOp.gasFees = packUints(maxPriorityFeePerGas + 1, maxFeePerGas);
+
+        MultiSignerLib.SignatureWrapper[] memory sigs = new MultiSignerLib.SignatureWrapper[](2);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, lightHash);
+        sigs[0] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        (v, r, s) = vm.sign(BOB.key, hash);
+        sigs[1] = MultiSignerLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
+
+        userOp.signature = getUserOpSignature(getGasLimits(userOp), sigs);
+        userOp.paymasterAndData = new bytes(0);
+
+        vm.prank(address(vault));
+        vault.updateThreshold(2);
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash, _missingAccountsFund), 1);
@@ -581,7 +931,9 @@ contract SmartVaultTest is BaseTest {
         proof[0] = hash2;
 
         PackedUserOperation memory userOp = _userOp1;
-        userOp.signature = getUserOpSignature(sigs, proof, new bytes32[](0), rootHash, bytes32(0));
+        userOp.signature =
+            getUserOpSignature(getGasLimits(_userOp1), sigs, proof, new bytes32[](0), rootHash, bytes32(0));
+        userOp.paymasterAndData = new bytes(0);
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash1, 0), 0);
@@ -589,8 +941,9 @@ contract SmartVaultTest is BaseTest {
         proof[0] = hash1;
 
         userOp = _userOp2;
-        userOp.signature = getUserOpSignature(sigs, proof, new bytes32[](0), rootHash, bytes32(0));
-
+        userOp.signature =
+            getUserOpSignature(getGasLimits(_userOp2), sigs, proof, new bytes32[](0), rootHash, bytes32(0));
+        userOp.paymasterAndData = new bytes(0);
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash2, 0), 0);
     }
@@ -615,7 +968,9 @@ contract SmartVaultTest is BaseTest {
         proof[0] = hash1;
 
         PackedUserOperation memory userOp = _userOp1;
-        userOp.signature = getUserOpSignature(sigs, proof, new bytes32[](0), rootHash, bytes32(0));
+        userOp.signature =
+            getUserOpSignature(getGasLimits(_userOp1), sigs, proof, new bytes32[](0), rootHash, bytes32(0));
+        userOp.paymasterAndData = new bytes(0);
 
         vm.expectRevert(abi.encodeWithSelector(InvalidMerkleProof.selector));
         vm.prank(ENTRY_POINT);
@@ -647,24 +1002,30 @@ contract SmartVaultTest is BaseTest {
 
         (v, r, s) = vm.sign(BOB.key, rootHash);
         sigs[1] = MultiSignerLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
-
-        bytes32[] memory proof = new bytes32[](1);
-        proof[0] = hash2;
-
-        bytes32[] memory lightProof = new bytes32[](1);
-        lightProof[0] = lightHash2;
-
         PackedUserOperation memory userOp = _userOp1;
-        userOp.signature = getUserOpSignature(sigs, proof, lightProof, rootHash, lightRootHash);
+        bytes32[] memory proof = new bytes32[](1);
+        bytes32[] memory lightProof = new bytes32[](1);
+        {
+            proof[0] = hash2;
+
+            lightProof[0] = lightHash2;
+
+            userOp.signature =
+                getUserOpSignature(getGasLimits(userOp), sigs, proof, lightProof, rootHash, lightRootHash);
+            userOp.paymasterAndData = new bytes(0);
+        }
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash1, 0), 0);
+        {
+            proof[0] = hash1;
+            lightProof[0] = lightHash1;
 
-        proof[0] = hash1;
-        lightProof[0] = lightHash1;
-
-        userOp = _userOp2;
-        userOp.signature = getUserOpSignature(sigs, proof, lightProof, rootHash, lightRootHash);
+            userOp = _userOp2;
+            userOp.signature =
+                getUserOpSignature(getGasLimits(userOp), sigs, proof, lightProof, rootHash, lightRootHash);
+            userOp.paymasterAndData = new bytes(0);
+        }
 
         vm.prank(ENTRY_POINT);
         assertEq(vault.validateUserOp(userOp, hash2, 0), 0);
@@ -696,17 +1057,66 @@ contract SmartVaultTest is BaseTest {
         (v, r, s) = vm.sign(BOB.key, rootHash);
         sigs[1] = MultiSignerLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
 
-        bytes32[] memory proof = new bytes32[](1);
-        proof[0] = hash2;
-
-        bytes32[] memory lightProof = new bytes32[](1);
-        lightProof[0] = lightHash1;
-
         PackedUserOperation memory userOp = _userOp1;
-        userOp.signature = getUserOpSignature(sigs, proof, lightProof, rootHash, lightRootHash);
+        {
+            bytes32[] memory proof = new bytes32[](1);
+            proof[0] = hash2;
+
+            bytes32[] memory lightProof = new bytes32[](1);
+            lightProof[0] = lightHash1;
+
+            userOp.signature =
+                getUserOpSignature(getGasLimits(userOp), sigs, proof, lightProof, rootHash, lightRootHash);
+            userOp.paymasterAndData = new bytes(0);
+        }
 
         vm.expectRevert(abi.encodeWithSelector(InvalidMerkleProof.selector));
         vm.prank(ENTRY_POINT);
+        vault.validateUserOp(userOp, hash1, 0);
+    }
+
+    function testFuzz_validateMultiUserOp_whenThresholdIs2_RevertsWhen_InvalidGasPrice(
+        PackedUserOperation calldata _userOp1,
+        PackedUserOperation calldata _userOp2
+    )
+        public
+    {
+        (uint256 maxPriorityFeePerGas, uint256 maxFeePerGas) = UserOperationLib.unpackUints(_userOp1.gasFees);
+        vm.assume(uint128(maxPriorityFeePerGas) < type(uint128).max);
+        vm.prank(address(vault));
+        vault.updateThreshold(2);
+
+        MultiSignerLib.SignatureWrapper[] memory sigs = new MultiSignerLib.SignatureWrapper[](2);
+
+        bytes32 hash1 = getUserOpHash(_userOp1);
+        bytes32 hash2 = getUserOpHash(_userOp2);
+
+        bytes32 lightHash1 = getLightUserOpHash(_userOp1);
+        bytes32 lightHash2 = getLightUserOpHash(_userOp2);
+
+        bytes32 rootHash = hashPair(hash1, hash2);
+        bytes32 lightRootHash = hashPair(lightHash1, lightHash2);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE.key, lightRootHash);
+        sigs[0] = MultiSignerLib.SignatureWrapper(uint8(0), abi.encodePacked(r, s, v));
+
+        (v, r, s) = vm.sign(BOB.key, rootHash);
+        sigs[1] = MultiSignerLib.SignatureWrapper(uint8(1), abi.encodePacked(r, s, v));
+        PackedUserOperation memory userOp = _userOp1;
+        bytes32[] memory proof = new bytes32[](1);
+        bytes32[] memory lightProof = new bytes32[](1);
+        {
+            proof[0] = hash2;
+
+            lightProof[0] = lightHash2;
+            userOp.signature =
+                getUserOpSignature(getGasLimits(userOp), sigs, proof, lightProof, rootHash, lightRootHash);
+            userOp.paymasterAndData = new bytes(0);
+        }
+
+        userOp.gasFees = packUints(maxPriorityFeePerGas + 1, maxFeePerGas);
+        vm.prank(ENTRY_POINT);
+        vm.expectRevert(abi.encodeWithSelector(InvalidGasLimits.selector));
         vault.validateUserOp(userOp, hash1, 0);
     }
 
