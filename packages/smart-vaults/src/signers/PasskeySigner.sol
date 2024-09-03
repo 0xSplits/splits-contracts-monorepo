@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import { Signer } from "./Signer.sol";
-import { WebAuthn } from "@web-authn/WebAuthn.sol";
+import { WebAuthn } from "src/library/WebAuthn.sol";
 
 /**
  * @notice A signer backed by a passkey.
