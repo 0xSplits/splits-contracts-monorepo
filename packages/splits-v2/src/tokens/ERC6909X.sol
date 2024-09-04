@@ -323,7 +323,7 @@ contract ERC6909X is ERC6909, EIP712, UnorderedNonces, IERC6909X {
                     _nonce,
                     _deadline
                 )
-                )
+            )
         });
     }
 

@@ -53,6 +53,7 @@ library WebAuthn {
 
     /// @dev The expected type (hash) in the client data JSON when verifying assertion signatures.
     ///      See https://www.w3.org/TR/webauthn-2/#dom-collectedclientdata-type
+    // solhint-disable-next-line
     bytes32 private constant _EXPECTED_TYPE_HASH = keccak256('"type":"webauthn.get"');
 
     ///
@@ -147,6 +148,7 @@ library WebAuthn {
         }
 
         // 12. Verify that the value of C.challenge equals the base64url encoding of options.challenge.
+        // solhint-disable-next-line
         bytes memory expectedChallenge = bytes(string.concat('"challenge":"', Base64.encodeURL(challenge), '"'));
         string memory actualChallenge = webAuthnAuth.clientDataJSON.slice(
             webAuthnAuth.challengeIndex, webAuthnAuth.challengeIndex + expectedChallenge.length

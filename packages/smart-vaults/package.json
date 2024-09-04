@@ -31,6 +31,7 @@
     "solady": "^0.0.156",
     "web-authn": "github:base-org/webauthn-sol#619f20ab0f074fef41066ee4ab24849a913263b2",
     "FreshCryptoLib": "github:rdubois-crypto/FreshCryptoLib#76f3f135b7b27d2aa519f265b56bfc49a2573ab5",
-    "account-abstraction": "github:eth-infinitism/account-abstraction#7af70c8993a6f42973f520ae0752386a5032abe7"
+    "account-abstraction": "github:eth-infinitism/account-abstraction#7af70c8993a6f42973f520ae0752386a5032abe7",
+    "solhint": "^5.0.3"
   }
 }
