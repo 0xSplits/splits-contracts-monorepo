@@ -3,8 +3,9 @@
 This is a mono-repository for the Splits contracts. Current packages in this repository include:
 
 - [Splits - v2](./packages/splits-v2/README.md)
+- [Splits Smart Vaults](./packages/smart-vaults/README.md)
 
-### Installation
+## Installation
 
 The mono repo uses turborepo and pnpm. To install turbo repo, run the following command:
 
