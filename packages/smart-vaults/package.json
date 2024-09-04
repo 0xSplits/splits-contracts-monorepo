@@ -1,7 +1,7 @@
 {
-  "name": "splits-v2",
+  "name": "smart-vaults",
   "version": "1.0.0",
-  "description": "Splits v2 contracts",
+  "description": "Splits smart vaults",
   "scripts": {
     "build": "forge build",
     "build:optimized": "FOUNDRY_PROFILE=optimized forge build",
@@ -14,10 +14,8 @@
     "test:optimized": "pnpm run build:optimized && FOUNDRY_PROFILE=test-optimized forge test -vvv",
     "test:coverage": "forge coverage",
     "test:coverage:report": "forge coverage --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage",
-    "deploy:SplitsWarehouse:test": "export DRY_RUN=true && source .env && FOUNDRY_PROFILE=optimized forge script script/SplitsWarehouse.s.sol:SplitsWarehouseScript --account SPLITS_V2_DEPLOYER -vvvvv --rpc-url ",
-    "deploy:SplitsWarehouse": "export DRY_RUN=false && source .env && FOUNDRY_PROFILE=optimized forge script script/SplitsWarehouse.s.sol:SplitsWarehouseScript --account SPLITS_V2_DEPLOYER --broadcast --verify -vvvvv --rpc-url ",
-    "deploy:SplitFactoryV2:test": "export DRY_RUN=true && source .env && FOUNDRY_PROFILE=optimized forge script script/SplitFactoryV2.s.sol:SplitFactoryV2Script --account SPLITS_V2_DEPLOYER -vvvvv --rpc-url ",
-    "deploy:SplitFactoryV2": "export DRY_RUN=false && source .env && FOUNDRY_PROFILE=optimized forge script script/SplitFactoryV2.s.sol:SplitFactoryV2Script --account SPLITS_V2_DEPLOYER --broadcast --verify -vvvvv --rpc-url "
+    "deploy:VaultFactory:test": "export DRY_RUN=true && source .env && FOUNDRY_PROFILE=optimized forge script script/VaultFactory.s.sol:VaultFactoryScript --account SPLITS_DEPLOYER -vvvvv --rpc-url ",
+    "deploy:VaultFactory": "export DRY_RUN=false && source .env && FOUNDRY_PROFILE=optimized forge script script/VaultFactory.s.sol:VaultFactoryScript --account SPLITS_DEPLOYER --broadcast --verify -vvvvv --rpc-url "
   },
   "keywords": [],
   "author": "@splits",
@@ -29,9 +27,11 @@
     "prettier": "^3.1.0"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^4.9.3",
+    "@openzeppelin/contracts": "github:openzeppelin/openzeppelin-contracts#5705e8208bc92cd82c7bcdfeac8dbc7377767d96",
     "solady": "^0.0.156",
-    "solc": "0.8.23-fixed",
+    "web-authn": "github:base-org/webauthn-sol#619f20ab0f074fef41066ee4ab24849a913263b2",
+    "FreshCryptoLib": "github:rdubois-crypto/FreshCryptoLib#76f3f135b7b27d2aa519f265b56bfc49a2573ab5",
+    "account-abstraction": "github:eth-infinitism/account-abstraction#7af70c8993a6f42973f520ae0752386a5032abe7",
     "solhint": "^5.0.3"
   }
 }

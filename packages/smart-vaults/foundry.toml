@@ -1,0 +1,50 @@
+[profile.default]
+auto_detect_solc = false
+gas_reports = ["SmartVault", "MultiSigner", "FallbackManager"]
+optimizer = true
+optimizer_runs = 5_000_000
+out = "out"
+script = "script"
+solc = "0.8.23"
+src = "src"
+test = "test"
+allow_paths = ['../../node_modules']
+fs_permissions = [{ access = "read-write", path = "./" }]
+evm_version = "shanghai"
+
+[profile.default.fuzz]
+max_test_rejects = 1_000_000
+runs = 1000
+
+[profile.default.invariant]
+call_override = false
+depth = 20
+fail_on_revert = true
+runs = 20
+
+[profile.optimized]
+via_ir = true
+out = "out-optimized"
+
+[profile.test-optimized]
+ffi = true
+src = "test"
+
+[doc]
+ignore = ["**/*.t.sol"]
+out = "docs"
+
+[profile.ci]
+fuzz = { runs = 10_000 }
+verbosity = 4
+
+[fmt]
+bracket_spacing = true
+int_types = "long"
+line_length = 120
+multiline_func_header = "all"
+number_underscore = "thousands"
+quote_style = "double"
+tab_width = 4
+wrap_comments = true
+sort_imports = true

@@ -1,5 +1,5 @@
 {
-  "name": "splits-v2",
+  "name": "splits-monorepo",
   "private": true,
   "scripts": {
     "build": "turbo build",
