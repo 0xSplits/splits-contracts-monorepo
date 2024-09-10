@@ -404,9 +404,8 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
         bool isValidMerkleProof = MerkleProof.verify(signature.merkleProof, signature.merkleTreeRoot, userOpHash_);
 
         if (signature.signatures.length > 1) {
-            if (!MerkleProof.verify(signature.lightMerkleProof, signature.lightMerkleTreeRoot, lightHash_)) {
-                isValidMerkleProof = false;
-            }
+            isValidMerkleProof = isValidMerkleProof
+                && MerkleProof.verify(signature.lightMerkleProof, signature.lightMerkleTreeRoot, lightHash_);
         }
 
         uint256 isValidSig =
