@@ -974,10 +974,8 @@ contract SmartVaultTest is BaseTest {
         userOp.signature =
             getUserOpSignature(getGasLimits(_userOp1), sigs, proof, new bytes32[](0), rootHash, bytes32(0));
         userOp.paymasterAndData = new bytes(0);
-
-        vm.expectRevert(abi.encodeWithSelector(InvalidMerkleProof.selector));
         vm.prank(ENTRY_POINT);
-        vault.validateUserOp(userOp, hash1, 0);
+        vm.assertEq(vault.validateUserOp(userOp, hash1, 0), 1);
     }
 
     function testFuzz_validateMultiUserOp_whenThresholdIs2(
@@ -1034,7 +1032,7 @@ contract SmartVaultTest is BaseTest {
         assertEq(vault.validateUserOp(userOp, hash2, 0), 0);
     }
 
-    function testFuzz_validateMultiUserOp_whenThresholdIs2_RevertsWhen_InvalidProofLight(
+    function testFuzz_validateMultiUserOp_whenThresholdIs2_when_InvalidProofLight(
         PackedUserOperation calldata _userOp1,
         PackedUserOperation calldata _userOp2
     )
@@ -1073,9 +1071,8 @@ contract SmartVaultTest is BaseTest {
             userOp.paymasterAndData = new bytes(0);
         }
 
-        vm.expectRevert(abi.encodeWithSelector(InvalidMerkleProof.selector));
         vm.prank(ENTRY_POINT);
-        vault.validateUserOp(userOp, hash1, 0);
+        assertEq(vault.validateUserOp(userOp, hash1, 0), 1);
     }
 
     function testFuzz_validateMultiUserOp_whenThresholdIs2_RevertsWhen_InvalidGasPrice(
