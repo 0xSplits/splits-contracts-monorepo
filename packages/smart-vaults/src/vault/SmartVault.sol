@@ -111,9 +111,6 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
     /// @notice Thrown when Signature is of unknown type.
     error InvalidSignatureType();
 
-    /// @notice Thrown when merkle root validation fails.
-    error InvalidMerkleProof();
-
     /// @notice Thrown when LightUserOpGasLimits have been breached.
     error InvalidGasLimits();
 
@@ -394,7 +391,6 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
 
     /**
      * @dev validates merkelized userOp signature.
-     * @dev Reverts when merkle proof is invalid.
      */
     function _validateMerkelizedUserOp(
         bytes32 lightHash_,
@@ -403,19 +399,19 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
     )
         internal
         view
-        returns (uint256 validationData)
+        returns (uint256)
     {
-        if (!MerkleProof.verify(signature.merkleProof, signature.merkleTreeRoot, userOpHash_)) {
-            revert InvalidMerkleProof();
-        }
+        bool isValidMerkleProof = MerkleProof.verify(signature.merkleProof, signature.merkleTreeRoot, userOpHash_);
 
         if (signature.signatures.length > 1) {
-            if (!MerkleProof.verify(signature.lightMerkleProof, signature.lightMerkleTreeRoot, lightHash_)) {
-                revert InvalidMerkleProof();
-            }
+            isValidMerkleProof = isValidMerkleProof
+                && MerkleProof.verify(signature.lightMerkleProof, signature.lightMerkleTreeRoot, lightHash_);
         }
 
-        return _isValidSignature(signature.lightMerkleTreeRoot, signature.merkleTreeRoot, signature.signatures);
+        uint256 isValidSig =
+            _isValidSignature(signature.lightMerkleTreeRoot, signature.merkleTreeRoot, signature.signatures);
+
+        return isValidMerkleProof ? isValidSig : UserOperationLib.INVALID_SIGNATURE;
     }
 
     function _isValidSignature(
