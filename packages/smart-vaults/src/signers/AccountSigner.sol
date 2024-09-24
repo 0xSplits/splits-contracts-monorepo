@@ -43,6 +43,8 @@ library AccountSignerLib {
         view
         returns (bool)
     {
-        return SignatureCheckerLib.isValidSignatureNow(AccountSigner.unwrap(signer_), messageHash_, signature_);
+        return SignatureCheckerLib.isValidSignatureNow(
+            AccountSigner.unwrap(signer_), SignatureCheckerLib.toEthSignedMessageHash(messageHash_), signature_
+        );
     }
 }
