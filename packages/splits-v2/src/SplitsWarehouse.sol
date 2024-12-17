@@ -13,7 +13,7 @@ import { ShortString, ShortStrings } from "@openzeppelin/contracts/utils/ShortSt
  * @title Splits Token Warehouse
  * @author Splits
  * @notice ERC6909 compliant token warehouse for Splits ecosystem
- * @dev Token id here is address(uint160(uint256 id)).
+ * @dev Token id here is uint256(uint160(address tokenAddress)).
  */
 contract SplitsWarehouse is ERC6909X {
     using Cast for uint256;
@@ -29,7 +29,6 @@ contract SplitsWarehouse is ERC6909X {
 
     error InvalidAmount();
     error LengthMismatch();
-    error ZeroOwner();
     error WithdrawalPaused(address owner);
 
     /* -------------------------------------------------------------------------- */
@@ -262,8 +261,8 @@ contract SplitsWarehouse is ERC6909X {
 
     /**
      * @notice Batch transfers tokens to the specified addresses from msg.sender.
-     * @param _token The address of the token to be transferred.
      * @param _receivers The addresses of the receivers.
+     * @param _token The address of the token to be transferred.
      * @param _amounts The amounts of the tokens to be transferred.
      */
     function batchTransfer(address[] calldata _receivers, address _token, uint256[] calldata _amounts) external {

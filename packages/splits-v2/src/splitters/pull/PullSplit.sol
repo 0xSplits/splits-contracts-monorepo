@@ -110,7 +110,7 @@ contract PullSplit is SplitWalletV2 {
         } else {
             try SPLITS_WAREHOUSE.deposit({ receiver: address(this), token: _token, amount: _amount }) { }
             catch {
-                IERC20(_token).approve({ spender: address(SPLITS_WAREHOUSE), amount: type(uint256).max });
+                IERC20(_token).forceApprove({ spender: address(SPLITS_WAREHOUSE), value: type(uint256).max });
                 SPLITS_WAREHOUSE.deposit({ receiver: address(this), token: _token, amount: _amount });
             }
         }
@@ -129,12 +129,12 @@ contract PullSplit is SplitWalletV2 {
     )
         internal
     {
-        (uint256[] memory amounts, uint256 distibutorReward) = _split.getDistributions(_amount);
+        (uint256[] memory amounts, uint256 distributorReward) = _split.getDistributions(_amount);
 
         SPLITS_WAREHOUSE.batchTransfer({ receivers: _split.recipients, token: _token, amounts: amounts });
 
-        if (distibutorReward > 0) {
-            SPLITS_WAREHOUSE.transfer({ receiver: _distributor, id: _token.toUint256(), amount: distibutorReward });
+        if (distributorReward > 0) {
+            SPLITS_WAREHOUSE.transfer({ receiver: _distributor, id: _token.toUint256(), amount: distributorReward });
         }
 
         emit SplitDistributed({ token: _token, distributor: _distributor, amount: _amount });

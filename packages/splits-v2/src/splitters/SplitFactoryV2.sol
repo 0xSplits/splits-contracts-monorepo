@@ -17,6 +17,10 @@ abstract contract SplitFactoryV2 is Nonces {
     /*                                   EVENTS                                   */
     /* -------------------------------------------------------------------------- */
 
+    event SplitCreated(
+        address indexed split, SplitV2Lib.Split splitParams, address owner, address creator, bytes32 salt
+    );
+
     event SplitCreated(address indexed split, SplitV2Lib.Split splitParams, address owner, address creator);
 
     /* -------------------------------------------------------------------------- */
@@ -32,7 +36,7 @@ abstract contract SplitFactoryV2 is Nonces {
 
     /**
      * @notice Create a new split using create2.
-     * @dev if integrating, please make sure you understand how to handle greifing
+     * @dev if integrating, please make sure you understand how to handle griefing
      * properly to avoid potential issues with frontrunning. See docs for more information.
      * @param _splitParams Params to create split with.
      * @param _owner Owner of created split.
@@ -48,14 +52,23 @@ abstract contract SplitFactoryV2 is Nonces {
         external
         returns (address split)
     {
-        split = Clone.cloneDeterministic({
+        bytes32 salt = _getSalt({ _splitParams: _splitParams, _owner: _owner, _salt: _salt });
+
+        split = Clone.predictDeterministicAddress({
             _implementation: SPLIT_WALLET_IMPLEMENTATION,
-            _salt: _getSalt({ _splitParams: _splitParams, _owner: _owner, _salt: _salt })
+            _salt: salt,
+            _deployer: address(this)
         });
+
+        if (split.code.length > 0) {
+            return split;
+        }
+
+        split = Clone.cloneDeterministic({ _implementation: SPLIT_WALLET_IMPLEMENTATION, _salt: salt });
 
         SplitWalletV2(split).initialize(_splitParams, _owner);
 
-        emit SplitCreated({ split: split, splitParams: _splitParams, owner: _owner, creator: _creator });
+        emit SplitCreated({ split: split, splitParams: _splitParams, owner: _owner, creator: _creator, salt: _salt });
     }
 
     /**
