@@ -209,6 +209,7 @@ contract SplitsWarehouse is ERC6909X {
      * @param _token The address of the token to be withdrawn.
      */
     function withdraw(address _owner, address _token) external {
+        // solhint-disable-next-line avoid-tx-origin
         if (msg.sender != _owner && tx.origin != _owner) {
             if (withdrawConfig[_owner].paused) {
                 revert WithdrawalPaused(_owner);

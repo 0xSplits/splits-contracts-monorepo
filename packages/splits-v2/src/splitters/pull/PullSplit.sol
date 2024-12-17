@@ -50,6 +50,7 @@ contract PullSplit is SplitWalletV2 {
         (uint256 splitBalance, uint256 warehouseBalance) = getSplitBalance(_token);
 
         // @solidity memory-safe-assembly
+        // solhint-disable-next-line no-inline-assembly
         assembly {
             // splitBalance -= uint(splitBalance > 0);
             splitBalance := sub(splitBalance, iszero(iszero(splitBalance)))
@@ -108,6 +109,7 @@ contract PullSplit is SplitWalletV2 {
         if (_token == NATIVE_TOKEN) {
             SPLITS_WAREHOUSE.deposit{ value: _amount }({ receiver: address(this), token: _token, amount: _amount });
         } else {
+            // solhint-disable-next-line no-empty-blocks
             try SPLITS_WAREHOUSE.deposit({ receiver: address(this), token: _token, amount: _amount }) { }
             catch {
                 IERC20(_token).forceApprove({ spender: address(SPLITS_WAREHOUSE), value: type(uint256).max });
