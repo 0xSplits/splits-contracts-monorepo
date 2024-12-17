@@ -36,8 +36,7 @@ abstract contract SplitFactoryV2 is Nonces {
 
     /**
      * @notice Create a new split using create2.
-     * @dev if integrating, please make sure you understand how to handle griefing
-     * properly to avoid potential issues with frontrunning. See docs for more information.
+     * @dev Returns existing split if already created, otherwise creates new split.
      * @param _splitParams Params to create split with.
      * @param _owner Owner of created split.
      * @param _creator Creator of created split.
