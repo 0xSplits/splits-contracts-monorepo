@@ -3,10 +3,9 @@ pragma solidity ^0.8.23;
 
 import { Clone } from "../../src/libraries/Clone.sol";
 import { SplitV2Lib } from "../../src/libraries/SplitV2.sol";
-
 import { PullSplit } from "../../src/splitters/pull/PullSplit.sol";
-
 import { PullSplitFactory } from "../../src/splitters/pull/PullSplitFactory.sol";
+import { Pausable } from "../../src/utils/Pausable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -21,6 +20,8 @@ contract PullSplitTest is BaseTest {
         super.setUp();
 
         pullSplit = PullSplit(Clone.cloneDeterministic((address(new PullSplit(address(warehouse)))), 0));
+        SplitV2Lib.Split memory split;
+        pullSplit.initialize(split, ALICE.addr);
     }
 
     function testFuzz_depositToWarehouse(bool _native, uint256 _amount) public {
@@ -53,6 +54,14 @@ contract PullSplitTest is BaseTest {
 
         vm.expectRevert();
         pullSplit.depositToWarehouse(_token, _amount);
+    }
+
+    function testFuzz_depositToWarehouse_Revert_whenPaused() public {
+        vm.prank(ALICE.addr);
+        pullSplit.setPaused(true);
+
+        vm.expectRevert(Pausable.Paused.selector);
+        pullSplit.depositToWarehouse(address(0), 0);
     }
 
     function test_distribute_USDT_Mainnet() public {

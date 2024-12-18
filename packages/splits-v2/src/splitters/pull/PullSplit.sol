@@ -58,7 +58,7 @@ contract PullSplit is SplitWalletV2 {
             warehouseBalance := sub(warehouseBalance, iszero(iszero(warehouseBalance)))
         }
 
-        if (splitBalance > 0) depositToWarehouse(_token, splitBalance);
+        if (splitBalance > 0) _depositToWarehouse(_token, splitBalance);
 
         _distribute({
             _split: _split,
@@ -94,7 +94,7 @@ contract PullSplit is SplitWalletV2 {
         if (_performWarehouseTransfer) {
             uint256 amount =
                 (_token == NATIVE_TOKEN ? address(this).balance : IERC20(_token).balanceOf(address(this))) - 1;
-            depositToWarehouse(_token, amount);
+            _depositToWarehouse(_token, amount);
         }
 
         _distribute({ _split: _split, _token: _token, _amount: _distributeAmount, _distributor: _distributor });
@@ -105,7 +105,15 @@ contract PullSplit is SplitWalletV2 {
      * @param _token The token to deposit.
      * @param _amount The amount of tokens to deposit
      */
-    function depositToWarehouse(address _token, uint256 _amount) public {
+    function depositToWarehouse(address _token, uint256 _amount) external pausable {
+        _depositToWarehouse(_token, _amount);
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*                              INTERNAL/PRIVATE                              */
+    /* -------------------------------------------------------------------------- */
+
+    function _depositToWarehouse(address _token, uint256 _amount) internal {
         if (_token == NATIVE_TOKEN) {
             SPLITS_WAREHOUSE.deposit{ value: _amount }({ receiver: address(this), token: _token, amount: _amount });
         } else {
@@ -117,10 +125,6 @@ contract PullSplit is SplitWalletV2 {
             }
         }
     }
-
-    /* -------------------------------------------------------------------------- */
-    /*                              INTERNAL/PRIVATE                              */
-    /* -------------------------------------------------------------------------- */
 
     /// @dev Assumes the amount is already deposited to the warehouse.
     function _distribute(
