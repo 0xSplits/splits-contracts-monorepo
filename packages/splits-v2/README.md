@@ -66,13 +66,15 @@ For a test run, use the following command:
 
 To deploy split v2 contracts on a given chain, please make sure the following requirements are met:
 
-1. Send the minimum amount of native gas token for deployment to the deployer address: `0x60C65c9a8674DA22e89C7d09e839908B9f0ecC3a`. Mainnet deployment transactions for gas cost:
+1. Send the minimum amount of native gas token for deployment to the deployer address:
+   `0x60C65c9a8674DA22e89C7d09e839908B9f0ecC3a`. Mainnet deployment transactions for gas cost:
 
-    * [Warehouse](https://etherscan.io/tx/0x9a24df13332fafff979c35d5475be6a0594b9e8a632b1ff603150c413b7c134c)
-    * [Pull Splits](https://etherscan.io/tx/0xe81eb2677e597ae98c65558487693d94494e28387f2a9d76782992e4f399f44a)
-    * [Push Splits](https://etherscan.io/tx/0x20e8da208491560c658a25dcaa2bf37f94f26ccb4d5caaac4a346b2152818513)
+   - [Warehouse](https://etherscan.io/tx/0x9a24df13332fafff979c35d5475be6a0594b9e8a632b1ff603150c413b7c134c)
+   - [Pull Splits](https://etherscan.io/tx/0xe81eb2677e597ae98c65558487693d94494e28387f2a9d76782992e4f399f44a)
+   - [Push Splits](https://etherscan.io/tx/0x20e8da208491560c658a25dcaa2bf37f94f26ccb4d5caaac4a346b2152818513)
 
-2. Support for [CreateX](https://createx.rocks/). We use createX as our deployer factory. This will ensure that the addresses match existing deployments.
+2. Support for [CreateX](https://createx.rocks/). We use createX as our deployer factory. This will ensure that the
+   addresses match existing deployments.
 
 3. Complete OP Code compatibility with evm version: `Shanghai`.
 

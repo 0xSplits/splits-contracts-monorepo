@@ -50,6 +50,7 @@ contract PullSplit is SplitWalletV2 {
         (uint256 splitBalance, uint256 warehouseBalance) = getSplitBalance(_token);
 
         // @solidity memory-safe-assembly
+        // solhint-disable-next-line no-inline-assembly
         assembly {
             // splitBalance -= uint(splitBalance > 0);
             splitBalance := sub(splitBalance, iszero(iszero(splitBalance)))
@@ -57,7 +58,7 @@ contract PullSplit is SplitWalletV2 {
             warehouseBalance := sub(warehouseBalance, iszero(iszero(warehouseBalance)))
         }
 
-        if (splitBalance > 0) depositToWarehouse(_token, splitBalance);
+        if (splitBalance > 0) _depositToWarehouse(_token, splitBalance);
 
         _distribute({
             _split: _split,
@@ -93,7 +94,7 @@ contract PullSplit is SplitWalletV2 {
         if (_performWarehouseTransfer) {
             uint256 amount =
                 (_token == NATIVE_TOKEN ? address(this).balance : IERC20(_token).balanceOf(address(this))) - 1;
-            depositToWarehouse(_token, amount);
+            _depositToWarehouse(_token, amount);
         }
 
         _distribute({ _split: _split, _token: _token, _amount: _distributeAmount, _distributor: _distributor });
@@ -104,21 +105,26 @@ contract PullSplit is SplitWalletV2 {
      * @param _token The token to deposit.
      * @param _amount The amount of tokens to deposit
      */
-    function depositToWarehouse(address _token, uint256 _amount) public {
-        if (_token == NATIVE_TOKEN) {
-            SPLITS_WAREHOUSE.deposit{ value: _amount }({ receiver: address(this), token: _token, amount: _amount });
-        } else {
-            try SPLITS_WAREHOUSE.deposit({ receiver: address(this), token: _token, amount: _amount }) { }
-            catch {
-                IERC20(_token).approve({ spender: address(SPLITS_WAREHOUSE), amount: type(uint256).max });
-                SPLITS_WAREHOUSE.deposit({ receiver: address(this), token: _token, amount: _amount });
-            }
-        }
+    function depositToWarehouse(address _token, uint256 _amount) external pausable {
+        _depositToWarehouse(_token, _amount);
     }
 
     /* -------------------------------------------------------------------------- */
     /*                              INTERNAL/PRIVATE                              */
     /* -------------------------------------------------------------------------- */
+
+    function _depositToWarehouse(address _token, uint256 _amount) internal {
+        if (_token == NATIVE_TOKEN) {
+            SPLITS_WAREHOUSE.deposit{ value: _amount }({ receiver: address(this), token: _token, amount: _amount });
+        } else {
+            // solhint-disable-next-line no-empty-blocks
+            try SPLITS_WAREHOUSE.deposit({ receiver: address(this), token: _token, amount: _amount }) { }
+            catch {
+                IERC20(_token).forceApprove({ spender: address(SPLITS_WAREHOUSE), value: type(uint256).max });
+                SPLITS_WAREHOUSE.deposit({ receiver: address(this), token: _token, amount: _amount });
+            }
+        }
+    }
 
     /// @dev Assumes the amount is already deposited to the warehouse.
     function _distribute(
@@ -129,12 +135,12 @@ contract PullSplit is SplitWalletV2 {
     )
         internal
     {
-        (uint256[] memory amounts, uint256 distibutorReward) = _split.getDistributions(_amount);
+        (uint256[] memory amounts, uint256 distributorReward) = _split.getDistributions(_amount);
 
         SPLITS_WAREHOUSE.batchTransfer({ receivers: _split.recipients, token: _token, amounts: amounts });
 
-        if (distibutorReward > 0) {
-            SPLITS_WAREHOUSE.transfer({ receiver: _distributor, id: _token.toUint256(), amount: distibutorReward });
+        if (distributorReward > 0) {
+            SPLITS_WAREHOUSE.transfer({ receiver: _distributor, id: _token.toUint256(), amount: distributorReward });
         }
 
         emit SplitDistributed({ token: _token, distributor: _distributor, amount: _amount });

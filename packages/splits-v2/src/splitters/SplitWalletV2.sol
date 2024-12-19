@@ -54,11 +54,14 @@ abstract contract SplitWalletV2 is Wallet, ERC1271 {
     /// @notice the split hash - Keccak256 hash of the split struct
     bytes32 public splitHash;
 
+    /// @notice the block number at which the split was last updated
+    uint256 public updateBlockNumber;
+
     /* -------------------------------------------------------------------------- */
     /*                          CONSTRUCTOR & INITIALIZER                         */
     /* -------------------------------------------------------------------------- */
 
-    constructor(address _splitWarehouse) ERC1271("splitWallet", "2") {
+    constructor(address _splitWarehouse) ERC1271("splitWallet", "2.1") {
         SPLITS_WAREHOUSE = ISplitsWarehouse(_splitWarehouse);
         NATIVE_TOKEN = SPLITS_WAREHOUSE.NATIVE_TOKEN();
         FACTORY = msg.sender;
@@ -73,8 +76,9 @@ abstract contract SplitWalletV2 is Wallet, ERC1271 {
         if (msg.sender != FACTORY) revert UnauthorizedInitializer();
 
         _split.validate();
-
         splitHash = _split.getHash();
+        updateBlockNumber = block.number;
+        emit SplitUpdated(_split);
 
         Wallet.__initWallet(_owner);
     }
@@ -115,9 +119,8 @@ abstract contract SplitWalletV2 is Wallet, ERC1271 {
     function updateSplit(SplitV2Lib.Split calldata _split) external onlyOwner {
         // throws error if invalid
         _split.validate();
-
         splitHash = _split.getHash();
-
+        updateBlockNumber = block.number;
         emit SplitUpdated(_split);
     }
 

@@ -51,11 +51,13 @@ contract SplitWalletV2Test is BaseTest {
 
         wallet = _distributeByPush ? pushSplit : pullSplit;
 
+        emit SplitUpdated(split);
         wallet.initialize(split, _owner);
 
         assertEq(wallet.owner(), _owner);
         assertEq(address(wallet.SPLITS_WAREHOUSE()), address(warehouse));
         assertEq(wallet.splitHash(), split.getHashMem());
+        assertEq(wallet.updateBlockNumber(), block.number);
     }
 
     function testFuzz_initialize_Revert_whenNotFactory(
@@ -139,6 +141,8 @@ contract SplitWalletV2Test is BaseTest {
         emit SplitUpdated(split);
         vm.prank(_owner);
         wallet.updateSplit(split);
+
+        assertEq(wallet.updateBlockNumber(), block.number);
     }
 
     function testFuzz_updateSplit_Revert_Unauthorized(

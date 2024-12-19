@@ -7,6 +7,10 @@ import { SplitWalletV2 } from "../../src/splitters/SplitWalletV2.sol";
 import { BaseTest } from "../Base.t.sol";
 
 contract SplitFactoryV2Test is BaseTest {
+    event SplitCreated(
+        address indexed split, SplitV2Lib.Split splitParams, address owner, address creator, bytes32 salt
+    );
+
     event SplitCreated(address indexed split, SplitV2Lib.Split splitParams, address owner, address creator);
 
     function setUp() public override {
@@ -27,7 +31,7 @@ contract SplitFactoryV2Test is BaseTest {
         address predictedAddress = predictDeterministicAddress(params, _owner, _salt, _distributeByPush);
 
         vm.expectEmit();
-        emit SplitCreated(predictedAddress, params, _owner, _creator);
+        emit SplitCreated(predictedAddress, params, _owner, _creator, _salt);
         SplitWalletV2 split =
             SplitWalletV2(createSplitDeterministic(params, _owner, _creator, _salt, _distributeByPush));
 
@@ -48,9 +52,11 @@ contract SplitFactoryV2Test is BaseTest {
         testFuzz_create2Split(_receivers, _distributionIncentive, _distributeByPush, _owner, _creator, _salt);
 
         SplitV2Lib.Split memory params = createSplitParams(_receivers, _distributionIncentive);
+        address predictedAddress = predictDeterministicAddress(params, _owner, _salt, _distributeByPush);
 
-        vm.expectRevert();
-        createSplitDeterministic(params, _owner, _creator, _salt, _distributeByPush);
+        address split = createSplitDeterministic(params, _owner, _creator, _salt, _distributeByPush);
+
+        assertEq(split, predictedAddress);
     }
 
     function testFuzz_createSplitWithoutSalt(
