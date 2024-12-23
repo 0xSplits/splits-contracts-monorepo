@@ -52,6 +52,7 @@ contract PushSplit is SplitWalletV2 {
         if (warehouseBalance > 1) withdrawFromWarehouse(_token);
 
         // @solidity memory-safe-assembly
+        // solhint-disable-next-line no-inline-assembly
         assembly {
             // splitBalance -= uint(splitBalance > 0);
             splitBalance := sub(splitBalance, iszero(iszero(splitBalance)))

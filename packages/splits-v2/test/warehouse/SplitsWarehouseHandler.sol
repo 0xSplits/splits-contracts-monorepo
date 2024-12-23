@@ -11,6 +11,7 @@ import { Address } from "../utils/Address.sol";
 import { CommonBase } from "forge-std/Base.sol";
 import { StdCheats } from "forge-std/StdCheats.sol";
 import { StdUtils } from "forge-std/StdUtils.sol";
+import { Vm, VmSafe } from "forge-std/Vm.sol";
 
 contract SplitsWarehouseHandler is CommonBase, StdCheats, StdUtils {
     using Math for uint256[];
@@ -45,6 +46,10 @@ contract SplitsWarehouseHandler is CommonBase, StdCheats, StdUtils {
     }
 
     modifier mockDepositor() {
+        (VmSafe.CallerMode mode,,) = vm.readCallers();
+        if (mode == VmSafe.CallerMode.Prank || mode == VmSafe.CallerMode.RecurrentPrank) {
+            vm.stopPrank();
+        }
         vm.startPrank(depositor);
         _;
         vm.stopPrank();
@@ -52,6 +57,12 @@ contract SplitsWarehouseHandler is CommonBase, StdCheats, StdUtils {
 
     modifier mockUser(uint256 _user) {
         _user = bound(_user, 0, users.length - 1);
+
+        (VmSafe.CallerMode mode,,) = vm.readCallers();
+
+        if (mode == VmSafe.CallerMode.Prank || mode == VmSafe.CallerMode.RecurrentPrank) {
+            vm.stopPrank();
+        }
 
         address user = users[_user];
         vm.startPrank(user);

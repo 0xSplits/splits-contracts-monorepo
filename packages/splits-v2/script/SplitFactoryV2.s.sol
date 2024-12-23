@@ -7,25 +7,17 @@ import { PushSplitFactory } from "../src/splitters/push/PushSplitFactory.sol";
 import { BaseScript } from "./Base.s.sol";
 
 contract SplitFactoryV2Script is BaseScript {
-    uint88 private constant PUSH_DEPLOYMENT_SALT = 1;
-    uint88 private constant PULL_DEPLOYMENT_SALT = 2;
-
     function run() public {
         address warehouse = getAddressFromConfig("splitsWarehouse");
 
-        bytes memory args = abi.encode(warehouse);
-
-        address deployer = vm.envAddress("DEPLOYER");
-
-        bytes32 pull_salt = computeSalt(deployer, bytes11(PULL_DEPLOYMENT_SALT));
-        bytes32 push_salt = computeSalt(deployer, bytes11(PUSH_DEPLOYMENT_SALT));
-
         vm.startBroadcast();
-        address pull_factory = create3(pull_salt, abi.encodePacked(type(PullSplitFactory).creationCode, args));
-        address push_factory = create3(push_salt, abi.encodePacked(type(PushSplitFactory).creationCode, args));
+        address pull_factory =
+            address(new PullSplitFactory{ salt: keccak256("splits.pullSplitFactory.v2.1") }(warehouse));
+        address push_factory =
+            address(new PushSplitFactory{ salt: keccak256("splits.pushSplitFactory.v2.1") }(warehouse));
         vm.stopBroadcast();
 
-        updateDeployment(pull_factory, "PullSplitFactory");
-        updateDeployment(push_factory, "PushSplitFactory");
+        updateDeployment(pull_factory, "PullSplitFactoryV2.1");
+        updateDeployment(push_factory, "PushSplitFactoryV2.1");
     }
 }
