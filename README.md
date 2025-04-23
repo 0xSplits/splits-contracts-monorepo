@@ -43,9 +43,13 @@ To deploy contracts, please refer to the README in the respective package.
 
 ### Disclaimer
 
-This project is provided "as is" with no warranties or guarantees of any kind, express or implied. The developers make no claims about the suitability, reliability, availability, timeliness, security or accuracy of the software or its related documentation. The use of this software is at your own risk.
+This project is provided "as is" with no warranties or guarantees of any kind, express or implied. The developers make
+no claims about the suitability, reliability, availability, timeliness, security or accuracy of the software or its
+related documentation. The use of this software is at your own risk.
 
-The developers will not be liable for any damages or losses, whether direct, indirect, incidental or consequential, arising from the use of or inability to use this software or its related documentation, even if advised of the possibility of such damages.
+The developers will not be liable for any damages or losses, whether direct, indirect, incidental or consequential,
+arising from the use of or inability to use this software or its related documentation, even if advised of the
+possibility of such damages.
 
 ### Acknowledgements
 
