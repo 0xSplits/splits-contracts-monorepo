@@ -23,7 +23,7 @@ contract PushSplit is SplitWalletV2 {
     /*                          CONSTRUCTOR & INITIALIZER                         */
     /* -------------------------------------------------------------------------- */
 
-    constructor(address _splitWarehouse) SplitWalletV2(_splitWarehouse) { }
+    constructor(address _splitWarehouse) SplitWalletV2(_splitWarehouse, "PushSplit") { }
 
     /* -------------------------------------------------------------------------- */
     /*                          PUBLIC/EXTERNAL FUNCTIONS                         */
