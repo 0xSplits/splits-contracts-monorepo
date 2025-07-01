@@ -23,7 +23,7 @@ contract PullSplit is SplitWalletV2 {
     /*                          CONSTRUCTOR & INITIALIZER                         */
     /* -------------------------------------------------------------------------- */
 
-    constructor(address _splitWarehouse) SplitWalletV2(_splitWarehouse) { }
+    constructor(address _splitWarehouse) SplitWalletV2(_splitWarehouse, "PullSplit") { }
 
     /* -------------------------------------------------------------------------- */
     /*                          PUBLIC/EXTERNAL FUNCTIONS                         */

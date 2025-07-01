@@ -61,7 +61,7 @@ abstract contract SplitWalletV2 is Wallet, ERC1271 {
     /*                          CONSTRUCTOR & INITIALIZER                         */
     /* -------------------------------------------------------------------------- */
 
-    constructor(address _splitWarehouse) ERC1271("splitWallet", "2.1") {
+    constructor(address _splitWarehouse, string memory _name) ERC1271(_name, "2.1") {
         SPLITS_WAREHOUSE = ISplitsWarehouse(_splitWarehouse);
         NATIVE_TOKEN = SPLITS_WAREHOUSE.NATIVE_TOKEN();
         FACTORY = msg.sender;
