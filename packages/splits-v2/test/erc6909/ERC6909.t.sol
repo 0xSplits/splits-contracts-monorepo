@@ -88,7 +88,7 @@ contract ERC6909Test is BaseTest {
         address _from,
         address _to,
         uint256 _id,
-        uint256 _amount
+        uint128 _amount
     )
         public
     {
@@ -96,7 +96,7 @@ contract ERC6909Test is BaseTest {
 
         vm.prank(_from);
         vm.expectRevert();
-        erc6909.transfer(_to, _id, _amount + 1);
+        erc6909.transfer(_to, _id, uint256(_amount) + 1);
     }
 
     /* -------------------------------------------------------------------------- */
