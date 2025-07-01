@@ -79,14 +79,12 @@ contract MultiSignerTest is BaseTest {
 
     function test_initialize_signers_RevertWhen_invalidSigner_EOA() public {
         signers[0] = Signer(bytes32(uint256(type(uint160).max + uint256(1))), bytes32(0));
-        vm.expectRevert();
         vm.expectRevert(abi.encodeWithSelector(InvalidSigner.selector, signers[0]));
         multiSigner.initialize(ALICE.addr, signers, 1);
     }
 
     function test_initialize_signers_RevertWhen_invalidSigner_Empty() public {
         signers[0] = Signer(bytes32(0), bytes32(0));
-        vm.expectRevert();
         vm.expectRevert(abi.encodeWithSelector(InvalidSigner.selector, signers[0]));
         multiSigner.initialize(ALICE.addr, signers, 1);
     }
