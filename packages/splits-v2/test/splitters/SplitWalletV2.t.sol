@@ -340,7 +340,6 @@ contract SplitWalletV2Test is BaseTest {
             } else {
                 if (_splitAmount > 0) {
                     totalAmount -= 1;
-                    _splitAmount -= 1;
                 }
                 wallet.distribute(split, token, totalAmount, _splitAmount > 1, ALICE.addr);
             }
@@ -385,7 +384,6 @@ contract SplitWalletV2Test is BaseTest {
             } else {
                 if (_splitAmount > 0) {
                     totalAmount -= 1;
-                    _splitAmount -= 1;
                 }
                 wallet.distribute(split, token, totalAmount, _splitAmount > 1, ALICE.addr);
             }

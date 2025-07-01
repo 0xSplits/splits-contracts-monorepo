@@ -126,10 +126,10 @@ contract SplitsWarehouseHandler is CommonBase, StdCheats, StdUtils {
             amounts[i] = bound(_amounts[i], 0, warehouse.balanceOf(user, _tokens[i].toUint256()));
         }
 
-        (, bool paused) = warehouse.withdrawConfig(user);
+        (uint256 withdrawFee, bool paused) = warehouse.withdrawConfig(user);
 
         vm.prank(withdrawer);
-        if (user == badActor || paused) {
+        if (user == badActor || paused || (withdrawer == badActor && withdrawFee > 0)) {
             return;
         }
         warehouse.withdraw(user, _tokens, amounts, withdrawer);
