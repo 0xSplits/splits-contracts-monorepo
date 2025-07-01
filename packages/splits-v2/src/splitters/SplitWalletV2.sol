@@ -91,6 +91,14 @@ abstract contract SplitWalletV2 is Wallet, ERC1271 {
 
     function distribute(
         SplitV2Lib.Split calldata _split,
+        address[] calldata _tokens,
+        address _distributor
+    )
+        external
+        virtual;
+
+    function distribute(
+        SplitV2Lib.Split calldata _split,
         address _token,
         uint256 _distributeAmount,
         bool _performWarehouseTransfer,

@@ -47,25 +47,31 @@ contract PushSplit is SplitWalletV2 {
     {
         if (splitHash != _split.getHash()) revert InvalidSplit();
 
-        (uint256 splitBalance, uint256 warehouseBalance) = getSplitBalance(_token);
+        _distribute({ _split: _split, _token: _token, _distributor: _distributor });
+    }
 
-        if (warehouseBalance > 1) withdrawFromWarehouse(_token);
+    /**
+     * @notice Distributes the tokens in the split & Warehouse to the recipients.
+     * @dev The split must be initialized and the hash of _split must match splitHash.
+     * @param _split The split struct containing the split data that gets distributed.
+     * @param _tokens The tokens to distribute.
+     * @param _distributor The distributor of the split.
+     */
+    function distribute(
+        SplitV2Lib.Split calldata _split,
+        address[] calldata _tokens,
+        address _distributor
+    )
+        external
+        override
+        pausable
+    {
+        if (splitHash != _split.getHash()) revert InvalidSplit();
 
-        // @solidity memory-safe-assembly
-        // solhint-disable-next-line no-inline-assembly
-        assembly {
-            // splitBalance -= uint(splitBalance > 0);
-            splitBalance := sub(splitBalance, iszero(iszero(splitBalance)))
-            // warehouseBalance -= uint(warehouseBalance > 0);
-            warehouseBalance := sub(warehouseBalance, iszero(iszero(warehouseBalance)))
+        uint256 numOfTokens = _tokens.length;
+        for (uint256 i; i < numOfTokens; ++i) {
+            _distribute({ _split: _split, _token: _tokens[i], _distributor: _distributor });
         }
-
-        _distribute({
-            _split: _split,
-            _token: _token,
-            _amount: warehouseBalance + splitBalance,
-            _distributor: _distributor
-        });
     }
 
     /**
@@ -107,6 +113,28 @@ contract PushSplit is SplitWalletV2 {
     /* -------------------------------------------------------------------------- */
     /*                              INTERNAL/PRIVATE                              */
     /* -------------------------------------------------------------------------- */
+
+    function _distribute(SplitV2Lib.Split calldata _split, address _token, address _distributor) internal {
+        (uint256 splitBalance, uint256 warehouseBalance) = getSplitBalance(_token);
+
+        if (warehouseBalance > 1) withdrawFromWarehouse(_token);
+
+        // @solidity memory-safe-assembly
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            // splitBalance -= uint(splitBalance > 0);
+            splitBalance := sub(splitBalance, iszero(iszero(splitBalance)))
+            // warehouseBalance -= uint(warehouseBalance > 0);
+            warehouseBalance := sub(warehouseBalance, iszero(iszero(warehouseBalance)))
+        }
+
+        _distribute({
+            _split: _split,
+            _token: _token,
+            _amount: warehouseBalance + splitBalance,
+            _distributor: _distributor
+        });
+    }
 
     /// @dev Assumes the amount is already present in the split wallet.
     function _distribute(
