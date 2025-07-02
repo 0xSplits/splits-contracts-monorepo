@@ -618,4 +618,11 @@ contract SplitWalletV2Test is BaseTest {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(_key, _hash);
         signature = abi.encodePacked(r, s, v);
     }
+
+    function test_wallet_version() public {
+        (,, string memory version,,,,) = pushSplit.eip712Domain();
+        assertEq(version, "2.2");
+        (,, version,,,,) = pullSplit.eip712Domain();
+        assertEq(version, "2.2");
+    }
 }
