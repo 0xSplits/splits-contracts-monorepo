@@ -233,6 +233,24 @@ contract SplitWalletV2Test is BaseTest {
         }
     }
 
+    function testFuzz_batchDistribute_Revert_whenPaused(
+        SplitReceiver[] memory _receivers,
+        uint16 _distributionIncentive,
+        bool _distributeByPush
+    )
+        public
+    {
+        SplitV2Lib.Split memory split = createSplitParams(_receivers, _distributionIncentive);
+        wallet = _distributeByPush ? pushSplit : pullSplit;
+        wallet.initialize(split, ALICE.addr);
+
+        vm.prank(ALICE.addr);
+        wallet.setPaused(true);
+
+        vm.expectRevert(Pausable.Paused.selector);
+        wallet.distribute(split, new address[](0), ALICE.addr);
+    }
+
     function testFuzz_distribute_Revert_whenInvalidSplit(
         SplitReceiver[] memory _receivers,
         uint16 _distributionIncentive,
@@ -257,6 +275,30 @@ contract SplitWalletV2Test is BaseTest {
         } else {
             wallet.distribute(split2, address(usdc), 0, false, ALICE.addr);
         }
+    }
+
+    function testFuzz_batchDistribute_Revert_whenInvalidSplit(
+        SplitReceiver[] memory _receivers,
+        uint16 _distributionIncentive,
+        bool _distributeByPush,
+        SplitReceiver[] memory _receivers2,
+        uint16 _distributionIncentiv2
+    )
+        public
+    {
+        SplitV2Lib.Split memory split = createSplitParams(_receivers, _distributionIncentive);
+        wallet = _distributeByPush ? pushSplit : pullSplit;
+        wallet.initialize(split, ALICE.addr);
+
+        SplitV2Lib.Split memory split2 = createSplitParams(_receivers2, _distributionIncentiv2);
+
+        vm.assume(split.getHashMem() != split2.getHashMem());
+
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(usdc);
+
+        vm.expectRevert(SplitWalletV2.InvalidSplit.selector);
+        wallet.distribute(split2, tokens, ALICE.addr);
     }
 
     function testFuzz_distribute_Revert_whenAmountGreaterThanBalance(
@@ -349,6 +391,37 @@ contract SplitWalletV2Test is BaseTest {
         assertDistribute(split, token, _warehouseAmount, _splitAmount, ALICE.addr, _distributeByPush);
     }
 
+    function testFuzz_batchDistribute_whenPaused_byOwner(
+        SplitReceiver[] memory _receivers,
+        uint16 _distributionIncentive,
+        bool _distributeByPush,
+        uint96 _splitAmount,
+        uint96 _warehouseAmount
+    )
+        public
+    {
+        SplitV2Lib.Split memory split = createSplitParams(_receivers, _distributionIncentive);
+        address[] memory tokens = new address[](2);
+        tokens[0] = native;
+        tokens[1] = address(usdc);
+
+        wallet = _distributeByPush ? pushSplit : pullSplit;
+
+        wallet.initialize(split, ALICE.addr);
+
+        dealSplit(address(wallet), tokens[0], _splitAmount, _warehouseAmount);
+        dealSplit(address(wallet), tokens[1], _splitAmount, _warehouseAmount);
+
+        vm.startPrank(ALICE.addr);
+        wallet.setPaused(true);
+        if (split.totalAllocation == 0 && split.recipients.length > 0) return;
+        wallet.distribute(split, tokens, ALICE.addr);
+        vm.stopPrank();
+
+        assertDistribute(split, tokens[0], _warehouseAmount, _splitAmount, ALICE.addr, _distributeByPush);
+        assertDistribute(split, tokens[1], _warehouseAmount, _splitAmount, ALICE.addr, _distributeByPush);
+    }
+
     function testFuzz_distribute(
         SplitReceiver[] memory _receivers,
         uint16 _distributionIncentive,
@@ -392,6 +465,34 @@ contract SplitWalletV2Test is BaseTest {
         assertDistribute(split, token, _warehouseAmount, _splitAmount, ALICE.addr, _distributeByPush);
     }
 
+    function testFuzz_batchDistribute(
+        SplitReceiver[] memory _receivers,
+        uint16 _distributionIncentive,
+        bool _distributeByPush,
+        uint96 _splitAmount,
+        uint96 _warehouseAmount
+    )
+        public
+    {
+        SplitV2Lib.Split memory split = createSplitParams(_receivers, _distributionIncentive);
+        address[] memory tokens = new address[](2);
+        tokens[0] = native;
+        tokens[1] = address(usdc);
+
+        wallet = _distributeByPush ? pushSplit : pullSplit;
+
+        wallet.initialize(split, ALICE.addr);
+
+        dealSplit(address(wallet), tokens[0], _splitAmount, _warehouseAmount);
+        dealSplit(address(wallet), tokens[1], _splitAmount, _warehouseAmount);
+
+        if (split.totalAllocation == 0 && split.recipients.length > 0) return;
+        wallet.distribute(split, tokens, ALICE.addr);
+
+        assertDistribute(split, tokens[0], _warehouseAmount, _splitAmount, ALICE.addr, _distributeByPush);
+        assertDistribute(split, tokens[1], _warehouseAmount, _splitAmount, ALICE.addr, _distributeByPush);
+    }
+
     function testFuzz_distribute_NativeByPush_whenRecipientReverts(
         SplitReceiver[] memory _receivers,
         uint16 _distributionIncentive,
@@ -422,6 +523,72 @@ contract SplitWalletV2Test is BaseTest {
             wallet.distribute(split, native, totalAmount, _warehouseAmount > 1, ALICE.addr);
         }
         assertDistribute(split, native, _warehouseAmount, _splitAmount, ALICE.addr, true);
+    }
+
+    function testFuzz_batchDistribute_NativeByPush_whenRecipientReverts(
+        SplitReceiver[] memory _receivers,
+        uint16 _distributionIncentive,
+        uint96 _splitAmount,
+        uint96 _warehouseAmount
+    )
+        public
+    {
+        vm.assume(_receivers.length > 1);
+
+        address[] memory tokens = new address[](2);
+        tokens[0] = native;
+        tokens[1] = address(usdc);
+
+        SplitV2Lib.Split memory split = createSplitParams(_receivers, _distributionIncentive);
+        split.recipients[0] = BAD_ACTOR;
+
+        wallet = pushSplit;
+
+        wallet.initialize(split, ALICE.addr);
+
+        dealSplit(address(wallet), tokens[0], _splitAmount, _warehouseAmount);
+        dealSplit(address(wallet), tokens[1], _splitAmount, _warehouseAmount);
+
+        if (split.totalAllocation == 0 && split.recipients.length > 0) return;
+
+        wallet.distribute(split, tokens, ALICE.addr);
+
+        assertDistribute(split, tokens[0], _warehouseAmount, _splitAmount, ALICE.addr, true);
+        assertDistribute(split, tokens[1], _warehouseAmount, _splitAmount, ALICE.addr, true);
+    }
+
+    function testFuzz_batchDistribute_sameToken(
+        SplitReceiver[] memory _receivers,
+        uint16 _distributionIncentive,
+        bool _distributeByPush,
+        uint96 _splitAmount,
+        uint96 _warehouseAmount,
+        bool _native
+    )
+        public
+    {
+        SplitV2Lib.Split memory split = createSplitParams(_receivers, _distributionIncentive);
+        address[] memory tokens = new address[](2);
+        if (_native) {
+            tokens[0] = native;
+            tokens[1] = native;
+        } else {
+            tokens[0] = address(usdc);
+            tokens[1] = address(usdc);
+        }
+
+        wallet = _distributeByPush ? pushSplit : pullSplit;
+
+        wallet.initialize(split, ALICE.addr);
+
+        dealSplit(address(wallet), tokens[0], uint256(_splitAmount) * 2, uint256(_warehouseAmount) * 2);
+
+        if (split.totalAllocation == 0 && split.recipients.length > 0) return;
+        wallet.distribute(split, tokens, ALICE.addr);
+
+        assertDistribute(
+            split, tokens[0], uint256(_warehouseAmount) * 2, uint256(_splitAmount) * 2, ALICE.addr, _distributeByPush
+        );
     }
 
     function testFuzz_wallet_receiveEthEvent(uint256 _amount, bool _distributeByPush) public {
