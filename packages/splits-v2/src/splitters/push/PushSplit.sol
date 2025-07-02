@@ -114,6 +114,7 @@ contract PushSplit is SplitWalletV2 {
     /*                              INTERNAL/PRIVATE                              */
     /* -------------------------------------------------------------------------- */
 
+    /// @dev internal distribute logic for a single token
     function _distribute(SplitV2Lib.Split calldata _split, address _token, address _distributor) internal {
         (uint256 splitBalance, uint256 warehouseBalance) = getSplitBalance(_token);
 
