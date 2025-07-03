@@ -11,7 +11,9 @@ contract SplitFactoryV2Test is BaseTest {
         address indexed split, SplitV2Lib.Split splitParams, address owner, address creator, bytes32 salt
     );
 
-    event SplitCreated(address indexed split, SplitV2Lib.Split splitParams, address owner, address creator);
+    event SplitCreated(
+        address indexed split, SplitV2Lib.Split splitParams, address owner, address creator, uint256 nonce
+    );
 
     function setUp() public override {
         super.setUp();
@@ -72,6 +74,8 @@ contract SplitFactoryV2Test is BaseTest {
 
         address predictedAddress = predictDeterministicAddress(params, _owner, _distributeByPush);
 
+        vm.expectEmit();
+        emit SplitCreated(predictedAddress, params, _owner, _creator, uint256(0));
         SplitWalletV2 split = SplitWalletV2(createSplit(params, _owner, _creator, _distributeByPush));
 
         assertEq(split.owner(), _owner);
@@ -92,7 +96,9 @@ contract SplitFactoryV2Test is BaseTest {
         SplitV2Lib.Split memory params = createSplitParams(_receivers, _distributionIncentive);
         address predictedAddress = predictDeterministicAddress(params, _owner, _distributeByPush);
 
-        SplitWalletV2 split = SplitWalletV2(createSplit(params, _owner, _owner, _distributeByPush));
+        vm.expectEmit();
+        emit SplitCreated(predictedAddress, params, _owner, _creator, uint256(1));
+        SplitWalletV2 split = SplitWalletV2(createSplit(params, _owner, _creator, _distributeByPush));
 
         assertEq(split.owner(), _owner);
         assertEq(address(split), predictedAddress);

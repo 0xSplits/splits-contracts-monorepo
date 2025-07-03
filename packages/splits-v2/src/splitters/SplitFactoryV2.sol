@@ -21,7 +21,9 @@ abstract contract SplitFactoryV2 is Nonces {
         address indexed split, SplitV2Lib.Split splitParams, address owner, address creator, bytes32 salt
     );
 
-    event SplitCreated(address indexed split, SplitV2Lib.Split splitParams, address owner, address creator);
+    event SplitCreated(
+        address indexed split, SplitV2Lib.Split splitParams, address owner, address creator, uint256 nonce
+    );
 
     /* -------------------------------------------------------------------------- */
     /*                                   STORAGE                                  */
@@ -89,14 +91,16 @@ abstract contract SplitFactoryV2 is Nonces {
     {
         bytes32 hash = keccak256(abi.encode(_splitParams, _owner));
 
+        uint256 nonce = useNonce(hash);
+
         split = Clone.cloneDeterministic({
             _implementation: SPLIT_WALLET_IMPLEMENTATION,
-            _salt: keccak256(bytes.concat(hash, abi.encode(useNonce(hash))))
+            _salt: keccak256(bytes.concat(hash, abi.encode(nonce)))
         });
 
         SplitWalletV2(split).initialize(_splitParams, _owner);
 
-        emit SplitCreated({ split: split, splitParams: _splitParams, owner: _owner, creator: _creator });
+        emit SplitCreated({ split: split, splitParams: _splitParams, owner: _owner, creator: _creator, nonce: nonce });
     }
 
     /**
