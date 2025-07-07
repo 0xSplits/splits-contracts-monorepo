@@ -15,6 +15,9 @@ import { ERC20 } from "./utils/ERC20.sol";
 import { ERC6909XUtils } from "./utils/ERC6909XUtils.sol";
 import { WarehouseReentrantReceiver } from "./utils/ReentrantReceiver.sol";
 import { WETH9 } from "./utils/WETH9.sol";
+
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { PRBTest } from "@prb/test/PRBTest.sol";
 import { StdCheats } from "forge-std/StdCheats.sol";
 import { StdInvariant } from "forge-std/StdInvariant.sol";
@@ -23,6 +26,7 @@ import { StdUtils } from "forge-std/StdUtils.sol";
 contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
     using Cast for uint256;
     using Cast for address;
+    using SafeERC20 for IERC20;
 
     address[] internal assumeAddresses;
 
@@ -188,7 +192,7 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
         if (_token == native) {
             warehouse.deposit{ value: _warehouseAmount }(_split, _token, _warehouseAmount);
         } else {
-            ERC20(_token).approve(address(warehouse), _warehouseAmount);
+            IERC20(_token).forceApprove(address(warehouse), _warehouseAmount);
             warehouse.deposit(_split, _token, _warehouseAmount);
         }
         vm.stopPrank();
@@ -247,5 +251,49 @@ contract BaseTest is PRBTest, StdCheats, StdInvariant, StdUtils {
         });
 
         digest = permitUtils.getTypedDataHash(permit);
+    }
+
+    // solhint-disable-next-line code-complexity
+    function assertDistribute(
+        SplitV2Lib.Split memory _split,
+        address _token,
+        uint256 _warehouseAmount,
+        uint256 _splitAmount,
+        address _distributor,
+        bool _distributeByPush
+    )
+        internal
+    {
+        if (_warehouseAmount > 0) _warehouseAmount -= 1;
+        if (_splitAmount > 0) _splitAmount -= 1;
+
+        uint256 totalAmount = _warehouseAmount + _splitAmount;
+
+        (uint256[] memory amounts, uint256 reward) = SplitV2Lib.getDistributionsMem(_split, totalAmount);
+
+        if (_distributeByPush) {
+            if (_token == native) {
+                for (uint256 i = 0; i < _split.recipients.length; i++) {
+                    uint256 balance = address(_split.recipients[i]).balance
+                        + warehouse.balanceOf(_split.recipients[i], tokenToId(_token));
+                    assertGte(balance, amounts[i]);
+                }
+                if (reward > 0) {
+                    assertGte(_distributor.balance, reward);
+                }
+            } else {
+                for (uint256 i = 0; i < _split.recipients.length; i++) {
+                    assertGte(IERC20(_token).balanceOf(_split.recipients[i]), amounts[i]);
+                }
+                if (reward > 0) {
+                    assertGte(IERC20(_token).balanceOf(_distributor), reward);
+                }
+            }
+        } else {
+            for (uint256 i = 0; i < _split.recipients.length; i++) {
+                assertGte(warehouse.balanceOf(_split.recipients[i], tokenToId(_token)), amounts[i]);
+            }
+            assertGte(warehouse.balanceOf(_distributor, tokenToId(_token)), reward);
+        }
     }
 }
