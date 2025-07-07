@@ -17,6 +17,7 @@ test = "test"
 allow_paths = ['../../node_modules']
 fs_permissions = [{ access = "read-write", path = "./" }]
 evm_version = "shanghai"
+gas_limit = 36_000_000
 
 [profile.default.fuzz]
 max_test_rejects = 1_000_000

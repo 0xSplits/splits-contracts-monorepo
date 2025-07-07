@@ -23,7 +23,7 @@ contract PullSplit is SplitWalletV2 {
     /*                          CONSTRUCTOR & INITIALIZER                         */
     /* -------------------------------------------------------------------------- */
 
-    constructor(address _splitWarehouse) SplitWalletV2(_splitWarehouse) { }
+    constructor(address _splitWarehouse) SplitWalletV2(_splitWarehouse, "PullSplit") { }
 
     /* -------------------------------------------------------------------------- */
     /*                          PUBLIC/EXTERNAL FUNCTIONS                         */
@@ -117,12 +117,13 @@ contract PullSplit is SplitWalletV2 {
         if (_token == NATIVE_TOKEN) {
             SPLITS_WAREHOUSE.deposit{ value: _amount }({ receiver: address(this), token: _token, amount: _amount });
         } else {
-            // solhint-disable-next-line no-empty-blocks
-            try SPLITS_WAREHOUSE.deposit({ receiver: address(this), token: _token, amount: _amount }) { }
-            catch {
+            uint256 allowance = IERC20(_token).allowance(address(this), address(SPLITS_WAREHOUSE));
+
+            if (allowance < _amount) {
                 IERC20(_token).forceApprove({ spender: address(SPLITS_WAREHOUSE), value: type(uint256).max });
-                SPLITS_WAREHOUSE.deposit({ receiver: address(this), token: _token, amount: _amount });
             }
+
+            SPLITS_WAREHOUSE.deposit({ receiver: address(this), token: _token, amount: _amount });
         }
     }
 

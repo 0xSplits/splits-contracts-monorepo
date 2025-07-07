@@ -340,7 +340,6 @@ contract SplitWalletV2Test is BaseTest {
             } else {
                 if (_splitAmount > 0) {
                     totalAmount -= 1;
-                    _splitAmount -= 1;
                 }
                 wallet.distribute(split, token, totalAmount, _splitAmount > 1, ALICE.addr);
             }
@@ -385,7 +384,6 @@ contract SplitWalletV2Test is BaseTest {
             } else {
                 if (_splitAmount > 0) {
                     totalAmount -= 1;
-                    _splitAmount -= 1;
                 }
                 wallet.distribute(split, token, totalAmount, _splitAmount > 1, ALICE.addr);
             }
@@ -446,50 +444,6 @@ contract SplitWalletV2Test is BaseTest {
 
         assertEq(splitBalance, 100);
         assertEq(warehouseBalance, 100);
-    }
-
-    // solhint-disable-next-line code-complexity
-    function assertDistribute(
-        SplitV2Lib.Split memory _split,
-        address _token,
-        uint256 _warehouseAmount,
-        uint256 _splitAmount,
-        address _distributor,
-        bool _distributeByPush
-    )
-        internal
-    {
-        if (_warehouseAmount > 0) _warehouseAmount -= 1;
-        if (_splitAmount > 0) _splitAmount -= 1;
-
-        uint256 totalAmount = _warehouseAmount + _splitAmount;
-
-        (uint256[] memory amounts, uint256 reward) = SplitV2Lib.getDistributionsMem(_split, totalAmount);
-
-        if (_distributeByPush) {
-            if (_token == native) {
-                for (uint256 i = 0; i < _split.recipients.length; i++) {
-                    uint256 balance = address(_split.recipients[i]).balance
-                        + warehouse.balanceOf(_split.recipients[i], tokenToId(_token));
-                    assertGte(balance, amounts[i]);
-                }
-                if (reward > 0) {
-                    assertGte(_distributor.balance, reward);
-                }
-            } else {
-                for (uint256 i = 0; i < _split.recipients.length; i++) {
-                    assertGte(IERC20(_token).balanceOf(_split.recipients[i]), amounts[i]);
-                }
-                if (reward > 0) {
-                    assertGte(IERC20(_token).balanceOf(_distributor), reward);
-                }
-            }
-        } else {
-            for (uint256 i = 0; i < _split.recipients.length; i++) {
-                assertGte(warehouse.balanceOf(_split.recipients[i], tokenToId(_token)), amounts[i]);
-            }
-            assertGte(warehouse.balanceOf(_distributor, tokenToId(_token)), reward);
-        }
     }
 
     // Signature tests
@@ -619,5 +573,12 @@ contract SplitWalletV2Test is BaseTest {
     function getWalletSignature(bytes32 _hash, uint256 _key) public pure returns (bytes memory signature) {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(_key, _hash);
         signature = abi.encodePacked(r, s, v);
+    }
+
+    function test_wallet_version() public {
+        (,, string memory version,,,,) = pushSplit.eip712Domain();
+        assertEq(version, "2.2");
+        (,, version,,,,) = pullSplit.eip712Domain();
+        assertEq(version, "2.2");
     }
 }
