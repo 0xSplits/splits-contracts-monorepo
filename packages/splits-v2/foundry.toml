@@ -55,3 +55,51 @@ quote_style = "double"
 tab_width = 4
 wrap_comments = true
 sort_imports = true
+
+[rpc_endpoints]
+mainnet = "${MAINNET_RPC_URL}"                   # 1
+optimism = "${OPTIMISM_RPC_URL}"                 # 10
+bsc = "${BSC_RPC_URL}"                           # 56
+gnosis = "${GNOSIS_RPC_URL}"                     # 100
+polygon = "${POLYGON_RPC_URL}"                   # 137
+shape = "${SHAPE_RPC_URL}"                       # 360
+world = "${WORLD_RPC_URL}"                       # 480
+abstract = "${ABSTRACT_RPC_URL}"                 # 2741
+world-sepolia = "${WORLD_SEPOLIA_RPC_URL}"       # 4801
+base = "${BASE_RPC_URL}"                         # 8453
+abstract-sepolia = "${ABSTRACT_SEPOLIA_RPC_URL}" # 11124
+holesky = "${HOLESKY_RPC_URL}"                   # 17000
+arbitrum = "${ARBITRUM_RPC_URL}"                 # 42161
+base-sepolia = "${BASE_SEPOLIA_RPC_URL}"         # 84532
+plume = "${PLUME_RPC_URL}"                       # 98866
+plume-sepolia = "${PLUME_SEPOLIA_RPC_URL}"       # 98867
+arbitrum-sepolia = "${ARBITRUM_SEPOLIA_RPC_URL}" # 421614
+hoodi = "${HOODI_RPC_URL}"                       # 560048
+zora = "${ZORA_RPC_URL}"                         # 7777777
+sepolia = "${SEPOLIA_RPC_URL}"                   # 11155111
+optimism-sepolia = "${OPTIMISM_SEPOLIA_RPC_URL}" # 11155420
+zora-sepolia = "${ZORA_SEPOLIA_RPC_URL}"         # 9999999
+
+[etherscan]
+mainnet = { key = "${ETHERSCAN_API_KEY}" }          # 1
+optimism = { key = "${ETHERSCAN_API_KEY}" }         # 10
+bsc = { key = "${ETHERSCAN_API_KEY}" }              # 56
+gnosis = { key = "${ETHERSCAN_API_KEY}" }           # 100
+polygon = { key = "${ETHERSCAN_API_KEY}" }          # 137
+shape = { key = "${ETHERSCAN_API_KEY}" }            # 360
+world = { key = "${ETHERSCAN_API_KEY}" }            # 480
+abstract = { key = "${ETHERSCAN_API_KEY}" }         # 2741
+world-sepolia = { key = "${ETHERSCAN_API_KEY}" }    # 4801
+base = { key = "${ETHERSCAN_API_KEY}" }             # 8453
+abstract-sepolia = { key = "${ETHERSCAN_API_KEY}" } # 11124
+holesky = { key = "${ETHERSCAN_API_KEY}" }          # 17000
+arbitrum = { key = "${ETHERSCAN_API_KEY}" }         # 42161
+base-sepolia = { key = "${ETHERSCAN_API_KEY}" }     # 84532
+plume = { key = "${ETHERSCAN_API_KEY}" }            # 98866
+plume-sepolia = { key = "${ETHERSCAN_API_KEY}" }    # 98867
+arbitrum-sepolia = { key = "${ETHERSCAN_API_KEY}" } # 421614
+hoodi = { key = "${ETHERSCAN_API_KEY}" }            # 560048
+zora = { key = "${ETHERSCAN_API_KEY}" }             # 7777777
+sepolia = { key = "${ETHERSCAN_API_KEY}" }          # 11155111
+optimism-sepolia = { key = "${ETHERSCAN_API_KEY}" } # 11155420
+zora-sepolia = { key = "${ETHERSCAN_API_KEY}" }     # 9999999
