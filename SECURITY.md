@@ -8,7 +8,7 @@ If you believe you have found a security vulnerability, please read the followin
 
 ### Overview
 
-Starting on September 1, 2024, the [Splits contracts monorepo](https://github.com/0xSplits/splits-contracts-monorepo) is subject to
+Starting on September 1, 2025, the [Splits contracts monorepo](https://github.com/0xSplits/splits-contracts-monorepo) is subject to
 the Splits Contracts Monorepo Bug Bounty (the "Program") to incentivize responsible bug disclosure.
 
 We are limiting the scope of the Program to [critical and high severity bugs](https://immunefi.com/immunefi-vulnerability-severity-classification-system-v2-3/), and are offering a reward of up to
