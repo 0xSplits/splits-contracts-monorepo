@@ -1658,4 +1658,74 @@ contract SmartVaultTest is BaseTest {
         }
     }
     */
+
+    // This is a test function to help debug the merkleized signature decoding. To run this first paste the signature
+    // (remove 0x
+    // and the leading 01) into the signature variable and run the test.
+    // you can run the test forge test --mt decodeMerkleSignature -vvvvv
+    /*
+    function test_decodeMerkleSignature() public pure {
+        bytes memory signature = hex"";
+        SmartVault.MerkelizedUserOpSignature memory decodedSignature =
+            abi.decode(signature, (SmartVault.MerkelizedUserOpSignature));
+
+        console2.logString("Light user op gas limits:");
+        console2.logString("Max Priority Fee Per Gas:");
+        console2.logUint(decodedSignature.gasLimits.maxPriorityFeePerGas);
+        console2.logString("Pre Verification Gas:");
+        console2.logUint(decodedSignature.gasLimits.preVerificationGas);
+        console2.logString("Call Gas Limit:");
+        console2.logUint(decodedSignature.gasLimits.callGasLimit);
+        console2.logString("Verification Gas Limit:");
+        console2.logUint(decodedSignature.gasLimits.verificationGasLimit);
+        console2.logString("Paymaster:");
+        console2.logAddress(decodedSignature.gasLimits.paymaster);
+        console2.logString("Paymaster Verification Gas Limit:");
+        console2.logUint(decodedSignature.gasLimits.paymasterVerificationGasLimit);
+        console2.logString("Paymaster Post Op Gas Limit:");
+        console2.logUint(decodedSignature.gasLimits.paymasterPostOpGasLimit);
+
+        console2.logString("Light Merkle Tree Root:");
+        console2.logBytes32(decodedSignature.lightMerkleTreeRoot);
+
+        console2.logString("Light Merkle Proof:");
+        for (uint256 i = 0; i < decodedSignature.lightMerkleProof.length; i++) {
+            console2.logBytes32(decodedSignature.lightMerkleProof[i]);
+        }
+
+        console2.logString("Merkle Tree Root:");
+        console2.logBytes32(decodedSignature.merkleTreeRoot);
+
+        console2.logString("Merkle Proof:");
+        for (uint256 i = 0; i < decodedSignature.merkleProof.length; i++) {
+            console2.logBytes32(decodedSignature.merkleProof[i]);
+        }
+
+        console2.logString("Signatures Length:");
+        console2.logUint(decodedSignature.signatures.length);
+
+        for (uint256 i = 0; i < decodedSignature.signatures.length; i++) {
+            console2.logString("Signer Index:");
+            console2.logUint(decodedSignature.signatures[i].signerIndex);
+            console2.logString("Signature Data:");
+            console2.logBytes(decodedSignature.signatures[i].signatureData);
+
+            WebAuthn.WebAuthnAuth memory webAuthn =
+                abi.decode(decodedSignature.signatures[i].signatureData, (WebAuthn.WebAuthnAuth));
+
+            console2.logString("Authenticator Data:");
+            console2.logBytes(webAuthn.authenticatorData);
+            console2.logString("Client Data JSON:");
+            console2.logString(webAuthn.clientDataJSON);
+            console2.logString("R:");
+            console2.logUint(webAuthn.r);
+            console2.logString("S:");
+            console2.logUint(webAuthn.s);
+            console2.logString("Type Index:");
+            console2.logUint(webAuthn.typeIndex);
+            console2.logString("Challenge Index:");
+            console2.logUint(webAuthn.challengeIndex);
+        }
+    }
+    */
 }
