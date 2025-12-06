@@ -67,6 +67,9 @@ contract SplitFactoryV2Script is BaseScript {
 
         vm.createSelectFork("zora-sepolia"); // 9999999
         deploy();
+
+        vm.createSelectFork("tempo-testnet"); // 42429
+        deploy();
     }
 
     function deploy() public {

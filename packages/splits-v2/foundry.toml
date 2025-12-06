@@ -79,6 +79,7 @@ zora = "${ZORA_RPC_URL}"                         # 7777777
 sepolia = "${SEPOLIA_RPC_URL}"                   # 11155111
 optimism-sepolia = "${OPTIMISM_SEPOLIA_RPC_URL}" # 11155420
 zora-sepolia = "${ZORA_SEPOLIA_RPC_URL}"         # 9999999
+tempo-testnet= "${TEMPO_TESTNET_RPC_URL}"        # 42429
 
 [etherscan]
 mainnet = { key = "${ETHERSCAN_API_KEY}" }          # 1
@@ -103,3 +104,4 @@ zora = { key = "${ETHERSCAN_API_KEY}" }             # 7777777
 sepolia = { key = "${ETHERSCAN_API_KEY}" }          # 11155111
 optimism-sepolia = { key = "${ETHERSCAN_API_KEY}" } # 11155420
 zora-sepolia = { key = "${ETHERSCAN_API_KEY}" }     # 9999999
+tempo-testnet = { key = "${ETHERSCAN_API_KEY}" }    # 42429
