@@ -7,7 +7,8 @@ This is a mono-repository for the Splits contracts. Current packages in this rep
 
 ## AI Agent Support
 
-This repo includes documentation for AI coding agents. See [`CLAUDE.md`](./CLAUDE.md) or [`AGENTS.md`](./AGENTS.md) for a quick overview of the architecture, dev commands, and pointers to deeper contract documentation.
+This repo includes documentation for AI coding agents. See [`CLAUDE.md`](./CLAUDE.md) or [`AGENTS.md`](./AGENTS.md) for
+a quick overview of the architecture, dev commands, and pointers to deeper contract documentation.
 
 ## Installation
 

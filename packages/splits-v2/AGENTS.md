@@ -1,6 +1,7 @@
 # Splits V2
 
-Core splitting contracts for the 0xSplits protocol. Enables onchain payment splitting among multiple recipients with configurable allocations and distribution incentives.
+Core splitting contracts for the 0xSplits protocol. Enables onchain payment splitting among multiple recipients with
+configurable allocations and distribution incentives.
 
 ## Source Layout
 

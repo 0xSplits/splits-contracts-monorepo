@@ -1,6 +1,7 @@
 # Smart Vaults
 
-ERC-4337 multi-signature smart accounts for the Splits ecosystem. Supports m-of-n threshold signing with both EOA wallets and WebAuthn passkeys.
+ERC-4337 multi-signature smart accounts for the Splits ecosystem. Supports m-of-n threshold signing with both EOA
+wallets and WebAuthn passkeys.
 
 ## Source Layout
 

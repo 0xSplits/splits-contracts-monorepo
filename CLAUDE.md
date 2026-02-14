@@ -2,8 +2,7 @@
 
 ## WHAT
 
-Onchain financial operations platform.
-Monorepo with two Foundry-based Solidity packages, managed with Turborepo + pnpm:
+Onchain financial operations platform. Monorepo with two Foundry-based Solidity packages, managed with Turborepo + pnpm:
 
 - `packages/splits-v2` -- Core splitting contracts (Solidity 0.8.23)
 - `packages/smart-vaults` -- ERC-4337 smart account abstraction (Solidity 0.8.23)
@@ -12,10 +11,14 @@ Monorepo with two Foundry-based Solidity packages, managed with Turborepo + pnpm
 
 ### splits-v2
 
-- **SplitsWarehouse** (`src/SplitsWarehouse.sol`): Central ERC6909 token warehouse. All deposits/withdrawals flow through here. Token IDs = `uint256(uint160(tokenAddress))`.
-- **PullSplit** (`src/splitters/pull/PullSplit.sol`): Distributes by depositing to warehouse; recipients claim later. Gas-efficient for many recipients.
-- **PushSplit** (`src/splitters/push/PushSplit.sol`): Distributes by sending tokens directly to recipients. Simpler for fewer recipients.
-- **SplitWalletV2** (`src/splitters/SplitWalletV2.sol`): Abstract base for split wallets -- manages config, balances, owner.
+- **SplitsWarehouse** (`src/SplitsWarehouse.sol`): Central ERC6909 token warehouse. All deposits/withdrawals flow
+  through here. Token IDs = `uint256(uint160(tokenAddress))`.
+- **PullSplit** (`src/splitters/pull/PullSplit.sol`): Distributes by depositing to warehouse; recipients claim later.
+  Gas-efficient for many recipients.
+- **PushSplit** (`src/splitters/push/PushSplit.sol`): Distributes by sending tokens directly to recipients. Simpler for
+  fewer recipients.
+- **SplitWalletV2** (`src/splitters/SplitWalletV2.sol`): Abstract base for split wallets -- manages config, balances,
+  owner.
 - **PullSplitFactory / PushSplitFactory** (`src/splitters/pull/` and `push/`): Deploy split instances.
 - **SplitFactoryV2** (`src/splitters/SplitFactoryV2.sol`): Abstract factory base using CREATE2 clones.
 
@@ -23,7 +26,8 @@ Monorepo with two Foundry-based Solidity packages, managed with Turborepo + pnpm
 
 - **SmartVault** (`src/vault/SmartVault.sol`): ERC-4337 v0.7 multi-sig smart account with m-of-n signing.
 - **SmartVaultFactory** (`src/vault/SmartVaultFactory.sol`): Deploys vault proxies deterministically.
-- **Signers** (`src/signers/`): `MultiSigner`, `AccountSigner` (EOA), `PasskeySigner` (WebAuthn) -- flexible signer architecture.
+- **Signers** (`src/signers/`): `MultiSigner`, `AccountSigner` (EOA), `PasskeySigner` (WebAuthn) -- flexible signer
+  architecture.
 
 ### splits-v2 Contract Flow
 
@@ -71,6 +75,7 @@ pnpm format                                       # format non-Solidity files (j
 ### Deploy
 
 Each package has deploy scripts in `script/`. See package READMEs for env setup. Example:
+
 ```
 cd packages/splits-v2
 source .env && FOUNDRY_PROFILE=optimized forge script script/SplitsWarehouse.s.sol --broadcast --verify -vvvvv --rpc-url $RPC_URL

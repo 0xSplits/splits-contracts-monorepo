@@ -89,6 +89,7 @@ warehouse.withdraw(ownerAddress, tokens, amounts, withdrawerAddress);
 ```
 
 The owner can configure withdrawal incentives and pause withdrawals:
+
 ```solidity
 warehouse.setWithdrawConfig(ISplitsWarehouse.WithdrawConfig({
     incentive: 5000,  // 0.5% incentive for third-party withdrawers
@@ -98,29 +99,35 @@ warehouse.setWithdrawConfig(ISplitsWarehouse.WithdrawConfig({
 
 ## 6. Pull vs Push: Decision Guide
 
-| Factor | Pull (PullSplit) | Push (PushSplit) |
-|---|---|---|
-| Gas cost per distribution | Lower (internal balance transfers) | Higher (external token transfers) |
-| Recipient count | Better for many recipients | Better for few recipients |
-| Recipient must claim? | Yes (call warehouse.withdraw) | No (tokens arrive directly) |
-| Risk of failed distribution | None (warehouse accounting) | Can fail if recipient reverts (ETH falls back to warehouse) |
-| Composability | Recipients can use warehouse balances via ERC6909 | Standard token transfers |
-| Best for | Protocols, DAOs, many-party splits | Simple 2-3 party splits, EOA recipients |
+| Factor                      | Pull (PullSplit)                                  | Push (PushSplit)                                            |
+| --------------------------- | ------------------------------------------------- | ----------------------------------------------------------- |
+| Gas cost per distribution   | Lower (internal balance transfers)                | Higher (external token transfers)                           |
+| Recipient count             | Better for many recipients                        | Better for few recipients                                   |
+| Recipient must claim?       | Yes (call warehouse.withdraw)                     | No (tokens arrive directly)                                 |
+| Risk of failed distribution | None (warehouse accounting)                       | Can fail if recipient reverts (ETH falls back to warehouse) |
+| Composability               | Recipients can use warehouse balances via ERC6909 | Standard token transfers                                    |
+| Best for                    | Protocols, DAOs, many-party splits                | Simple 2-3 party splits, EOA recipients                     |
 
-**Default recommendation:** Use PullSplit unless you have a specific reason to prefer push (e.g., simple 2-party split with EOA recipients).
+**Default recommendation:** Use PullSplit unless you have a specific reason to prefer push (e.g., simple 2-party split
+with EOA recipients).
 
 ## 7. Security Considerations
 
 **Audits:** See the `audits/` directory at the repo root for completed audit reports.
 
 **Key invariants:**
-- Split recipients must be sorted by address ascending. The `validate()` function does not enforce sort order, but distribution will produce incorrect results with unsorted recipients.
+
+- Split recipients must be sorted by address ascending. The `validate()` function does not enforce sort order, but
+  distribution will produce incorrect results with unsorted recipients.
 - `distribute()` leaves 1 wei in both the wallet and warehouse to avoid gas costs of zeroing storage slots.
 - The `onlyOwner` modifier allows both `owner` and `address(this)`, enabling batched calls via `execCalls()`.
-- `Pausable.pausable` modifier allows the owner, `tx.origin == owner`, or `address(this)` to bypass the pause, so pausing only blocks third parties.
-- Withdrawal pausing (`withdrawConfig.paused`) only blocks third-party withdrawals. The owner can always withdraw their own funds.
+- `Pausable.pausable` modifier allows the owner, `tx.origin == owner`, or `address(this)` to bypass the pause, so
+  pausing only blocks third parties.
+- Withdrawal pausing (`withdrawConfig.paused`) only blocks third-party withdrawals. The owner can always withdraw their
+  own funds.
 
 **Integration checklist:**
+
 - Always sort recipients by address before creating or updating a split.
 - Validate your split struct off-chain before submitting (check allocations sum to totalAllocation).
 - If integrating as a recipient, consider using the warehouse's ERC6909 balances directly instead of withdrawing.
