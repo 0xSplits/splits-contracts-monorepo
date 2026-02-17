@@ -6,7 +6,7 @@ Splits V2 is the core splitting protocol from 0xSplits. It provides onchain paym
 that combines an ERC6909-compliant token warehouse with lightweight split wallet clones. The system supports both push
 and pull distribution models.
 
-For a visual overview of the architecture, see [architecture.png](architecture.png) in this directory.
+For a visual overview of the architecture, see [architecture](architecture.png) in this directory.
 
 ## Data Flow
 
@@ -47,9 +47,7 @@ recipient is a contract that reverts), the amount is deposited to the warehouse 
 
 ## Core Contracts
 
-### SplitsWarehouse
-
-**Path:** `src/SplitsWarehouse.sol`
+### [SplitsWarehouse](../src/SplitsWarehouse.sol)
 
 Central ERC6909-compliant token warehouse that holds deposited tokens on behalf of split wallets and recipients. Token
 IDs are derived from token addresses via `uint256(uint160(address))`.
@@ -75,9 +73,7 @@ IDs are derived from token addresses via `uint256(uint160(address))`.
 
 ---
 
-### SplitWalletV2
-
-**Path:** `src/splitters/SplitWalletV2.sol`
+### [SplitWalletV2](../src/splitters/SplitWalletV2.sol)
 
 Abstract base contract for split wallets. Stores the split configuration hash, provides `updateSplit()`,
 `getSplitBalance()`, and `initialize()`. Inherits `Wallet` (which provides `execCalls()`, pausing, and ownership) and
@@ -105,9 +101,7 @@ Abstract base contract for split wallets. Stores the split configuration hash, p
 
 ---
 
-### SplitFactoryV2
-
-**Path:** `src/splitters/SplitFactoryV2.sol`
+### [SplitFactoryV2](../src/splitters/SplitFactoryV2.sol)
 
 Abstract factory that deploys split wallet clones using CREATE2. Provides deterministic and nonce-based creation, plus
 address prediction.
@@ -125,9 +119,7 @@ address prediction.
 
 ---
 
-### PullSplit
-
-**Path:** `src/splitters/pull/PullSplit.sol`
+### [PullSplit](../src/splitters/pull/PullSplit.sol)
 
 Split wallet that distributes funds through the warehouse (pull model). During distribution, tokens held by the wallet
 are first deposited into the warehouse, then warehouse balances are batch-transferred to recipients.
@@ -142,18 +134,14 @@ are first deposited into the warehouse, then warehouse balances are batch-transf
 
 ---
 
-### PullSplitFactory
-
-**Path:** `src/splitters/pull/PullSplitFactory.sol`
+### [PullSplitFactory](../src/splitters/pull/PullSplitFactory.sol)
 
 Concrete factory for PullSplit wallets. Deploys a PullSplit implementation in its constructor and uses it as the clone
 source.
 
 ---
 
-### PushSplit
-
-**Path:** `src/splitters/push/PushSplit.sol`
+### [PushSplit](../src/splitters/push/PushSplit.sol)
 
 Split wallet that distributes funds directly to recipients (push model). Withdraws any warehouse balance first, then
 sends tokens via direct transfers. For native ETH, falls back to warehouse deposit if direct transfer fails.
@@ -168,9 +156,7 @@ sends tokens via direct transfers. For native ETH, falls back to warehouse depos
 
 ---
 
-### PushSplitFactory
-
-**Path:** `src/splitters/push/PushSplitFactory.sol`
+### [PushSplitFactory](../src/splitters/push/PushSplitFactory.sol)
 
 Concrete factory for PushSplit wallets. Deploys a PushSplit implementation in its constructor and uses it as the clone
 source.
@@ -179,21 +165,21 @@ source.
 
 ## Libraries
 
-### Cast (`src/libraries/Cast.sol`)
+### [Cast](../src/libraries/Cast.sol)
 
 Type-casting utilities for converting between `address`, `uint256`, and `uint160`. Reverts with `Overflow()` if a
 uint256 exceeds 160 bits.
 
-### Clone (`src/libraries/Clone.sol`)
+### [Clone](../src/libraries/Clone.sol)
 
 Modified minimal proxy library (based on Solady's LibClone). Deploys clones via CREATE2 with a built-in `receive()` that
 emits `ReceiveETH(uint256)` to avoid DELEGATECALL overhead on plain ETH transfers.
 
-### Math (`src/libraries/Math.sol`)
+### [Math](../src/libraries/Math.sol)
 
 Minimal math: `sum(uint256[])` for calldata and memory arrays, and `min(uint256, uint256)`.
 
-### SplitV2Lib (`src/libraries/SplitV2.sol`)
+### [SplitV2Lib](../src/libraries/SplitV2.sol)
 
 Core split logic. Defines the `Split` struct:
 
@@ -213,34 +199,34 @@ Key functions: `getHash()`, `validate()`, `getDistributions()`, `calculateAlloca
 
 ## Interfaces
 
-- **IERC6909** (`src/interfaces/IERC6909.sol`): Core ERC-6909 multi-token interface.
-- **IERC6909X** (`src/interfaces/IERC6909X.sol`): Extension for signature-based approvals (`temporaryApproveAndCall`,
+- **[IERC6909](../src/interfaces/IERC6909.sol)**: Core ERC-6909 multi-token interface.
+- **[IERC6909X](../src/interfaces/IERC6909X.sol)**: Extension for signature-based approvals (`temporaryApproveAndCall`,
   `approveBySig`).
-- **ISplitsWarehouse** (`src/interfaces/ISplitsWarehouse.sol`): Warehouse interface (`deposit`, `batchDeposit`,
+- **[ISplitsWarehouse](../src/interfaces/ISplitsWarehouse.sol)**: Warehouse interface (`deposit`, `batchDeposit`,
   `batchTransfer`, `withdraw`).
-- **IWETH9** (`src/interfaces/IWETH9.sol`): Standard WETH9 interface.
+- **[IWETH9](../src/interfaces/IWETH9.sol)**: Standard WETH9 interface.
 
 ---
 
 ## Tokens
 
-- **ERC6909** (`src/tokens/ERC6909.sol`): Gas-efficient ERC-6909 implementation (based on Solmate). Multi-token
+- **[ERC6909](../src/tokens/ERC6909.sol)**: Gas-efficient ERC-6909 implementation (based on Solmate). Multi-token
   `balanceOf`, `transfer`, `approve`, `setOperator`.
-- **ERC6909X** (`src/tokens/ERC6909X.sol`): Extends ERC6909 with EIP-712 signature-based approvals and
+- **[ERC6909X](../src/tokens/ERC6909X.sol)**: Extends ERC6909 with EIP-712 signature-based approvals and
   `temporaryApproveAndCall()`. Uses `UnorderedNonces` for replay protection.
 
 ---
 
 ## Utils
 
-- **ERC1271** (`src/utils/ERC1271.sol`): Signature validation with EIP-712 replay protection. Wraps hashes with
+- **[ERC1271](../src/utils/ERC1271.sol)**: Signature validation with EIP-712 replay protection. Wraps hashes with
   `SplitWalletMessage(bytes32 hash)`.
-- **Nonces** (`src/utils/Nonces.sol`): Hash-based incrementing nonce tracker for nonce-based split creation.
-- **Ownable** (`src/utils/Ownable.sol`): Minimal ownable for clone wallets. `onlyOwner` allows both `owner` and
+- **[Nonces](../src/utils/Nonces.sol)**: Hash-based incrementing nonce tracker for nonce-based split creation.
+- **[Ownable](../src/utils/Ownable.sol)**: Minimal ownable for clone wallets. `onlyOwner` allows both `owner` and
   `address(this)` (for `execCalls()`).
-- **Pausable** (`src/utils/Pausable.sol`): Extends Ownable with `paused` flag. Used to gate `distribute()` and
+- **[Pausable](../src/utils/Pausable.sol)**: Extends Ownable with `paused` flag. Used to gate `distribute()` and
   `depositToWarehouse()`.
-- **UnorderedNonces** (`src/utils/UnorderedNonces.sol`): Bitmap-based unordered nonce tracker (inspired by Uniswap
+- **[UnorderedNonces](../src/utils/UnorderedNonces.sol)**: Bitmap-based unordered nonce tracker (inspired by Uniswap
   Permit2). Used by ERC6909X.
-- **Wallet** (`src/utils/Wallet.sol`): Minimal smart wallet. Extends Pausable, ERC721Holder, ERC1155Holder. Provides
+- **[Wallet](../src/utils/Wallet.sol)**: Minimal smart wallet. Extends Pausable, ERC721Holder, ERC1155Holder. Provides
   `execCalls(Call[])` for batched arbitrary calls.

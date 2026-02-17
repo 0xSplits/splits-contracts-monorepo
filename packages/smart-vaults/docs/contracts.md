@@ -9,7 +9,7 @@ WebAuthn passkeys.
 The architecture is based on Coinbase's Smart Wallet and Solady's Smart Wallet. Each vault is deployed as an ERC-1967
 proxy via a deterministic factory, making addresses predictable before deployment.
 
-See `docs/smart account architecture.png` for a visual diagram of the system.
+Check out [this image](./smart%20account%20architecture.png) for a visual diagram of the system.
 
 ## ERC-4337 Account Abstraction
 
@@ -22,7 +22,7 @@ The owner can also call `execute` and `executeBatch` directly, bypassing the Ent
 
 ## Signer Architecture
 
-### Signer (`src/signers/Signer.sol`)
+### [Signer](../src/signers/Signer.sol)
 
 The base signer abstraction. A `Signer` is a two-slot struct (`slot1`, `slot2`) that can represent either:
 
@@ -32,18 +32,18 @@ The base signer abstraction. A `Signer` is a two-slot struct (`slot1`, `slot2`) 
 `SignerLib` provides type-checking (`isEOA`, `isPasskey`, `isValid`) and dispatches signature verification to the
 appropriate signer-specific library.
 
-### AccountSigner (`src/signers/AccountSigner.sol`)
+### [AccountSigner](../src/signers/AccountSigner.sol)
 
 Handles signature verification for EOA and ERC-1271 smart account signers. Uses Solady's
 `SignatureCheckerLib.isValidSignatureNow`, supporting both ECDSA and ERC-1271 contract signatures. The message hash is
 wrapped with `toEthSignedMessageHash` before verification.
 
-### PasskeySigner (`src/signers/PasskeySigner.sol`)
+### [PasskeySigner](../src/signers/PasskeySigner.sol)
 
 Handles WebAuthn/passkey signature verification. Decodes the `Signer` struct into x/y coordinates and verifies using the
 `WebAuthn` library (forked from Coinbase/Daimo). User verification (`requireUV`) is set to `false`.
 
-### MultiSigner (`src/signers/MultiSigner.sol`)
+### [MultiSigner](../src/signers/MultiSigner.sol)
 
 Manages an m-of-n threshold signer set:
 
@@ -119,13 +119,13 @@ ERC-1967 proxy pointing to the shared implementation. Read via `getImplementatio
 
 ## Modules and Fallback Handlers
 
-### ModuleManager (`src/utils/ModuleManager.sol`)
+### [ModuleManager](../src/utils/ModuleManager.sol)
 
 Allows whitelisted "module" contracts to execute calls from the vault via `executeFromModule`. Module management
 (enable/disable) requires self-authorization (vault calls itself via a userOp). Modules can be set up or torn down with
 external calls during enable/disable.
 
-### FallbackManager (`src/utils/FallbackManager.sol`)
+### [FallbackManager](../src/utils/FallbackManager.sol)
 
 Routes unrecognized function calls to registered handler contracts based on the 4-byte selector. Extends the vault's
 interface without upgrading the implementation. ERC-721 and ERC-1155 token callbacks are handled natively via Solady's
@@ -135,7 +135,7 @@ interface without upgrading the implementation. ERC-721 and ERC-1155 token callb
 
 ## Contract Reference
 
-### SmartVault (`src/vault/SmartVault.sol`)
+### [SmartVault](../src/vault/SmartVault.sol)
 
 Core ERC-4337 smart account. Inherits from `IAccount`, `Ownable`, `UUPSUpgradeable`, `MultiSignerAuth`, `ERC1271`,
 `FallbackManager`, `ModuleManager`.
@@ -151,7 +151,7 @@ Core ERC-4337 smart account. Inherits from `IAccount`, `Ownable`, `UUPSUpgradeab
 | `deployCreate(bytes initCode_) -> address`                         | Deploy contract via CREATE. Self-call only.                                    |
 | `isValidSignature(bytes32, bytes) -> bytes4`                       | ERC-1271 validation.                                                           |
 
-### SmartVaultFactory (`src/vault/SmartVaultFactory.sol`)
+### [SmartVaultFactory](../src/vault/SmartVaultFactory.sol)
 
 Deterministic factory for deploying vault proxies.
 
@@ -161,7 +161,7 @@ Deterministic factory for deploying vault proxies.
 | `getAddress(address owner_, Signer[], uint8 threshold_, uint256 salt_) -> address`       | Predict vault address without deploying.                                    |
 | `initCodeHash() -> bytes32`                                                              | Proxy init code hash for address prediction.                                |
 
-### MultiSignerAuth (`src/utils/MultiSignerAuth.sol`)
+### [MultiSignerAuth](../src/utils/MultiSignerAuth.sol)
 
 Bridges `MultiSignerLib` to the vault, exposing signer management as external functions.
 
@@ -176,9 +176,9 @@ Bridges `MultiSignerLib` to the vault, exposing signer management as external fu
 
 ### Supporting Contracts
 
-- **ERC1271** (`src/utils/ERC1271.sol`): Replay-safe signature validation with EIP-712 domain `splitsSmartVault` v1.
-- **Caller** (`src/utils/Caller.sol`): Low-level call execution with `Call` struct (`target`, `value`, `data`).
-- **UserOperationLib** (`src/library/UserOperationLib.sol`): Packing/hashing ERC-4337 user operations. `hashLight()`
+- **[ERC1271](../src/utils/ERC1271.sol)**: Replay-safe signature validation with EIP-712 domain `splitsSmartVault` v1.
+- **[Caller](../src/utils/Caller.sol)**: Low-level call execution with `Call` struct (`target`, `value`, `data`).
+- **[UserOperationLib](../src/library/UserOperationLib.sol)**: Packing/hashing ERC-4337 user operations. `hashLight()`
   excludes gas fields; `hash()` includes all fields.
-- **WebAuthn** (`src/library/WebAuthn.sol`): WebAuthn assertion verification (forked from Coinbase/Daimo). Tries
+- **[WebAuthn](../src/library/WebAuthn.sol)**: WebAuthn assertion verification (forked from Coinbase/Daimo). Tries
   RIP-7212 precompile first, falls back to FreshCryptoLib.

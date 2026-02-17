@@ -10,7 +10,6 @@ Use the factory for your chosen distribution model.
 import { PullSplitFactory } from "splits-v2/src/splitters/pull/PullSplitFactory.sol";
 import { SplitV2Lib } from "splits-v2/src/libraries/SplitV2.sol";
 
-// Recipients MUST be sorted by address ascending
 SplitV2Lib.Split memory split = SplitV2Lib.Split({
     recipients: [address(0x111...), address(0x222...), address(0x333...)],
     allocations: [300_000, 500_000, 200_000],  // 30%, 50%, 20%
@@ -117,8 +116,6 @@ with EOA recipients).
 
 **Key invariants:**
 
-- Split recipients must be sorted by address ascending. The `validate()` function does not enforce sort order, but
-  distribution will produce incorrect results with unsorted recipients.
 - `distribute()` leaves 1 wei in both the wallet and warehouse to avoid gas costs of zeroing storage slots.
 - The `onlyOwner` modifier allows both `owner` and `address(this)`, enabling batched calls via `execCalls()`.
 - `Pausable.pausable` modifier allows the owner, `tx.origin == owner`, or `address(this)` to bypass the pause, so
@@ -128,7 +125,6 @@ with EOA recipients).
 
 **Integration checklist:**
 
-- Always sort recipients by address before creating or updating a split.
 - Validate your split struct off-chain before submitting (check allocations sum to totalAllocation).
 - If integrating as a recipient, consider using the warehouse's ERC6909 balances directly instead of withdrawing.
 - Set `distributionIncentive` > 0 if you want third parties to call distribute on your behalf.
