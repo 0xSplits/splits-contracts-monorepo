@@ -5,6 +5,11 @@ This is a mono-repository for the Splits contracts. Current packages in this rep
 - [Splits - v2](./packages/splits-v2/README.md)
 - [Splits Smart Vaults](./packages/smart-vaults/README.md)
 
+## AI Agent Support
+
+This repo includes documentation for AI coding agents. See [`CLAUDE.md`](./CLAUDE.md) or [`AGENTS.md`](./AGENTS.md) for
+a quick overview of the architecture, dev commands, and pointers to deeper contract documentation.
+
 ## Installation
 
 The mono repo uses turborepo and pnpm. To install turbo repo, run the following command:
