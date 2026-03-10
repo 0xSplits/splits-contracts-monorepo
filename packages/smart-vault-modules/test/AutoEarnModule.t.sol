@@ -5,7 +5,7 @@ import { Test } from "forge-std/Test.sol";
 
 import { IERC20 } from "forge-std/interfaces/IERC20.sol";
 import { Call, ISmartVault } from "src/interfaces/ISmartVault.sol";
-import { ISmartVaultFactory, Signer } from "src/interfaces/ISmartVaultFactory.sol";
+import { ISmartVaultFactory, Signer } from "test/interfaces/ISmartVaultFactory.sol";
 
 import { AutoEarnModule } from "src/AutoEarnModule.sol";
 
