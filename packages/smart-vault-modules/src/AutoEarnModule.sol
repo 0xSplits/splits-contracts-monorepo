@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.23;
 
-import { IERC20 } from "forge-std/interfaces/IERC20.sol";
+import { IERC20 } from "src/interfaces/IERC20.sol";
+import { IERC4626 } from "src/interfaces/IERC4626.sol";
 import { Call, ISmartVault } from "src/interfaces/ISmartVault.sol";
 
 /**
@@ -20,6 +21,18 @@ contract AutoEarnModule {
 
     /// @notice Thrown when the account has no USDC balance to deposit.
     error NoBalance();
+
+    /// @notice Thrown when a zero address is provided.
+    error ZeroAddress();
+
+    /* -------------------------------------------------------------------------- */
+    /*                                   EVENTS                                   */
+    /* -------------------------------------------------------------------------- */
+
+    /// @notice Emitted when USDC is deposited into the Aave vault on behalf of an account.
+    /// @param account The SmartVault account that deposited.
+    /// @param amount The USDC amount deposited.
+    event Deposited(address indexed account, uint256 amount);
 
     /* -------------------------------------------------------------------------- */
     /*                                  CONSTANTS                                 */
@@ -40,6 +53,8 @@ contract AutoEarnModule {
      * @param vault_ The Aave USDC earn vault address.
      */
     constructor(address usdc_, address vault_) {
+        if (usdc_ == address(0) || vault_ == address(0)) revert ZeroAddress();
+
         USDC = usdc_;
         VAULT = vault_;
     }
@@ -60,12 +75,11 @@ contract AutoEarnModule {
 
         Call[] memory calls = new Call[](2);
         calls[0] = Call({ target: USDC, value: 0, data: abi.encodeCall(IERC20.approve, (VAULT, balance)) });
-        calls[1] = Call({
-            target: VAULT,
-            value: 0,
-            data: abi.encodeWithSignature("deposit(uint256,address)", balance, address(account_))
-        });
+        calls[1] =
+            Call({ target: VAULT, value: 0, data: abi.encodeCall(IERC4626.deposit, (balance, address(account_))) });
 
         account_.executeFromModule(calls);
+
+        emit Deposited(address(account_), balance);
     }
 }

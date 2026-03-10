@@ -3,7 +3,7 @@ pragma solidity ^0.8.23;
 
 import { Test } from "forge-std/Test.sol";
 
-import { IERC20 } from "forge-std/interfaces/IERC20.sol";
+import { IERC20 } from "src/interfaces/IERC20.sol";
 import { Call, ISmartVault } from "src/interfaces/ISmartVault.sol";
 import { ISmartVaultFactory, Signer } from "test/interfaces/ISmartVaultFactory.sol";
 
@@ -28,12 +28,14 @@ contract AutoEarnModuleTest is Test {
     /* -------------------------------------------------------------------------- */
 
     error NoBalance();
+    error ZeroAddress();
     error OnlyModule();
 
     /* -------------------------------------------------------------------------- */
     /*                                   EVENTS                                   */
     /* -------------------------------------------------------------------------- */
 
+    event Deposited(address indexed account, uint256 amount);
     event ExecutedTxFromModule(address indexed module, Call call);
 
     /* -------------------------------------------------------------------------- */
@@ -83,9 +85,25 @@ contract AutoEarnModuleTest is Test {
     }
 
     function testFuzz_constructor(address usdc_, address vault_) public {
+        vm.assume(usdc_ != address(0) && vault_ != address(0));
         AutoEarnModule m = new AutoEarnModule(usdc_, vault_);
         assertEq(m.USDC(), usdc_);
         assertEq(m.VAULT(), vault_);
+    }
+
+    function test_constructor_RevertsWhen_zeroUsdc() public {
+        vm.expectRevert(ZeroAddress.selector);
+        new AutoEarnModule(address(0), AAVE_VAULT);
+    }
+
+    function test_constructor_RevertsWhen_zeroVault() public {
+        vm.expectRevert(ZeroAddress.selector);
+        new AutoEarnModule(USDC, address(0));
+    }
+
+    function test_constructor_RevertsWhen_bothZero() public {
+        vm.expectRevert(ZeroAddress.selector);
+        new AutoEarnModule(address(0), address(0));
     }
 
     /* -------------------------------------------------------------------------- */
@@ -100,6 +118,8 @@ contract AutoEarnModuleTest is Test {
 
         uint256 sharesBefore = IERC20(AAVE_VAULT).balanceOf(address(vault));
 
+        vm.expectEmit(true, false, false, true, address(module));
+        emit Deposited(address(vault), amount);
         module.deposit(vault);
 
         // USDC should be fully swept from the vault.
