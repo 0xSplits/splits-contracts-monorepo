@@ -15,4 +15,7 @@ interface ISmartVault {
 
     /// @notice Enables a module on the vault. Can only be called by the vault itself.
     function enableModule(address module_) external;
+
+    /// @notice Disables a module on the vault. Can only be called by the vault itself.
+    function disableModule(address module_) external;
 }

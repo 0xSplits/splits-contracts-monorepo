@@ -213,6 +213,36 @@ contract AutoEarnModuleTest is Test {
         assertEq(IERC20(USDC).balanceOf(address(module)), 0);
     }
 
+    function test_deposit_RevertsWhen_moduleDisabled() public {
+        ISmartVault v = _createVaultWithModule(30);
+        deal(USDC, address(v), 1000e6);
+
+        // Deposit succeeds while module is enabled.
+        module.deposit(v);
+
+        uint256 shares = IERC20(AAVE_VAULT).balanceOf(address(v));
+        assertEq(IERC20(USDC).balanceOf(address(v)), 0);
+        assertGt(shares, 0);
+        assertEq(IERC20(USDC).balanceOf(address(module)), 0);
+
+        // Disable the module.
+        vm.prank(address(v));
+        v.disableModule(address(module));
+
+        // Fund the vault again.
+        deal(USDC, address(v), 500e6);
+
+        // Deposit reverts now that the module is disabled.
+        vm.expectRevert(OnlyModule.selector);
+        module.deposit(v);
+
+        // USDC remains in the vault, untouched.
+        assertEq(IERC20(USDC).balanceOf(address(v)), 500e6);
+        // Shares from the first deposit are still there.
+        assertEq(IERC20(AAVE_VAULT).balanceOf(address(v)), shares);
+        assertEq(IERC20(USDC).balanceOf(address(module)), 0);
+    }
+
     function test_deposit_multipleVaults_independentFailures() public {
         ISmartVault vault1 = _createVaultWithModule(20);
         ISmartVault vault2 = _createVaultWithModule(21);
