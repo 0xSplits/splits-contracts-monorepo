@@ -1,15 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.23;
 
-import { ICreateX } from "./ICreateX.sol";
-
 import { Script } from "forge-std/Script.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 
 contract BaseScript is Script {
     using stdJson for string;
-
-    ICreateX private immutable CREATEX = ICreateX(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed);
 
     function getConfig() internal view returns (string memory) {
         string memory dir = string.concat(vm.projectRoot(), "/script/config/");
@@ -27,15 +23,6 @@ contract BaseScript is Script {
 
     function getUintFromConfig(string memory _key) internal view returns (uint256) {
         return getConfig().readUint(string.concat(".", _key));
-    }
-
-    function create3(bytes32 salt, bytes memory initCode) internal returns (address) {
-        return CREATEX.deployCreate3(salt, initCode);
-    }
-
-    function computeSalt(address deployer, bytes11 _salt) internal pure returns (bytes32) {
-        // keccak256(abi.encodePacked(deployer, hex"00", _salt))
-        return bytes32(abi.encodePacked(deployer, hex"00", _salt));
     }
 
     function updateDeployment(address _contract, string memory _name) internal {
@@ -61,12 +48,6 @@ contract BaseScript is Script {
             vm.serializeJson(root, json);
             vm.writeJson(vm.serializeAddress(root, _name, _contract), file);
         }
-    }
-
-    function computeCreate3Address(bytes32 salt, address deployer) public view returns (address) {
-        bytes32 guardedSalt = keccak256(abi.encode(deployer, block.chainid, salt));
-
-        return CREATEX.computeCreate3Address(guardedSalt);
     }
 
     function isDryRun() internal view returns (bool) {
