@@ -55,17 +55,22 @@ contract AutoEarnModuleTest is Test {
 
         (owner, ownerKey) = makeAddrAndKey("OWNER");
 
-        Signer[] memory signers = new Signer[](1);
-        signers[0] = Signer({ slot1: bytes32(uint256(uint160(owner))), slot2: bytes32(0) });
-
-        address account = FACTORY.createAccount(owner, signers, 1, 0);
-        vault = ISmartVault(account);
-
         module = new AutoEarnModule(USDC, AAVE_VAULT);
 
-        // Enable the module on the vault (requires self-call).
-        vm.prank(address(vault));
-        vault.enableModule(address(module));
+        vault = _createVaultWithModule(0);
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*                                   HELPERS                                  */
+    /* -------------------------------------------------------------------------- */
+
+    function _createVaultWithModule(uint256 salt_) internal returns (ISmartVault) {
+        Signer[] memory signers = new Signer[](1);
+        signers[0] = Signer({ slot1: bytes32(uint256(uint160(owner))), slot2: bytes32(0) });
+        ISmartVault v = ISmartVault(FACTORY.createAccount(owner, signers, 1, salt_));
+        vm.prank(address(v));
+        v.enableModule(address(module));
+        return v;
     }
 
     /* -------------------------------------------------------------------------- */
@@ -93,17 +98,16 @@ contract AutoEarnModuleTest is Test {
 
         assertEq(IERC20(USDC).balanceOf(address(vault)), amount);
 
-        // Get vault's aToken balance before deposit.
         uint256 sharesBefore = IERC20(AAVE_VAULT).balanceOf(address(vault));
 
         module.deposit(vault);
 
         // USDC should be fully swept from the vault.
         assertEq(IERC20(USDC).balanceOf(address(vault)), 0);
-
         // Vault should have received aToken shares.
-        uint256 sharesAfter = IERC20(AAVE_VAULT).balanceOf(address(vault));
-        assertGt(sharesAfter, sharesBefore);
+        assertGt(IERC20(AAVE_VAULT).balanceOf(address(vault)), sharesBefore);
+        // Module should never hold USDC.
+        assertEq(IERC20(USDC).balanceOf(address(module)), 0);
     }
 
     function testFuzz_deposit(uint256 amount_) public {
@@ -119,6 +123,7 @@ contract AutoEarnModuleTest is Test {
 
         assertEq(IERC20(USDC).balanceOf(address(vault)), 0);
         assertGt(IERC20(AAVE_VAULT).balanceOf(address(vault)), sharesBefore);
+        assertEq(IERC20(USDC).balanceOf(address(module)), 0);
     }
 
     function test_deposit_RevertsWhen_noBalance() public {
@@ -148,6 +153,7 @@ contract AutoEarnModuleTest is Test {
         uint256 sharesAfterFirst = IERC20(AAVE_VAULT).balanceOf(address(vault));
         assertGt(sharesAfterFirst, 0);
         assertEq(IERC20(USDC).balanceOf(address(vault)), 0);
+        assertEq(IERC20(USDC).balanceOf(address(module)), 0);
 
         // Second deposit.
         deal(USDC, address(vault), 1000e6);
@@ -156,5 +162,98 @@ contract AutoEarnModuleTest is Test {
         uint256 sharesAfterSecond = IERC20(AAVE_VAULT).balanceOf(address(vault));
         assertGt(sharesAfterSecond, sharesAfterFirst);
         assertEq(IERC20(USDC).balanceOf(address(vault)), 0);
+        assertEq(IERC20(USDC).balanceOf(address(module)), 0);
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*                                 MULTI-VAULT                                */
+    /* -------------------------------------------------------------------------- */
+
+    function test_deposit_multipleVaults() public {
+        ISmartVault vault1 = _createVaultWithModule(10);
+        ISmartVault vault2 = _createVaultWithModule(11);
+        ISmartVault vault3 = _createVaultWithModule(12);
+
+        deal(USDC, address(vault1), 500e6);
+        deal(USDC, address(vault2), 1000e6);
+        deal(USDC, address(vault3), 2000e6);
+
+        // --- Deposit vault1 ---
+        module.deposit(vault1);
+
+        uint256 shares1 = IERC20(AAVE_VAULT).balanceOf(address(vault1));
+        assertEq(IERC20(USDC).balanceOf(address(vault1)), 0);
+        assertGt(shares1, 0);
+        // Other vaults untouched.
+        assertEq(IERC20(USDC).balanceOf(address(vault2)), 1000e6);
+        assertEq(IERC20(USDC).balanceOf(address(vault3)), 2000e6);
+        // Module holds nothing.
+        assertEq(IERC20(USDC).balanceOf(address(module)), 0);
+
+        // --- Deposit vault2 ---
+        module.deposit(vault2);
+
+        uint256 shares2 = IERC20(AAVE_VAULT).balanceOf(address(vault2));
+        assertEq(IERC20(USDC).balanceOf(address(vault2)), 0);
+        assertGt(shares2, 0);
+        // vault1 shares unchanged, vault3 still untouched.
+        assertEq(IERC20(AAVE_VAULT).balanceOf(address(vault1)), shares1);
+        assertEq(IERC20(USDC).balanceOf(address(vault3)), 2000e6);
+        assertEq(IERC20(USDC).balanceOf(address(module)), 0);
+
+        // --- Deposit vault3 ---
+        module.deposit(vault3);
+
+        uint256 shares3 = IERC20(AAVE_VAULT).balanceOf(address(vault3));
+        assertEq(IERC20(USDC).balanceOf(address(vault3)), 0);
+        assertGt(shares3, 0);
+        // vault1 and vault2 shares unchanged.
+        assertEq(IERC20(AAVE_VAULT).balanceOf(address(vault1)), shares1);
+        assertEq(IERC20(AAVE_VAULT).balanceOf(address(vault2)), shares2);
+        assertEq(IERC20(USDC).balanceOf(address(module)), 0);
+    }
+
+    function test_deposit_multipleVaults_independentFailures() public {
+        ISmartVault vault1 = _createVaultWithModule(20);
+        ISmartVault vault2 = _createVaultWithModule(21);
+
+        // vault3 does NOT have the module enabled.
+        Signer[] memory signers = new Signer[](1);
+        signers[0] = Signer({ slot1: bytes32(uint256(uint160(owner))), slot2: bytes32(0) });
+        ISmartVault vault3 = ISmartVault(FACTORY.createAccount(owner, signers, 1, 22));
+
+        deal(USDC, address(vault1), 500e6);
+        deal(USDC, address(vault2), 1000e6);
+        deal(USDC, address(vault3), 1500e6);
+
+        // --- Deposit vault1 succeeds ---
+        module.deposit(vault1);
+
+        uint256 shares1 = IERC20(AAVE_VAULT).balanceOf(address(vault1));
+        assertEq(IERC20(USDC).balanceOf(address(vault1)), 0);
+        assertGt(shares1, 0);
+        assertEq(IERC20(USDC).balanceOf(address(vault2)), 1000e6);
+        assertEq(IERC20(USDC).balanceOf(address(vault3)), 1500e6);
+        assertEq(IERC20(USDC).balanceOf(address(module)), 0);
+
+        // --- Deposit vault3 reverts (module not enabled) ---
+        vm.expectRevert(OnlyModule.selector);
+        module.deposit(vault3);
+
+        // vault3 USDC unchanged, vault1 shares unchanged.
+        assertEq(IERC20(USDC).balanceOf(address(vault3)), 1500e6);
+        assertEq(IERC20(AAVE_VAULT).balanceOf(address(vault1)), shares1);
+        assertEq(IERC20(USDC).balanceOf(address(module)), 0);
+
+        // --- Deposit vault2 still succeeds ---
+        module.deposit(vault2);
+
+        uint256 shares2 = IERC20(AAVE_VAULT).balanceOf(address(vault2));
+        assertEq(IERC20(USDC).balanceOf(address(vault2)), 0);
+        assertGt(shares2, 0);
+        // vault1 shares unchanged, vault3 USDC still untouched.
+        assertEq(IERC20(AAVE_VAULT).balanceOf(address(vault1)), shares1);
+        assertEq(IERC20(USDC).balanceOf(address(vault3)), 1500e6);
+        assertEq(IERC20(USDC).balanceOf(address(module)), 0);
     }
 }
