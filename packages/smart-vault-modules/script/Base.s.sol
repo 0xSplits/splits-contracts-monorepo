@@ -5,7 +5,6 @@ import { ICreateX } from "./ICreateX.sol";
 
 import { Script } from "forge-std/Script.sol";
 import { stdJson } from "forge-std/StdJson.sol";
-import { LibString } from "solady/utils/LibString.sol";
 
 contract BaseScript is Script {
     using stdJson for string;
@@ -56,7 +55,7 @@ contract BaseScript is Script {
 
         string memory json = vm.readFile(file);
         if (vm.keyExists(json, string.concat(".", _name))) {
-            vm.writeJson(LibString.toHexStringChecksummed(_contract), file, string.concat(".", _name));
+            vm.writeJson(vm.toString(_contract), file, string.concat(".", _name));
         } else {
             string memory root = "root";
             vm.serializeJson(root, json);

@@ -1,11 +1,2 @@
-smart-vaults/=../smart-vaults/src/
 forge-std/=node_modules/forge-std/src/
-solady/=node_modules/solady/src/
-@openzeppelin/=node_modules/@openzeppelin/contracts/
-openzeppelin-contracts/=node_modules/@openzeppelin/contracts/
-account-abstraction/=node_modules/account-abstraction/contracts/
-@web-authn/=node_modules/web-authn/src/
-FreshCryptoLib/=node_modules/FreshCryptoLib/solidity/src/
-@prb/test/=node_modules/@prb/test/src/
-src/library/=../smart-vaults/src/library/
 src/=src/

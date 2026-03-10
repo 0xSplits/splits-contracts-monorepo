@@ -2,8 +2,7 @@
 pragma solidity ^0.8.23;
 
 import { IERC20 } from "forge-std/interfaces/IERC20.sol";
-import { Caller } from "smart-vaults/utils/Caller.sol";
-import { SmartVault } from "smart-vaults/vault/SmartVault.sol";
+import { Call, ISmartVault } from "src/interfaces/ISmartVault.sol";
 
 /**
  * @title Auto Earn Module
@@ -55,13 +54,13 @@ contract AutoEarnModule {
      *      Callable by anyone — access control is enforced by the SmartVault's `onlyModule` modifier.
      * @param account_ The SmartVault account to deposit USDC from.
      */
-    function deposit(SmartVault account_) external {
+    function deposit(ISmartVault account_) external {
         uint256 balance = IERC20(USDC).balanceOf(address(account_));
         if (balance == 0) revert NoBalance();
 
-        Caller.Call[] memory calls = new Caller.Call[](2);
-        calls[0] = Caller.Call({ target: USDC, value: 0, data: abi.encodeCall(IERC20.approve, (VAULT, balance)) });
-        calls[1] = Caller.Call({
+        Call[] memory calls = new Call[](2);
+        calls[0] = Call({ target: USDC, value: 0, data: abi.encodeCall(IERC20.approve, (VAULT, balance)) });
+        calls[1] = Call({
             target: VAULT,
             value: 0,
             data: abi.encodeWithSignature("deposit(uint256,address)", balance, address(account_))

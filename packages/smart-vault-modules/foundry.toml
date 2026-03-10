@@ -8,7 +8,6 @@ script = "script"
 solc = "0.8.23"
 src = "src"
 test = "test"
-allow_paths = ['../../node_modules', '../smart-vaults']
 fs_permissions = [{ access = "read-write", path = "./" }]
 evm_version = "shanghai"
 gas_limit = 36_000_000

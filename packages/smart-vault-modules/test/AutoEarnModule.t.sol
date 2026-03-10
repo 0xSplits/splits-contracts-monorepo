@@ -4,10 +4,8 @@ pragma solidity ^0.8.23;
 import { Test } from "forge-std/Test.sol";
 
 import { IERC20 } from "forge-std/interfaces/IERC20.sol";
-import { Signer } from "smart-vaults/signers/Signer.sol";
-import { Caller } from "smart-vaults/utils/Caller.sol";
-import { SmartVault } from "smart-vaults/vault/SmartVault.sol";
-import { SmartVaultFactory } from "smart-vaults/vault/SmartVaultFactory.sol";
+import { Call, ISmartVault } from "src/interfaces/ISmartVault.sol";
+import { ISmartVaultFactory, Signer } from "src/interfaces/ISmartVaultFactory.sol";
 
 import { AutoEarnModule } from "src/AutoEarnModule.sol";
 
@@ -22,6 +20,9 @@ contract AutoEarnModuleTest is Test {
     /// @dev Base Aave USDC earn vault address.
     address constant AAVE_VAULT = 0x4EA71A20e655794051D1eE8b6e4A3269B13ccaCc;
 
+    /// @dev Deployed SmartVaultFactory on Base.
+    ISmartVaultFactory constant FACTORY = ISmartVaultFactory(0x8E6Af8Ed94E87B4402D0272C5D6b0D47F0483e7C);
+
     /* -------------------------------------------------------------------------- */
     /*                                   ERRORS                                   */
     /* -------------------------------------------------------------------------- */
@@ -33,14 +34,13 @@ contract AutoEarnModuleTest is Test {
     /*                                   EVENTS                                   */
     /* -------------------------------------------------------------------------- */
 
-    event ExecutedTxFromModule(address indexed module, Caller.Call call);
+    event ExecutedTxFromModule(address indexed module, Call call);
 
     /* -------------------------------------------------------------------------- */
     /*                                    STATE                                   */
     /* -------------------------------------------------------------------------- */
 
-    SmartVaultFactory factory;
-    SmartVault vault;
+    ISmartVault vault;
     AutoEarnModule module;
 
     address owner;
@@ -55,12 +55,11 @@ contract AutoEarnModuleTest is Test {
 
         (owner, ownerKey) = makeAddrAndKey("OWNER");
 
-        factory = new SmartVaultFactory();
-
         Signer[] memory signers = new Signer[](1);
         signers[0] = Signer({ slot1: bytes32(uint256(uint160(owner))), slot2: bytes32(0) });
 
-        vault = factory.createAccount(owner, signers, 1, 0);
+        address account = FACTORY.createAccount(owner, signers, 1, 0);
+        vault = ISmartVault(account);
 
         module = new AutoEarnModule(USDC, AAVE_VAULT);
 
@@ -133,7 +132,7 @@ contract AutoEarnModuleTest is Test {
         // Create a second vault without the module enabled.
         Signer[] memory signers = new Signer[](1);
         signers[0] = Signer({ slot1: bytes32(uint256(uint160(owner))), slot2: bytes32(0) });
-        SmartVault vault2 = factory.createAccount(owner, signers, 1, 1);
+        ISmartVault vault2 = ISmartVault(FACTORY.createAccount(owner, signers, 1, 1));
 
         deal(USDC, address(vault2), 1000e6);
 
