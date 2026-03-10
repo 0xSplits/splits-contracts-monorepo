@@ -15,6 +15,34 @@ importers:
         specifier: ^1.12.2
         version: 1.12.2
 
+  packages/smart-vault-modules:
+    dependencies:
+      '@openzeppelin/contracts':
+        specifier: github:openzeppelin/openzeppelin-contracts#5705e8208bc92cd82c7bcdfeac8dbc7377767d96
+        version: github.com/openzeppelin/openzeppelin-contracts/5705e8208bc92cd82c7bcdfeac8dbc7377767d96
+      FreshCryptoLib:
+        specifier: github:rdubois-crypto/FreshCryptoLib#76f3f135b7b27d2aa519f265b56bfc49a2573ab5
+        version: github.com/rdubois-crypto/FreshCryptoLib/76f3f135b7b27d2aa519f265b56bfc49a2573ab5
+      account-abstraction:
+        specifier: github:eth-infinitism/account-abstraction#7af70c8993a6f42973f520ae0752386a5032abe7
+        version: github.com/eth-infinitism/account-abstraction/7af70c8993a6f42973f520ae0752386a5032abe7(ethers@5.7.2)(hardhat@2.22.7)(lodash@4.17.21)(typechain@5.2.0)
+      solady:
+        specifier: ^0.0.156
+        version: 0.0.156
+      solhint:
+        specifier: ^5.0.3
+        version: 5.0.3(typescript@5.5.4)
+      web-authn:
+        specifier: github:base-org/webauthn-sol#619f20ab0f074fef41066ee4ab24849a913263b2
+        version: git@github.com+base-org/webauthn-sol/619f20ab0f074fef41066ee4ab24849a913263b2
+    devDependencies:
+      forge-std:
+        specifier: github:foundry-rs/forge-std#v1
+        version: github.com/foundry-rs/forge-std/0844d7e1fc5e60d77b68e469bff60265f236c398
+      prettier:
+        specifier: ^3.1.0
+        version: 3.1.0
+
   packages/smart-vaults:
     dependencies:
       '@openzeppelin/contracts':
@@ -1643,6 +1671,7 @@ packages:
 
   /ethereumjs-abi@0.6.8:
     resolution: {integrity: sha512-Tx0r/iXI6r+lRsdvkFDlut0N08jWMnKRZ6Gkq+Nmw75lZe4e6o3EkSnkaBP5NF6+m5PTGAr9JP43N3LyeoglsA==}
+    deprecated: This library has been deprecated and usage is discouraged.
     dependencies:
       bn.js: 4.12.0
       ethereumjs-util: 6.2.1
@@ -1951,7 +1980,7 @@ packages:
 
   /glob@7.2.0:
     resolution: {integrity: sha512-lmLf6gtyrPq8tTjSmrO94wBeQbFR3HbLHbuyD69wuyQkImp2hWqMGB47OX65FBkPffO641IP9jWa1z4ivqG26Q==}
-    deprecated: Glob versions prior to v9 are no longer supported
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
     dependencies:
       fs.realpath: 1.0.0
       inflight: 1.0.6
@@ -3417,6 +3446,7 @@ packages:
   /test-value@2.1.0:
     resolution: {integrity: sha512-+1epbAxtKeXttkGFMTX9H42oqzOTufR1ceCF+GYA5aOmvaPq9wd4PUS8329fn2RRLGNeUkgRLnVpycjx8DsO2w==}
     engines: {node: '>=0.10.0'}
+    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
     dependencies:
       array-back: 1.0.4
       typical: 2.6.1
@@ -3791,6 +3821,12 @@ packages:
       ethers: 5.7.2
     dev: false
 
+  git@github.com+base-org/webauthn-sol/619f20ab0f074fef41066ee4ab24849a913263b2:
+    resolution: {commit: 619f20ab0f074fef41066ee4ab24849a913263b2, repo: git@github.com:base-org/webauthn-sol.git, type: git}
+    name: webauthn-sol#619f20ab0f074fef41066ee4ab24849a913263b2
+    version: 0.0.0
+    dev: false
+
   github.com/base-org/webauthn-sol/619f20ab0f074fef41066ee4ab24849a913263b2:
     resolution: {tarball: https://codeload.github.com/base-org/webauthn-sol/tar.gz/619f20ab0f074fef41066ee4ab24849a913263b2}
     name: webauthn-sol#619f20ab0f074fef41066ee4ab24849a913263b2
@@ -3828,6 +3864,12 @@ packages:
       - typechain
       - utf-8-validate
     dev: false
+
+  github.com/foundry-rs/forge-std/0844d7e1fc5e60d77b68e469bff60265f236c398:
+    resolution: {tarball: https://codeload.github.com/foundry-rs/forge-std/tar.gz/0844d7e1fc5e60d77b68e469bff60265f236c398}
+    name: forge-std
+    version: 1.15.0
+    dev: true
 
   github.com/foundry-rs/forge-std/155d547c449afa8715f538d69454b83944117811:
     resolution: {tarball: https://codeload.github.com/foundry-rs/forge-std/tar.gz/155d547c449afa8715f538d69454b83944117811}
