@@ -43,7 +43,7 @@ jobs:
         run: pnpm install
 
       - name: Pre-install solc
-        run: svm install 0.8.23
+        run: forge build --root packages/splits-v2 --skip "test/**" "script/**" > /dev/null 2>&1
 
       - name: Build
         run: pnpm build:optimized
