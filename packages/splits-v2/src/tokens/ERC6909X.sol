@@ -218,13 +218,8 @@ contract ERC6909X is ERC6909, EIP712, UnorderedNonces, IERC6909X {
         (bool prevIsOperator, uint256 prevAllowance) =
             _setSpenderAccess({ _owner: _owner, _spender: _spender, _operator: _operator, _id: _id, _amount: _amount });
 
-        bytes4 ack = IERC6909XCallback(_target).onTemporaryApprove({
-            owner: _owner,
-            operator: _operator,
-            id: _id,
-            amount: _amount,
-            data: _data
-        });
+        bytes4 ack = IERC6909XCallback(_target)
+            .onTemporaryApprove({ owner: _owner, operator: _operator, id: _id, amount: _amount, data: _data });
         if (ack != IERC6909XCallback.onTemporaryApprove.selector) revert InvalidAck();
 
         if (_operator) {

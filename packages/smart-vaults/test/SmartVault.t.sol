@@ -1457,12 +1457,7 @@ contract SmartVaultTest is BaseTest {
         vault.teardownAndDisableModule(module_, teardownContract_, data_);
     }
 
-    function testFuzz_OperatorManager_disableModule_RevertsWhen_callerNotSelf(
-        address module_,
-        address caller_
-    )
-        public
-    {
+    function testFuzz_OperatorManager_disableModule_RevertsWhen_callerNotSelf(address module_, address caller_) public {
         vm.assume(caller_ != address(vault));
 
         vm.expectRevert(OnlySelf.selector);
