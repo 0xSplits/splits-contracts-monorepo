@@ -49,11 +49,7 @@ library PasskeySignerLib {
         WebAuthn.WebAuthnAuth memory auth = abi.decode(signature_, (WebAuthn.WebAuthnAuth));
 
         return WebAuthn.verify({
-            challenge: abi.encode(messageHash_),
-            requireUV: false,
-            webAuthnAuth: auth,
-            x: signer_.x,
-            y: signer_.y
+            challenge: abi.encode(messageHash_), requireUV: false, webAuthnAuth: auth, x: signer_.x, y: signer_.y
         });
     }
 }

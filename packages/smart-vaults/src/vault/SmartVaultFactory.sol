@@ -75,11 +75,7 @@ contract SmartVaultFactory {
             account.initialize(owner_, signers_, threshold_);
 
             emit SmartVaultCreated({
-                vault: accountAddress,
-                owner: owner_,
-                signers: signers_,
-                threshold: threshold_,
-                salt: salt_
+                vault: accountAddress, owner: owner_, signers: signers_, threshold: threshold_, salt: salt_
             });
         }
     }
