@@ -174,14 +174,7 @@ contract SplitsWarehouse is ERC6909X {
      * @param _receivers The addresses that will receive the wrapped tokens.
      * @param _amounts The amounts of the token to be deposited.
      */
-    function batchDeposit(
-        address[] calldata _receivers,
-        address _token,
-        uint256[] calldata _amounts
-    )
-        external
-        payable
-    {
+    function batchDeposit(address[] calldata _receivers, address _token, uint256[] calldata _amounts) external payable {
         if (_receivers.length != _amounts.length) revert LengthMismatch();
 
         uint256 sum;
@@ -251,11 +244,7 @@ contract SplitsWarehouse is ERC6909X {
             reward = _amounts[i] * config.incentive / PERCENTAGE_SCALE;
 
             _withdraw({
-                _owner: _owner,
-                _token: _tokens[i],
-                _amount: _amounts[i],
-                _withdrawer: _withdrawer,
-                _reward: reward
+                _owner: _owner, _token: _tokens[i], _amount: _amounts[i], _withdrawer: _withdrawer, _reward: reward
             });
         }
     }
@@ -302,15 +291,7 @@ contract SplitsWarehouse is ERC6909X {
     /*                              INTERNAL/PRIVATE                              */
     /* -------------------------------------------------------------------------- */
 
-    function _withdraw(
-        address _owner,
-        address _token,
-        uint256 _amount,
-        address _withdrawer,
-        uint256 _reward
-    )
-        internal
-    {
+    function _withdraw(address _owner, address _token, uint256 _amount, address _withdrawer, uint256 _reward) internal {
         _burn({ _sender: _owner, _id: _token.toUint256(), _amount: _amount });
 
         uint256 amountToOwner = _amount - _reward;

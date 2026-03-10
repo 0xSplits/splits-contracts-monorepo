@@ -57,9 +57,7 @@ contract WalletTest is BaseTest {
 
     function test_execCalls_transferOwnership() public {
         Wallet.Call memory call = Wallet.Call({
-            to: address(wallet),
-            value: 0,
-            data: abi.encodeWithSelector(Ownable.transferOwnership.selector, BOB.addr)
+            to: address(wallet), value: 0, data: abi.encodeWithSelector(Ownable.transferOwnership.selector, BOB.addr)
         });
 
         Wallet.Call[] memory calls = new Wallet.Call[](1);
@@ -73,9 +71,7 @@ contract WalletTest is BaseTest {
 
     function test_execCalls_Revert_afterTransferOwnership() public {
         Wallet.Call memory call = Wallet.Call({
-            to: address(wallet),
-            value: 0,
-            data: abi.encodeWithSelector(Ownable.transferOwnership.selector, BOB.addr)
+            to: address(wallet), value: 0, data: abi.encodeWithSelector(Ownable.transferOwnership.selector, BOB.addr)
         });
 
         Wallet.Call[] memory calls = new Wallet.Call[](2);
@@ -98,9 +94,7 @@ contract WalletTest is BaseTest {
 
     function test_execCalls_Revert_TargetNotContract() public {
         Wallet.Call memory call = Wallet.Call({
-            to: address(BOB.addr),
-            value: 0,
-            data: abi.encodeWithSelector(Ownable.transferOwnership.selector, BOB.addr)
+            to: address(BOB.addr), value: 0, data: abi.encodeWithSelector(Ownable.transferOwnership.selector, BOB.addr)
         });
 
         Wallet.Call[] memory calls = new Wallet.Call[](1);

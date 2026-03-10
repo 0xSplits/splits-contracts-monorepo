@@ -61,10 +61,7 @@ contract PullSplit is SplitWalletV2 {
         if (splitBalance > 0) _depositToWarehouse(_token, splitBalance);
 
         _distribute({
-            _split: _split,
-            _token: _token,
-            _amount: warehouseBalance + splitBalance,
-            _distributor: _distributor
+            _split: _split, _token: _token, _amount: warehouseBalance + splitBalance, _distributor: _distributor
         });
     }
 

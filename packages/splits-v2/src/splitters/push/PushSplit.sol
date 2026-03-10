@@ -61,10 +61,7 @@ contract PushSplit is SplitWalletV2 {
         }
 
         _distribute({
-            _split: _split,
-            _token: _token,
-            _amount: warehouseBalance + splitBalance,
-            _distributor: _distributor
+            _split: _split, _token: _token, _amount: warehouseBalance + splitBalance, _distributor: _distributor
         });
     }
 

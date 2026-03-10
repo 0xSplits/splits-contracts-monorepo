@@ -56,9 +56,7 @@ abstract contract SplitFactoryV2 is Nonces {
         bytes32 salt = _getSalt({ _splitParams: _splitParams, _owner: _owner, _salt: _salt });
 
         split = Clone.predictDeterministicAddress({
-            _implementation: SPLIT_WALLET_IMPLEMENTATION,
-            _salt: salt,
-            _deployer: address(this)
+            _implementation: SPLIT_WALLET_IMPLEMENTATION, _salt: salt, _deployer: address(this)
         });
 
         if (split.code.length > 0) {
@@ -94,8 +92,7 @@ abstract contract SplitFactoryV2 is Nonces {
         uint256 nonce = useNonce(hash);
 
         split = Clone.cloneDeterministic({
-            _implementation: SPLIT_WALLET_IMPLEMENTATION,
-            _salt: keccak256(bytes.concat(hash, abi.encode(nonce)))
+            _implementation: SPLIT_WALLET_IMPLEMENTATION, _salt: keccak256(bytes.concat(hash, abi.encode(nonce)))
         });
 
         SplitWalletV2(split).initialize(_splitParams, _owner);
