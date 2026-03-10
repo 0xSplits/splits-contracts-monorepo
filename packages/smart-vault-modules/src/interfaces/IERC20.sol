@@ -8,4 +8,7 @@ interface IERC20 {
 
     /// @notice Approves `spender` to transfer up to `amount` tokens.
     function approve(address spender, uint256 amount) external returns (bool);
+
+    /// @notice Returns the remaining allowance `spender` can transfer on behalf of `owner`.
+    function allowance(address owner, address spender) external view returns (uint256);
 }

@@ -153,6 +153,68 @@ contract AutoEarnModuleTest is Test {
         module.deposit(vault);
     }
 
+    /* -------------------------------------------------------------------------- */
+    /*                            EXISTING APPROVAL                              */
+    /* -------------------------------------------------------------------------- */
+
+    function test_deposit_withExistingApprovalGreaterThanBalance() public {
+        uint256 amount = 1000e6;
+        deal(USDC, address(vault), amount);
+
+        // Set a pre-existing approval larger than balance.
+        vm.prank(address(vault));
+        IERC20(USDC).approve(AAVE_VAULT, 5000e6);
+        assertEq(IERC20(USDC).allowance(address(vault), AAVE_VAULT), 5000e6);
+
+        uint256 sharesBefore = IERC20(AAVE_VAULT).balanceOf(address(vault));
+
+        module.deposit(vault);
+
+        assertEq(IERC20(USDC).balanceOf(address(vault)), 0);
+        assertGt(IERC20(AAVE_VAULT).balanceOf(address(vault)), sharesBefore);
+        assertEq(IERC20(USDC).balanceOf(address(module)), 0);
+    }
+
+    function test_deposit_withExistingApprovalLessThanBalance() public {
+        uint256 amount = 1000e6;
+        deal(USDC, address(vault), amount);
+
+        // Set a pre-existing approval smaller than balance.
+        vm.prank(address(vault));
+        IERC20(USDC).approve(AAVE_VAULT, 500e6);
+        assertEq(IERC20(USDC).allowance(address(vault), AAVE_VAULT), 500e6);
+
+        uint256 sharesBefore = IERC20(AAVE_VAULT).balanceOf(address(vault));
+
+        module.deposit(vault);
+
+        assertEq(IERC20(USDC).balanceOf(address(vault)), 0);
+        assertGt(IERC20(AAVE_VAULT).balanceOf(address(vault)), sharesBefore);
+        assertEq(IERC20(USDC).balanceOf(address(module)), 0);
+    }
+
+    function test_deposit_withExistingApprovalEqualToBalance() public {
+        uint256 amount = 1000e6;
+        deal(USDC, address(vault), amount);
+
+        // Set a pre-existing approval equal to balance.
+        vm.prank(address(vault));
+        IERC20(USDC).approve(AAVE_VAULT, amount);
+        assertEq(IERC20(USDC).allowance(address(vault), AAVE_VAULT), amount);
+
+        uint256 sharesBefore = IERC20(AAVE_VAULT).balanceOf(address(vault));
+
+        module.deposit(vault);
+
+        assertEq(IERC20(USDC).balanceOf(address(vault)), 0);
+        assertGt(IERC20(AAVE_VAULT).balanceOf(address(vault)), sharesBefore);
+        assertEq(IERC20(USDC).balanceOf(address(module)), 0);
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*                                   REVERTS                                  */
+    /* -------------------------------------------------------------------------- */
+
     function test_deposit_RevertsWhen_moduleNotEnabled() public {
         // Create a second vault without the module enabled.
         Signer[] memory signers = new Signer[](1);
