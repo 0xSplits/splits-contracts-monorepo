@@ -27,7 +27,6 @@ contract AutoEarnModuleTest is Test {
     /*                                   ERRORS                                   */
     /* -------------------------------------------------------------------------- */
 
-    error NoBalance();
     error ZeroAddress();
     error OnlyModule();
 
@@ -80,14 +79,14 @@ contract AutoEarnModuleTest is Test {
     /* -------------------------------------------------------------------------- */
 
     function test_constructor() public view {
-        assertEq(module.USDC(), USDC);
+        assertEq(module.ASSET(), USDC);
         assertEq(module.VAULT(), AAVE_VAULT);
     }
 
-    function testFuzz_constructor(address usdc_, address vault_) public {
-        vm.assume(usdc_ != address(0) && vault_ != address(0));
-        AutoEarnModule m = new AutoEarnModule(usdc_, vault_);
-        assertEq(m.USDC(), usdc_);
+    function testFuzz_constructor(address asset_, address vault_) public {
+        vm.assume(asset_ != address(0) && vault_ != address(0));
+        AutoEarnModule m = new AutoEarnModule(asset_, vault_);
+        assertEq(m.ASSET(), asset_);
         assertEq(m.VAULT(), vault_);
     }
 
@@ -128,6 +127,8 @@ contract AutoEarnModuleTest is Test {
         assertGt(IERC20(AAVE_VAULT).balanceOf(address(vault)), sharesBefore);
         // Module should never hold USDC.
         assertEq(IERC20(USDC).balanceOf(address(module)), 0);
+        // Approval should be fully consumed.
+        assertEq(IERC20(USDC).allowance(address(vault), AAVE_VAULT), 0);
     }
 
     function testFuzz_deposit(uint256 amount_) public {
@@ -144,13 +145,19 @@ contract AutoEarnModuleTest is Test {
         assertEq(IERC20(USDC).balanceOf(address(vault)), 0);
         assertGt(IERC20(AAVE_VAULT).balanceOf(address(vault)), sharesBefore);
         assertEq(IERC20(USDC).balanceOf(address(module)), 0);
+        // Approval should be fully consumed.
+        assertEq(IERC20(USDC).allowance(address(vault), AAVE_VAULT), 0);
     }
 
-    function test_deposit_RevertsWhen_noBalance() public {
+    function test_deposit_noOp_whenNoBalance() public {
         assertEq(IERC20(USDC).balanceOf(address(vault)), 0);
 
-        vm.expectRevert(NoBalance.selector);
+        // Should return silently (no-op) instead of reverting.
         module.deposit(vault);
+
+        // State unchanged.
+        assertEq(IERC20(USDC).balanceOf(address(vault)), 0);
+        assertEq(IERC20(AAVE_VAULT).balanceOf(address(vault)), 0);
     }
 
     /* -------------------------------------------------------------------------- */
@@ -173,6 +180,8 @@ contract AutoEarnModuleTest is Test {
         assertEq(IERC20(USDC).balanceOf(address(vault)), 0);
         assertGt(IERC20(AAVE_VAULT).balanceOf(address(vault)), sharesBefore);
         assertEq(IERC20(USDC).balanceOf(address(module)), 0);
+        // Approval is overwritten to `amount` by the module, then fully consumed by the vault deposit.
+        assertEq(IERC20(USDC).allowance(address(vault), AAVE_VAULT), 0);
     }
 
     function test_deposit_withExistingApprovalLessThanBalance() public {
@@ -191,6 +200,8 @@ contract AutoEarnModuleTest is Test {
         assertEq(IERC20(USDC).balanceOf(address(vault)), 0);
         assertGt(IERC20(AAVE_VAULT).balanceOf(address(vault)), sharesBefore);
         assertEq(IERC20(USDC).balanceOf(address(module)), 0);
+        // Approval is overwritten to `amount` by the module, then fully consumed by the vault deposit.
+        assertEq(IERC20(USDC).allowance(address(vault), AAVE_VAULT), 0);
     }
 
     function test_deposit_withExistingApprovalEqualToBalance() public {
@@ -209,6 +220,8 @@ contract AutoEarnModuleTest is Test {
         assertEq(IERC20(USDC).balanceOf(address(vault)), 0);
         assertGt(IERC20(AAVE_VAULT).balanceOf(address(vault)), sharesBefore);
         assertEq(IERC20(USDC).balanceOf(address(module)), 0);
+        // Approval fully consumed by the vault deposit.
+        assertEq(IERC20(USDC).allowance(address(vault), AAVE_VAULT), 0);
     }
 
     /* -------------------------------------------------------------------------- */

@@ -9,18 +9,15 @@ import { Call, ISmartVault } from "src/interfaces/ISmartVault.sol";
  * @title Auto Earn Module
  * @custom:security-contract security@splits.org
  * @author Splits (https://splits.org)
- * @notice Automatically deposits idle USDC into an Aave earn vault on behalf of a SmartVault account.
+ * @notice Automatically deposits idle ERC-20 tokens into an ERC-4626 earn vault on behalf of a SmartVault account.
  * @dev This module is installed on a SmartVault via `enableModule`. Once enabled, anyone can call `deposit` to sweep
- *      the account's full USDC balance into the configured Aave vault. Security is enforced by the `onlyModule`
+ *      the account's full token balance into the configured vault. Security is enforced by the `onlyModule`
  *      modifier inside `SmartVault.executeFromModule`.
  */
 contract AutoEarnModule {
     /* -------------------------------------------------------------------------- */
     /*                                   ERRORS                                   */
     /* -------------------------------------------------------------------------- */
-
-    /// @notice Thrown when the account has no USDC balance to deposit.
-    error NoBalance();
 
     /// @notice Thrown when a zero address is provided.
     error ZeroAddress();
@@ -29,19 +26,19 @@ contract AutoEarnModule {
     /*                                   EVENTS                                   */
     /* -------------------------------------------------------------------------- */
 
-    /// @notice Emitted when USDC is deposited into the Aave vault on behalf of an account.
+    /// @notice Emitted when tokens are deposited into the earn vault on behalf of an account.
     /// @param account The SmartVault account that deposited.
-    /// @param amount The USDC amount deposited.
+    /// @param amount The token amount deposited.
     event Deposited(address indexed account, uint256 amount);
 
     /* -------------------------------------------------------------------------- */
     /*                                  CONSTANTS                                 */
     /* -------------------------------------------------------------------------- */
 
-    /// @notice The USDC token address.
-    address public immutable USDC;
+    /// @notice The ERC-20 token address.
+    address public immutable ASSET;
 
-    /// @notice The Aave USDC earn vault address.
+    /// @notice The ERC-4626 earn vault address.
     address public immutable VAULT;
 
     /* -------------------------------------------------------------------------- */
@@ -49,13 +46,13 @@ contract AutoEarnModule {
     /* -------------------------------------------------------------------------- */
 
     /**
-     * @param usdc_ The USDC token address.
-     * @param vault_ The Aave USDC earn vault address.
+     * @param asset_ The ERC-20 token address.
+     * @param vault_ The ERC-4626 earn vault address.
      */
-    constructor(address usdc_, address vault_) {
-        if (usdc_ == address(0) || vault_ == address(0)) revert ZeroAddress();
+    constructor(address asset_, address vault_) {
+        if (asset_ == address(0) || vault_ == address(0)) revert ZeroAddress();
 
-        USDC = usdc_;
+        ASSET = asset_;
         VAULT = vault_;
     }
 
@@ -64,17 +61,19 @@ contract AutoEarnModule {
     /* -------------------------------------------------------------------------- */
 
     /**
-     * @notice Deposits the full USDC balance of `account_` into the Aave earn vault.
+     * @notice Deposits the full token balance of `account_` into the earn vault.
      * @dev Constructs two calls (approve + deposit) and executes them atomically via `executeFromModule`.
      *      Callable by anyone — access control is enforced by the SmartVault's `onlyModule` modifier.
-     * @param account_ The SmartVault account to deposit USDC from.
+     *      If the account has no balance, this function is a no-op (returns silently) so that batched
+     *      calls do not revert when one account has zero balance.
+     * @param account_ The SmartVault account to deposit tokens from.
      */
     function deposit(ISmartVault account_) external {
-        uint256 balance = IERC20(USDC).balanceOf(address(account_));
-        if (balance == 0) revert NoBalance();
+        uint256 balance = IERC20(ASSET).balanceOf(address(account_));
+        if (balance == 0) return;
 
         Call[] memory calls = new Call[](2);
-        calls[0] = Call({ target: USDC, value: 0, data: abi.encodeCall(IERC20.approve, (VAULT, balance)) });
+        calls[0] = Call({ target: ASSET, value: 0, data: abi.encodeCall(IERC20.approve, (VAULT, balance)) });
         calls[1] =
             Call({ target: VAULT, value: 0, data: abi.encodeCall(IERC4626.deposit, (balance, address(account_))) });
 
