@@ -9,6 +9,7 @@ on:
 env:
   FOUNDRY_PROFILE: ci
   MAINNET_RPC_URL: ${{ vars.MAINNET_RPC_URL }}
+  BASE_RPC_URL: ${{ vars.BASE_RPC_URL }}
 
 jobs:
   check:
@@ -40,6 +41,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install
+
+      - name: Pre-install solc
+        run: forge build --root packages/splits-v2 --skip "test/**" "script/**" > /dev/null 2>&1
 
       - name: Build
         run: pnpm build:optimized
