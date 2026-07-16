@@ -13,6 +13,9 @@ interface ISmartVault {
     /// @notice Executes a batch of calls from an enabled module.
     function executeFromModule(Call[] calldata calls_) external;
 
+    /// @notice Executes a single call from an enabled module.
+    function executeFromModule(Call calldata call_) external;
+
     /// @notice Enables a module on the vault. Can only be called by the vault itself.
     function enableModule(address module_) external;
 
