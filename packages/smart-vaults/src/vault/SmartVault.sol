@@ -13,6 +13,7 @@ import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerklePr
 import { IAccount } from "account-abstraction/interfaces/IAccount.sol";
 import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
 import { Ownable } from "solady/auth/Ownable.sol";
+import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
 import { UUPSUpgradeable } from "solady/utils/UUPSUpgradeable.sol";
 
 /**
@@ -32,7 +33,8 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
     enum SignatureTypes {
         SingleUserOp,
         MerkelizedUserOp,
-        ERC1271
+        ERC1271,
+        ChainlessUserOp
     }
 
     /// @notice Upper limits for maxPriorityFeePerGas, preVerificationGas, verificationGasLimit, callGasLimit,
@@ -85,12 +87,48 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
         MultiSignerLib.SignatureWrapper[] signatures;
     }
 
+    /**
+     * @notice Chainless User Op Signature Scheme. Signed over the chainless hash (no chainId, no
+     *         EntryPoint nonce, no gas limits, no time bounds) so one signature replays on every
+     *         chain, keeping account state in lockstep.
+     */
+    struct ChainlessUserOpSignature {
+        /// @notice The account's chainless nonce this op consumes (sequential, vault storage).
+        uint256 nonce;
+        /// @notice If true, `ownerSignature` is verified against `owner()`; else `signatures`
+        /// against the signer set.
+        bool viaOwner;
+        /// @notice Owner signature over the chainless hash (ECDSA or ERC-1271, incl. 7702).
+        bytes ownerSignature;
+        /// @notice Threshold signatures over the chainless hash. All signers sign the same hash;
+        /// no light hash exists because gas is unsigned (and unpaid).
+        MultiSignerLib.SignatureWrapper[] signatures;
+    }
+
     /* -------------------------------------------------------------------------- */
     /*                                  CONSTANTS                                 */
     /* -------------------------------------------------------------------------- */
 
     /// @notice Splits smart vaults factory.
     address public immutable FACTORY;
+
+    /// @notice EIP-712 typehash for the chainless userOp digest.
+    bytes32 private constant _CHAINLESS_USER_OP_TYPEHASH =
+        keccak256("ChainlessUserOp(uint256 nonce,bytes32 callDataHash,address entryPoint)");
+
+    /// @dev Slot for the sequential chainless nonce: keccak256("splits.spike.chainlessNonce").
+    bytes32 private constant _CHAINLESS_NONCE_SLOT = 0xbf84fbe07ee46584cb00ca9dc247f1cc834d70e536df2ef0199eff397652abeb;
+
+    /**
+     * @dev Slot for the chainless execution context: keccak256("splits.spike.chainlessCtx").
+     *      Packed as `(chainlessNonce << 8) | role`. Written during validation once the chainless
+     *      signature verifies, consumed and cleared by `executeChainless`. The nonce in the
+     *      packing makes two chainless ops for this account in one bundle fail closed instead of
+     *      leaking the second op's role to the first op's execution.
+     *      ponytail: plain storage because solc is pinned to 0.8.23/shanghai — transient storage
+     *      once the toolchain moves to cancun.
+     */
+    bytes32 private constant _CHAINLESS_CTX_SLOT = 0xa376dc2f3bf9f2889ab135e26e6fcd0514f9576ec68e5f2a682d95ca957ade32;
 
     /* -------------------------------------------------------------------------- */
     /*                                   ERRORS                                   */
@@ -116,6 +154,18 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
 
     /// @notice Thrown when Paymaster LightUserOpGasLimits have been breached.
     error InvalidPaymasterData();
+
+    /// @notice Thrown when a chainless userOp violates its structural constraints (non-zero gas
+    /// price, paymaster present, callData not executeChainless, call not a zero-value self-call,
+    /// or nonce mismatch between callData and signature).
+    error InvalidChainlessUserOp();
+
+    /// @notice Thrown when a chainless userOp's nonce is not the account's current chainless nonce.
+    error InvalidChainlessNonce(uint256 expected, uint256 actual);
+
+    /// @notice Thrown when a signer-state function is called outside a chainless execution context
+    /// carrying the required role.
+    error InvalidChainlessContext();
 
     /* -------------------------------------------------------------------------- */
     /*                                  MODIFIERS                                 */
@@ -261,9 +311,30 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
             }
 
             return _validateMerkelizedUserOp(lightHash, userOpHash_, signature);
+        } else if (signatureType == SignatureTypes.ChainlessUserOp) {
+            return _validateChainlessUserOp(userOp_);
         } else {
             revert InvalidSignatureType();
         }
+    }
+
+    /**
+     * @notice Executes a chainless userOp's calls. Only reachable as the callData of a validated
+     *         ChainlessUserOp (enforced via the context written during validation).
+     *
+     * @param nonce_ The chainless nonce this op consumed; must match the stored context.
+     * @param calls_ Zero-value calls to this account (enforced during validation).
+     */
+    function executeChainless(uint256 nonce_, Call[] calldata calls_) external payable onlyEntryPoint {
+        uint256 ctx = _getChainlessCtx();
+        if (ctx >> 8 != nonce_ || uint8(ctx) == 0) revert InvalidChainlessContext();
+
+        uint256 numCalls = calls_.length;
+        for (uint256 i; i < numCalls; i++) {
+            _call(calls_[i]);
+        }
+
+        _setChainlessCtx(0);
     }
 
     /**
@@ -294,6 +365,25 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
     /// @notice Returns the address of the EntryPoint v0.7.
     function entryPoint() public view virtual returns (address) {
         return 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
+    }
+
+    /// @notice Returns the account's current chainless nonce.
+    function getChainlessNonce() public view returns (uint256 nonce) {
+        assembly ("memory-safe") {
+            nonce := sload(_CHAINLESS_NONCE_SLOT)
+        }
+    }
+
+    /**
+     * @notice Chainless userOp digest that signers (or the owner) sign.
+     *
+     * @dev Binds the chainless nonce, callData and EntryPoint under the chainless EIP-712 domain
+     *      (no chainId). Deliberately excludes the EntryPoint nonce, gas limits and time bounds.
+     */
+    function getChainlessUserOpHash(uint256 nonce_, bytes calldata callData_) public view returns (bytes32) {
+        return _hashChainlessTypedData(
+            keccak256(abi.encode(_CHAINLESS_USER_OP_TYPEHASH, nonce_, keccak256(callData_), entryPoint()))
+        );
     }
 
     /**
@@ -345,6 +435,9 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
      * @dev Conditions for a valid owner check:
      *      if owner is non zero, caller must be owner.
      *      If owner is address(0), contract can call itself.
+     *      Self-calls inside an owner-signed chainless op count as the owner (this is what lets a
+     *      vault owner authorize ownership changes — and upgrades — by signature, replayable on
+     *      every chain).
      */
     function _checkOwner() internal view override {
         address owner;
@@ -355,8 +448,73 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
         }
 
         if (owner == caller) return;
-        if (owner == address(0) && caller == address(this)) return;
+        if (caller == address(this) && (owner == address(0) || uint8(_getChainlessCtx()) == ROLE_OWNER)) return;
         revert Unauthorized();
+    }
+
+    /// @dev Reverts unless the live chainless context carries `role_`.
+    function _checkChainlessRole(uint8 role_) internal view override {
+        if (uint8(_getChainlessCtx()) != role_) revert InvalidChainlessContext();
+    }
+
+    /**
+     * @dev Validates a chainless userOp: structural constraints, sequential nonce, then signature
+     *      over the chainless digest. On success, records the role context consumed by
+     *      `executeChainless`.
+     */
+    function _validateChainlessUserOp(PackedUserOperation calldata userOp_) internal returns (uint256) {
+        ChainlessUserOpSignature memory signature = abi.decode(userOp_.signature[1:], (ChainlessUserOpSignature));
+
+        // Zero gas price and no paymaster: replaying a chainless op must never cost the account
+        // anything, else old signatures become a gas-griefing vector on every chain.
+        if (userOp_.gasFees != bytes32(0) || userOp_.paymasterAndData.length != 0) {
+            revert InvalidChainlessUserOp();
+        }
+
+        // callData must be executeChainless(nonce, calls) where every call is a zero-value
+        // self-call: state sync only, asset movement structurally impossible.
+        if (bytes4(userOp_.callData[0:4]) != this.executeChainless.selector) revert InvalidChainlessUserOp();
+        (uint256 callDataNonce, Call[] memory calls) = abi.decode(userOp_.callData[4:], (uint256, Call[]));
+        if (callDataNonce != signature.nonce) revert InvalidChainlessUserOp();
+
+        uint256 numCalls = calls.length;
+        for (uint256 i; i < numCalls; i++) {
+            if (calls[i].target != address(this) || calls[i].value != 0) revert InvalidChainlessUserOp();
+        }
+
+        uint256 nonce = getChainlessNonce();
+        if (signature.nonce != nonce) revert InvalidChainlessNonce(nonce, signature.nonce);
+        _setChainlessNonce(nonce + 1);
+
+        bytes32 hash = getChainlessUserOpHash(signature.nonce, userOp_.callData);
+
+        bool isValid = signature.viaOwner
+            ? SignatureCheckerLib.isValidSignatureNow(owner(), hash, signature.ownerSignature)
+            : _getMultiSignerStorage().isValidSignature(hash, signature.signatures);
+
+        if (!isValid) return UserOperationLib.INVALID_SIGNATURE;
+
+        _setChainlessCtx((signature.nonce << 8) | (signature.viaOwner ? ROLE_OWNER : ROLE_THRESHOLD));
+
+        return UserOperationLib.VALID_SIGNATURE;
+    }
+
+    function _getChainlessCtx() internal view returns (uint256 ctx) {
+        assembly ("memory-safe") {
+            ctx := sload(_CHAINLESS_CTX_SLOT)
+        }
+    }
+
+    function _setChainlessCtx(uint256 ctx_) internal {
+        assembly ("memory-safe") {
+            sstore(_CHAINLESS_CTX_SLOT, ctx_)
+        }
+    }
+
+    function _setChainlessNonce(uint256 nonce_) internal {
+        assembly ("memory-safe") {
+            sstore(_CHAINLESS_NONCE_SLOT, nonce_)
+        }
     }
 
     /// @dev Get light userOp hash of the Packed user operation.

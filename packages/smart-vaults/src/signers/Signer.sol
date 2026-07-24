@@ -76,6 +76,11 @@ library SignerLib {
     }
 
     /// @notice Returns true if both slot1 and slot2 are zero.
+    function isEmpty(Signer calldata signer_) internal pure returns (bool) {
+        return signer_.slot1 == ZERO && signer_.slot2 == ZERO;
+    }
+
+    /// @notice Returns true if both slot1 and slot2 are zero.
     function isEmptyMem(Signer memory signer_) internal pure returns (bool) {
         return signer_.slot1 == ZERO && signer_.slot2 == ZERO;
     }

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.23;
 
 import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 /**
  * @title ERC-1271
@@ -32,6 +33,16 @@ abstract contract ERC1271 is EIP712 {
      */
     bytes32 private constant _MESSAGE_TYPEHASH = keccak256("SplitMessage(bytes32 hash)");
 
+    /// @dev EIP-712 domain typehash without chainId. Signatures over this domain are valid on every
+    ///      chain where this account exists at the same address (guaranteed by CREATE2 deployment).
+    bytes32 private constant _CHAINLESS_DOMAIN_TYPEHASH =
+        keccak256("EIP712Domain(string name,string version,address verifyingContract)");
+
+    /// @dev Discriminator prefix for ERC-1271 signature blobs. SPIKE NOTE: breaking change — v1.0
+    ///      blobs carry no prefix byte.
+    bytes1 private constant _SIG_DOMAIN_CHAIN_BOUND = 0x00;
+    bytes1 private constant _SIG_DOMAIN_CHAINLESS = 0x01;
+
     /* -------------------------------------------------------------------------- */
     /*                                 CONSTRUCTOR                                */
     /* -------------------------------------------------------------------------- */
@@ -58,7 +69,9 @@ abstract contract ERC1271 is EIP712 {
      * @return result `0x1626ba7e` if validation succeeded, else `0xffffffff`.
      */
     function isValidSignature(bytes32 hash_, bytes calldata signature_) public view virtual returns (bytes4) {
-        if (_isValidSignature(replaySafeHash(hash_), signature_)) {
+        bytes32 digest = signature_[0] == _SIG_DOMAIN_CHAINLESS ? chainlessReplaySafeHash(hash_) : replaySafeHash(hash_);
+
+        if (_isValidSignature(digest, signature_[1:])) {
             // bytes4(keccak256("isValidSignature(bytes32,bytes)"))
             return 0x1626ba7e;
         }
@@ -83,6 +96,18 @@ abstract contract ERC1271 is EIP712 {
         return _hashTypedDataV4(keccak256(abi.encode(_MESSAGE_TYPEHASH, hash_)));
     }
 
+    /**
+     * @dev Chain-agnostic sibling of `replaySafeHash`: same SplitMessage struct, but the domain
+     *      omits chainId so one signature verifies on every chain. Cross-account replay protection
+     *      is preserved via `verifyingContract`. Shared by the ChainlessUserOp validation path and
+     *      the chainless ERC-1271 flow.
+     *
+     * @param hash_ The original hash.
+     */
+    function chainlessReplaySafeHash(bytes32 hash_) public view virtual returns (bytes32) {
+        return _hashChainlessTypedData(keccak256(abi.encode(_MESSAGE_TYPEHASH, hash_)));
+    }
+
     /* -------------------------------------------------------------------------- */
     /*                             INTERNAL FUNCTIONS                             */
     /* -------------------------------------------------------------------------- */
@@ -97,4 +122,19 @@ abstract contract ERC1271 is EIP712 {
      * @return `true` is the signature is valid, else `false`.
      */
     function _isValidSignature(bytes32 hash_, bytes calldata signature_) internal view virtual returns (bool);
+
+    /// @dev Hashes `structHash` into the chainless (no chainId) EIP-712 domain.
+    function _hashChainlessTypedData(bytes32 structHash_) internal view returns (bytes32) {
+        return MessageHashUtils.toTypedDataHash(
+            keccak256(
+                abi.encode(
+                    _CHAINLESS_DOMAIN_TYPEHASH,
+                    keccak256(bytes(_EIP712Name())),
+                    keccak256(bytes(_EIP712Version())),
+                    address(this)
+                )
+            ),
+            structHash_
+        );
+    }
 }

@@ -36,4 +36,6 @@ contract MultiSignerMock is MultiSignerAuth, Ownable {
     }
 
     function _authorize() internal view override(MultiSignerAuth) onlyOwner { }
+
+    function _checkChainlessRole(uint8) internal view override { }
 }

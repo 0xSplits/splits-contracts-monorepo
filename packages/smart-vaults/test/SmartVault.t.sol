@@ -90,6 +90,14 @@ contract SmartVaultTest is BaseTest {
         nft = new MockERC721();
     }
 
+    /// @dev Signer-state functions now require a chainless execution context; tests that exercise
+    ///      unrelated behavior seed the ctx slot directly (nonce 0, ROLE_THRESHOLD).
+    function _grantThresholdCtx() internal {
+        vm.store(
+            address(vault), 0xa376dc2f3bf9f2889ab135e26e6fcd0514f9576ec68e5f2a682d95ca957ade32, bytes32(uint256(1))
+        );
+    }
+
     function getUserOpHash(PackedUserOperation calldata userOp) internal view returns (bytes32) {
         return keccak256(abi.encode(userOp.hash(), ENTRY_POINT, block.chainid));
     }
@@ -172,7 +180,8 @@ contract SmartVaultTest is BaseTest {
 
     function getERC1271Signature(MultiSignerLib.SignatureWrapper[] memory sigs) internal pure returns (bytes memory) {
         SmartVault.ERC1271Signature memory sig = SmartVault.ERC1271Signature(sigs);
-        return abi.encode(sig);
+        // 0x00 = chain-bound domain discriminator
+        return abi.encodePacked(bytes1(0x00), abi.encode(sig));
     }
 
     function getUserOpSignature(
@@ -360,6 +369,7 @@ contract SmartVaultTest is BaseTest {
         userOp.signature = getUserOpSignature(getGasLimits(_userOp), sigs);
         userOp.paymasterAndData = new bytes(0);
 
+        _grantThresholdCtx();
         vm.prank(address(vault));
         vault.updateThreshold(2);
 
@@ -457,6 +467,7 @@ contract SmartVaultTest is BaseTest {
     )
         public
     {
+        _grantThresholdCtx();
         vm.prank(address(vault));
         vault.updateThreshold(2);
 
@@ -482,6 +493,7 @@ contract SmartVaultTest is BaseTest {
     {
         vm.deal(address(vault), _missingAccountsFund);
 
+        _grantThresholdCtx();
         vm.prank(address(vault));
         vault.updateThreshold(2);
 
@@ -533,6 +545,7 @@ contract SmartVaultTest is BaseTest {
     )
         public
     {
+        _grantThresholdCtx();
         vm.prank(address(vault));
         vault.updateThreshold(2);
 
@@ -562,6 +575,7 @@ contract SmartVaultTest is BaseTest {
     )
         public
     {
+        _grantThresholdCtx();
         vm.prank(address(vault));
         vault.updateThreshold(2);
 
@@ -613,6 +627,7 @@ contract SmartVaultTest is BaseTest {
     )
         public
     {
+        _grantThresholdCtx();
         vm.prank(address(vault));
         vault.updateThreshold(2);
 
@@ -641,6 +656,7 @@ contract SmartVaultTest is BaseTest {
     )
         public
     {
+        _grantThresholdCtx();
         vm.prank(address(vault));
         vault.updateThreshold(2);
 
@@ -692,6 +708,7 @@ contract SmartVaultTest is BaseTest {
         userOp.signature = getUserOpSignature(getGasLimits(_userOp), sigs);
         userOp.paymasterAndData = new bytes(0);
 
+        _grantThresholdCtx();
         vm.prank(address(vault));
         vault.updateThreshold(2);
 
@@ -728,6 +745,7 @@ contract SmartVaultTest is BaseTest {
         userOp.signature = getUserOpSignature(getGasLimits(_userOp), sigs);
         userOp.paymasterAndData = new bytes(0);
 
+        _grantThresholdCtx();
         vm.prank(address(vault));
         vault.updateThreshold(2);
 
@@ -763,6 +781,7 @@ contract SmartVaultTest is BaseTest {
 
         userOp.signature = getUserOpSignature(getGasLimits(_userOp), sigs);
 
+        _grantThresholdCtx();
         vm.prank(address(vault));
         vault.updateThreshold(2);
 
@@ -799,6 +818,7 @@ contract SmartVaultTest is BaseTest {
 
         userOp.signature = getUserOpSignature(getGasLimits(_userOp), sigs);
 
+        _grantThresholdCtx();
         vm.prank(address(vault));
         vault.updateThreshold(2);
 
@@ -835,6 +855,7 @@ contract SmartVaultTest is BaseTest {
 
         userOp.signature = getUserOpSignature(getGasLimits(_userOp), sigs);
 
+        _grantThresholdCtx();
         vm.prank(address(vault));
         vault.updateThreshold(2);
 
@@ -869,6 +890,7 @@ contract SmartVaultTest is BaseTest {
         userOp.signature = getUserOpSignature(getGasLimits(_userOp), sigs);
         userOp.paymasterAndData = new bytes(0);
 
+        _grantThresholdCtx();
         vm.prank(address(vault));
         vault.updateThreshold(2);
 
@@ -905,6 +927,7 @@ contract SmartVaultTest is BaseTest {
         userOp.signature = getUserOpSignature(getGasLimits(userOp), sigs);
         userOp.paymasterAndData = new bytes(0);
 
+        _grantThresholdCtx();
         vm.prank(address(vault));
         vault.updateThreshold(2);
 
@@ -986,6 +1009,7 @@ contract SmartVaultTest is BaseTest {
     )
         public
     {
+        _grantThresholdCtx();
         vm.prank(address(vault));
         vault.updateThreshold(2);
 
@@ -1040,6 +1064,7 @@ contract SmartVaultTest is BaseTest {
     )
         public
     {
+        _grantThresholdCtx();
         vm.prank(address(vault));
         vault.updateThreshold(2);
 
@@ -1085,6 +1110,7 @@ contract SmartVaultTest is BaseTest {
     {
         (uint256 maxPriorityFeePerGas, uint256 maxFeePerGas) = UserOperationLib.unpackUints(_userOp1.gasFees);
         vm.assume(uint128(maxPriorityFeePerGas) < type(uint128).max);
+        _grantThresholdCtx();
         vm.prank(address(vault));
         vault.updateThreshold(2);
 
@@ -1539,37 +1565,34 @@ contract SmartVaultTest is BaseTest {
     /*                               ONLY SELF TESTS                              */
     /* -------------------------------------------------------------------------- */
 
-    function test_onlySelf_addSigner() public {
+    /// @dev Signer-state updates through the plain execute path are now blocked: they require a
+    ///      chainless execution context so state stays in lockstep across chains.
+    function test_onlySelf_addSigner_revertsWithoutChainlessCtx() public {
         Caller.Call memory call = Caller.Call(
             address(vault), 0, abi.encodeWithSelector(MultiSignerAuth.addSigner.selector, createSigner(BOB.addr), 4)
         );
 
         vm.prank(ENTRY_POINT);
+        vm.expectRevert(SmartVault.InvalidChainlessContext.selector);
         vault.execute(call);
-
-        assertEq(vault.getSigner(4), createSigner(BOB.addr));
-        assertEq(vault.getSignerCount(), 4);
     }
 
-    function test_onlySelf_removeSigner() public {
+    function test_onlySelf_removeSigner_revertsWithoutChainlessCtx() public {
         Caller.Call memory call =
             Caller.Call(address(vault), 0, abi.encodeWithSelector(MultiSignerAuth.removeSigner.selector, 0));
 
         vm.prank(ENTRY_POINT);
+        vm.expectRevert(SmartVault.InvalidChainlessContext.selector);
         vault.execute(call);
-
-        assertEq(vault.getSigner(0), createSigner(address(0)));
-        assertEq(vault.getSignerCount(), 2);
     }
 
-    function test_onlySelf_updateThreshold() public {
+    function test_onlySelf_updateThreshold_revertsWithoutChainlessCtx() public {
         Caller.Call memory call =
             Caller.Call(address(vault), 0, abi.encodeWithSelector(MultiSignerAuth.updateThreshold.selector, 2));
 
         vm.prank(ENTRY_POINT);
+        vm.expectRevert(SmartVault.InvalidChainlessContext.selector);
         vault.execute(call);
-
-        assertEq(vault.getThreshold(), 2);
     }
 
     function test_onlySelf_upgradeImplementation_when_ownerIsZero() public {

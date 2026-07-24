@@ -39,6 +39,17 @@ library MultiSignerLib {
         bytes signatureData;
     }
 
+    /**
+     * @notice A single mutation in an atomic signer-set update.
+     * @dev Empty `signer` removes the signer at `index`; non-empty adds it at `index`. Applied
+     *      sequentially with set invariants (threshold vs count) validated once after the batch,
+     *      so remove-then-add at the same index (a signer swap) needs no intermediate juggling.
+     */
+    struct SignerSetOp {
+        uint8 index;
+        Signer signer;
+    }
+
     /* -------------------------------------------------------------------------- */
     /*                                   ERRORS                                   */
     /* -------------------------------------------------------------------------- */
@@ -145,6 +156,59 @@ library MultiSignerLib {
         if ($_.signerCount < threshold_) revert InvalidThreshold();
 
         $_.threshold = threshold_;
+    }
+
+    /**
+     * @notice Applies a batch of signer set mutations, validating invariants once at the end.
+     *
+     * @dev Reverts if an add targets an occupied index or a remove targets an empty one.
+     * @dev Reverts if the resulting set violates `1 <= threshold <= signerCount <= 255`.
+     *
+     * @param $_ Multi signer storage reference.
+     * @param ops_ Sequential mutations (see `SignerSetOp`).
+     * @param threshold_ New threshold; 0 keeps the current threshold.
+     */
+    function updateSignerSet(MultiSigner storage $_, SignerSetOp[] calldata ops_, uint8 threshold_) internal {
+        uint256 count = $_.signerCount;
+
+        for (uint256 i; i < ops_.length; i++) {
+            uint8 index = ops_[i].index;
+
+            if (ops_[i].signer.isEmpty()) {
+                if ($_.signers[index].isEmptyMem()) revert SignerNotPresent(index);
+                delete $_.signers[index];
+                count--;
+            } else {
+                if (!$_.signers[index].isEmptyMem()) revert SignerAlreadyPresent(index);
+                _addSigner($_, ops_[i].signer, index);
+                count++;
+            }
+        }
+
+        if (count > type(uint8).max) revert InvalidNumberOfSigners();
+
+        uint8 threshold = threshold_ == 0 ? $_.threshold : threshold_;
+        if (threshold == 0 || count < threshold) revert InvalidThreshold();
+
+        $_.signerCount = uint8(count);
+        $_.threshold = threshold;
+    }
+
+    /**
+     * @notice Replaces the entire signer set with `signers_` and `threshold_`.
+     *
+     * @dev Deliberately independent of current state so the same call replays correctly on chains
+     *      whose signer sets have drifted (the recovery scenario).
+     */
+    function resetSigners(MultiSigner storage $_, Signer[] calldata signers_, uint8 threshold_) internal {
+        // ponytail: full 256-slot scan (~256 cold SLOADs); occupancy bitmap if the gas matters.
+        for (uint256 i; i < 256; i++) {
+            if (!$_.signers[i].isEmptyMem()) delete $_.signers[i];
+        }
+
+        $_.signerCount = 0;
+
+        initializeSigners($_, signers_, threshold_);
     }
 
     /**
