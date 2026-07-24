@@ -195,23 +195,6 @@ library MultiSignerLib {
     }
 
     /**
-     * @notice Replaces the entire signer set with `signers_` and `threshold_`.
-     *
-     * @dev Deliberately independent of current state so the same call replays correctly on chains
-     *      whose signer sets have drifted (the recovery scenario).
-     */
-    function resetSigners(MultiSigner storage $_, Signer[] calldata signers_, uint8 threshold_) internal {
-        // ponytail: full 256-slot scan (~256 cold SLOADs); occupancy bitmap if the gas matters.
-        for (uint256 i; i < 256; i++) {
-            if (!$_.signers[i].isEmptyMem()) delete $_.signers[i];
-        }
-
-        $_.signerCount = 0;
-
-        initializeSigners($_, signers_, threshold_);
-    }
-
-    /**
      * @notice Initialize the signers.
      *
      * @dev Intended to be called when initializing the signer set.

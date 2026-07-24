@@ -26,10 +26,10 @@ abstract contract MultiSignerAuth {
         0x3e5431599761dc1a6f375d94085bdcd73bc8fa7c6b3d455d31679f3080214700;
 
     /**
-     * @dev Signer-state roles, granted per chainless userOp by signature verification (see
-     *      SmartVault). Threshold signers mutate the signer set; only the owner may wholesale
-     *      reset it. All signer-state mutations require a chainless context so state stays in
-     *      lockstep across chains.
+     * @dev Signer-state role bit flags, granted per chainless userOp by signature verification
+     *      (see SmartVault). Threshold signers or the owner mutate the signer set; ownership
+     *      actions are owner-only (enforced in the account's `_checkOwner`). All signer-state
+     *      mutations require a chainless context so state stays in lockstep across chains.
      */
     uint8 internal constant ROLE_THRESHOLD = 1;
     uint8 internal constant ROLE_OWNER = 2;
@@ -81,13 +81,6 @@ abstract contract MultiSignerAuth {
      */
     event UpdateSignerSet(MultiSignerLib.SignerSetOp[] ops, uint8 threshold);
 
-    /**
-     * @notice Emitted when the signer set is wholesale replaced.
-     * @param signers The new signer set.
-     * @param threshold The new threshold.
-     */
-    event ResetSigners(Signer[] signers, uint8 threshold);
-
     /* -------------------------------------------------------------------------- */
     /*                                  MODIFIERS                                 */
     /* -------------------------------------------------------------------------- */
@@ -130,7 +123,7 @@ abstract contract MultiSignerAuth {
      * @param index_ The index to register the signer.
      */
     function addSigner(Signer calldata signer_, uint8 index_) external onlyAuthorized {
-        _checkChainlessRole(ROLE_THRESHOLD);
+        _checkChainlessRole(ROLE_THRESHOLD | ROLE_OWNER);
 
         _getMultiSignerStorage().addSigner(signer_, index_);
 
@@ -146,7 +139,7 @@ abstract contract MultiSignerAuth {
      * @param index_ The index of the signer to be removed.
      */
     function removeSigner(uint8 index_) external onlyAuthorized {
-        _checkChainlessRole(ROLE_THRESHOLD);
+        _checkChainlessRole(ROLE_THRESHOLD | ROLE_OWNER);
 
         Signer memory signer = _getMultiSignerStorage().removeSigner(index_);
 
@@ -162,7 +155,7 @@ abstract contract MultiSignerAuth {
      * @param threshold_ The new signer set threshold.
      */
     function updateThreshold(uint8 threshold_) external onlyAuthorized {
-        _checkChainlessRole(ROLE_THRESHOLD);
+        _checkChainlessRole(ROLE_THRESHOLD | ROLE_OWNER);
 
         _getMultiSignerStorage().updateThreshold(threshold_);
 
@@ -173,35 +166,18 @@ abstract contract MultiSignerAuth {
      * @notice Applies a batch of signer set mutations atomically, validating invariants once at
      *         the end (see `MultiSignerLib.updateSignerSet`).
      *
-     * @dev Requires a threshold-signed chainless context.
+     * @dev Requires a chainless context: threshold-signed, or owner-signed (recovery).
      *
      * @param ops_ Sequential mutations; empty signer = remove at index, else add at index.
      * @param threshold_ New threshold; 0 keeps the current threshold.
      */
     function updateSignerSet(MultiSignerLib.SignerSetOp[] calldata ops_, uint8 threshold_) external onlyAuthorized {
-        _checkChainlessRole(ROLE_THRESHOLD);
+        _checkChainlessRole(ROLE_THRESHOLD | ROLE_OWNER);
 
         MultiSigner storage $ = _getMultiSignerStorage();
         $.updateSignerSet(ops_, threshold_);
 
         emit UpdateSignerSet(ops_, $.getThreshold());
-    }
-
-    /**
-     * @notice Wholesale replaces the signer set, independent of current state.
-     *
-     * @dev Requires an owner-signed chainless context. State independence is what makes recovery
-     *      replayable on chains whose signer sets have drifted.
-     *
-     * @param signers_ The new signer set.
-     * @param threshold_ The new threshold.
-     */
-    function resetSigners(Signer[] calldata signers_, uint8 threshold_) external onlyAuthorized {
-        _checkChainlessRole(ROLE_OWNER);
-
-        _getMultiSignerStorage().resetSigners(signers_, threshold_);
-
-        emit ResetSigners(signers_, threshold_);
     }
 
     /* -------------------------------------------------------------------------- */
@@ -210,9 +186,9 @@ abstract contract MultiSignerAuth {
 
     function _authorize() internal virtual;
 
-    /// @dev Reverts unless the current execution context carries `role_` (granted during chainless
-    ///      userOp validation). Implemented by the account.
-    function _checkChainlessRole(uint8 role_) internal view virtual;
+    /// @dev Reverts unless the current execution context carries a role in the `roleMask_` bit
+    ///      mask (granted during chainless userOp validation). Implemented by the account.
+    function _checkChainlessRole(uint8 roleMask_) internal view virtual;
 
     /// @notice Helper function to get storage reference to the `MultiSignerStorage` struct.
     function _getMultiSignerStorage() internal view returns (MultiSigner storage) {

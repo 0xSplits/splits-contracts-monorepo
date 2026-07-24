@@ -70,8 +70,7 @@ contract ChainlessUserOpTest is BaseTest {
         op.nonce = entryPoint.getNonce(address(vault_), 0);
         op.initCode = "";
         op.callData = abi.encodeWithSelector(SmartVault.executeChainless.selector, chainlessNonce_, calls_);
-        // verificationGasLimit | callGasLimit. Call limit is generous: the resetSigners 256-slot
-        // scan alone costs ~1M gas (spike finding).
+        // verificationGasLimit | callGasLimit
         op.accountGasLimits = bytes32((uint256(2_000_000) << 128) | 4_000_000);
         op.preVerificationGas = 100_000;
         op.gasFees = bytes32(0); // zero gas price: required by the chainless validation rules
@@ -178,21 +177,6 @@ contract ChainlessUserOpTest is BaseTest {
         );
     }
 
-    function _resetSignersCall(
-        SmartVault vault_,
-        Signer[] memory signers_,
-        uint8 threshold_
-    )
-        internal
-        pure
-        returns (Caller.Call[] memory calls)
-    {
-        calls = new Caller.Call[](1);
-        calls[0] = Caller.Call(
-            address(vault_), 0, abi.encodeWithSelector(MultiSignerAuth.resetSigners.selector, signers_, threshold_)
-        );
-    }
-
     function _assertCtxCleared(SmartVault vault_) internal view {
         assertEq(uint256(vm.load(address(vault_), CTX_SLOT)), 0, "ctx not cleared");
     }
@@ -252,14 +236,16 @@ contract ChainlessUserOpTest is BaseTest {
         assertEq(vault.getSignerCount(), 2);
     }
 
-    /// @notice Owner (EOA) resets the signer set and hands off ownership in one chainless op,
-    ///         replayed on two chains.
-    function test_chainlessReplay_ownerEOA_resetAndTransferOwnership() public {
-        Signer[] memory newSigners = new Signer[](1);
-        newSigners[0] = createSigner(DAN.addr);
+    /// @notice Owner (EOA) recovers the signer set (swap both signers for DAN, threshold 1) and
+    ///         hands off ownership in one chainless op, replayed on two chains.
+    function test_chainlessReplay_ownerEOA_recoverAndTransferOwnership() public {
+        MultiSignerLib.SignerSetOp[] memory ops = new MultiSignerLib.SignerSetOp[](3);
+        ops[0] = MultiSignerLib.SignerSetOp(0, Signer(0, 0)); // remove ALICE
+        ops[1] = MultiSignerLib.SignerSetOp(1, Signer(0, 0)); // remove BOB
+        ops[2] = MultiSignerLib.SignerSetOp(0, createSigner(DAN.addr));
 
         Caller.Call[] memory calls = new Caller.Call[](2);
-        calls[0] = _resetSignersCall(vault, newSigners, 1)[0];
+        calls[0] = _updateSignerSetCall(vault, ops, 1)[0];
         calls[1] = Caller.Call(address(vault), 0, abi.encodeWithSignature("transferOwnership(address)", DAN.addr));
 
         PackedUserOperation memory op = _chainlessUserOp(vault, 0, calls);
@@ -269,7 +255,7 @@ contract ChainlessUserOpTest is BaseTest {
 
         uint256 gasBefore = gasleft();
         _handleOps(op);
-        console2.log("handleOps gas (owner reset incl. 256-slot scan):", gasBefore - gasleft());
+        console2.log("handleOps gas (owner recover via updateSignerSet + transferOwnership):", gasBefore - gasleft());
 
         assertEq(vault.getSigner(0), createSigner(DAN.addr));
         assertEq(vault.getSignerCount(), 1);
@@ -287,13 +273,14 @@ contract ChainlessUserOpTest is BaseTest {
     }
 
     /// @notice The recovery composition: the owner is itself a vault, signing through its
-    ///         chainless 1271 domain. One signature by the owner vault's signer recovers the owned
-    ///         vault on two chains.
+    ///         chainless 1271 domain. One signature by the owner vault's signer swaps the owned
+    ///         vault's signer on two chains.
     function test_chainlessReplay_ownerVault_chainless1271() public {
-        Signer[] memory newSigners = new Signer[](1);
-        newSigners[0] = createSigner(DAN.addr);
+        MultiSignerLib.SignerSetOp[] memory ops = new MultiSignerLib.SignerSetOp[](2);
+        ops[0] = MultiSignerLib.SignerSetOp(0, Signer(0, 0)); // remove ALICE
+        ops[1] = MultiSignerLib.SignerSetOp(0, createSigner(DAN.addr));
 
-        PackedUserOperation memory op = _chainlessUserOp(ownedVault, 0, _resetSignersCall(ownedVault, newSigners, 1));
+        PackedUserOperation memory op = _chainlessUserOp(ownedVault, 0, _updateSignerSetCall(ownedVault, ops, 0));
         op.signature = _ownerVaultSig(ownedVault, 0, op.callData, ownerVault, CAROL);
 
         uint256 snapshot = vm.snapshot();
@@ -308,36 +295,6 @@ contract ChainlessUserOpTest is BaseTest {
         _handleOps(op);
         assertEq(ownedVault.getSigner(0), createSigner(DAN.addr));
         assertEq(ownedVault.getSignerCount(), 1);
-    }
-
-    /// @notice Owner reset replays correctly on a chain whose signer state has drifted — reset is
-    ///         state-independent, which is what makes it the recovery/migration baseline.
-    function test_chainlessReplay_reset_onDriftedChain() public {
-        Signer[] memory newSigners = new Signer[](1);
-        newSigners[0] = createSigner(DAN.addr);
-
-        PackedUserOperation memory op = _chainlessUserOp(vault, 0, _resetSignersCall(vault, newSigners, 1));
-        op.signature = _ownerEOASig(vault, 0, op.callData, CAROL);
-
-        uint256 snapshot = vm.snapshot();
-        _handleOps(op);
-        assertEq(vault.getSignerCount(), 1);
-
-        // Chain B drifted: an extra signer at a high slot (simulating pre-chainless legacy state).
-        vm.revertTo(snapshot);
-        vm.chainId(CHAIN_B);
-        vm.store(address(vault), CTX_SLOT, bytes32(uint256(1))); // grant ctx for legacy add
-        vm.prank(address(vault));
-        vault.addSigner(createSigner(CAROL.addr), 200);
-        vm.store(address(vault), CTX_SLOT, bytes32(0));
-        assertEq(vault.getSignerCount(), 3);
-
-        _handleOps(op);
-
-        assertEq(vault.getSigner(0), createSigner(DAN.addr));
-        assertEq(vault.getSigner(200), Signer(0, 0));
-        assertEq(vault.getSignerCount(), 1);
-        assertEq(vault.getThreshold(), 1);
     }
 
     /* -------------------------------------------------------------------------- */
@@ -458,20 +415,19 @@ contract ChainlessUserOpTest is BaseTest {
     }
 
     /// @notice Threshold signers cannot smuggle owner-only actions: validation passes (their
-    ///         signature is genuine) but execution hits the role gate and the op's calls revert.
-    function test_chainless_thresholdCannotReset_roleGate() public {
-        Signer[] memory newSigners = new Signer[](1);
-        newSigners[0] = createSigner(DAN.addr);
+    ///         signature is genuine) but transferOwnership hits _checkOwner (ctx=THRESHOLD) and
+    ///         the op's calls revert.
+    function test_chainless_thresholdCannotTransferOwnership_roleGate() public {
+        Caller.Call[] memory calls = new Caller.Call[](1);
+        calls[0] = Caller.Call(address(vault), 0, abi.encodeWithSignature("transferOwnership(address)", DAN.addr));
 
-        PackedUserOperation memory op = _chainlessUserOp(vault, 0, _resetSignersCall(vault, newSigners, 1));
+        PackedUserOperation memory op = _chainlessUserOp(vault, 0, calls);
         op.signature = _thresholdSig(vault, 0, op.callData, [ALICE, BOB]);
 
         _handleOps(op); // does not revert: the op fails post-validation, EntryPoint logs it
 
-        // signer set untouched, nonce consumed
-        assertEq(vault.getSigner(0), createSigner(ALICE.addr));
-        assertEq(vault.getSigner(1), createSigner(BOB.addr));
-        assertEq(vault.getSignerCount(), 2);
+        // owner untouched, nonce consumed
+        assertEq(vault.owner(), CAROL.addr);
         assertEq(vault.getChainlessNonce(), 1);
     }
 

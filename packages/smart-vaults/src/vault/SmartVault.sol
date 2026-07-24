@@ -452,9 +452,9 @@ contract SmartVault is IAccount, Ownable, UUPSUpgradeable, MultiSignerAuth, ERC1
         revert Unauthorized();
     }
 
-    /// @dev Reverts unless the live chainless context carries `role_`.
-    function _checkChainlessRole(uint8 role_) internal view override {
-        if (uint8(_getChainlessCtx()) != role_) revert InvalidChainlessContext();
+    /// @dev Reverts unless the live chainless context carries a role in `roleMask_`.
+    function _checkChainlessRole(uint8 roleMask_) internal view override {
+        if (uint8(_getChainlessCtx()) & roleMask_ == 0) revert InvalidChainlessContext();
     }
 
     /**
