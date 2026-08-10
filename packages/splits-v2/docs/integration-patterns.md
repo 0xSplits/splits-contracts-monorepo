@@ -136,6 +136,9 @@ token. Prefer PullSplit unless you specifically need direct sends.
   failure-proof: a recipient that re-enters `distribute()` during its payout can leave the loop working from a stale
   balance snapshot, so the fallback deposit reverts and the distribution unwinds. Funds stay in the wallet,
   undistributed.
+- Recovery: an owned Split can drop the problem recipient via `updateSplit()` or sweep the balance via `execCalls()`
+  (both `onlyOwner`). An immutable Split (`owner == address(0)`) has no owner-based recovery and no
+  `depositToWarehouse()` escape hatch.
 
 **Integration checklist:**
 
