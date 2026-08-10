@@ -131,8 +131,7 @@ token. Prefer PullSplit unless you specifically need direct sends.
 
 - ERC20 distribution is atomic: if `safeTransfer` to any recipient reverts, the entire `distribute()` reverts and no one
   is paid. Triggers include non-transferable tokens, recipient-side restrictions (e.g. a recipient added to the USDC
-  blacklist), and ERC-777 recipient hooks that revert.
-  A restriction can appear after the Split is created, outside anyone's control.
+  blacklist). A restriction can appear after the Split is created, outside anyone's control.
 - Native-token sends are gas-capped and fall back to a Warehouse deposit on failure, but the fallback is not itself
   failure-proof: a recipient that re-enters `distribute()` during its payout can leave the loop working from a stale
   balance snapshot, so the fallback deposit reverts and the distribution unwinds. Funds stay in the wallet,
