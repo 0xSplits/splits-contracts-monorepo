@@ -103,12 +103,13 @@ warehouse.setWithdrawConfig(ISplitsWarehouse.WithdrawConfig({
 | Gas cost per distribution   | Lower (internal balance transfers)                | Higher (external token transfers)                           |
 | Recipient count             | Better for many recipients                        | Better for few recipients                                   |
 | Recipient must claim?       | Yes (call warehouse.withdraw)                     | No (tokens arrive directly)                                 |
-| Risk of failed distribution | None (warehouse accounting)                       | Can fail if recipient reverts (ETH falls back to warehouse) |
+| Risk of failed distribution | None (warehouse accounting)                       | A single recipient that reverts blocks the whole distribution (see Security Considerations) |
 | Composability               | Recipients can use warehouse balances via ERC6909 | Standard token transfers                                    |
 | Best for                    | Protocols, DAOs, many-party splits                | Simple 2-3 party splits, EOA recipients                     |
 
 **Default recommendation:** Use PullSplit unless you have a specific reason to prefer push (e.g., simple 2-party split
-with EOA recipients).
+with EOA recipients). PushSplit requires trusting that every recipient can receive each distributed token; see Security
+Considerations below.
 
 ## 7. Security Considerations
 
@@ -122,6 +123,22 @@ with EOA recipients).
   pausing only blocks third parties.
 - Withdrawal pausing (`withdrawConfig.paused`) only blocks third-party withdrawals. The owner can always withdraw their
   own funds.
+
+**PushSplit recipient trust:**
+
+PushSplit pays recipients with direct token transfers, so every recipient must be able to receive each distributed
+token. Prefer PullSplit unless you specifically need direct sends.
+
+- ERC20 distribution is atomic: if `safeTransfer` to any recipient reverts, the entire `distribute()` reverts and no one
+  is paid. Triggers include non-transferable tokens, recipient-side restrictions (e.g. a recipient added to the USDC
+  blacklist). A restriction can appear after the Split is created, outside anyone's control.
+- Native-token sends are gas-capped and fall back to a Warehouse deposit on failure, but the fallback is not itself
+  failure-proof: a recipient that re-enters `distribute()` during its payout can leave the loop working from a stale
+  balance snapshot, so the fallback deposit reverts and the distribution unwinds. Funds stay in the wallet,
+  undistributed.
+- Recovery: a mutable Split can drop the problem recipient via `updateSplit()` or sweep the balance via `execCalls()`
+  (both `onlyOwner`). An immutable Split (`owner == address(0)`) has no owner-based recovery and no
+  `depositToWarehouse()` escape hatch.
 
 **Integration checklist:**
 
