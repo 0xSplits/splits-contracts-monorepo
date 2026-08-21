@@ -34,13 +34,16 @@ Funds are deposited into the SplitsWarehouse and credited to each recipient as E
 ### Push Distribution (PushSplit)
 
 Funds are sent directly to each recipient via token transfers. For native ETH, if a direct transfer fails (e.g.,
-recipient is a contract that reverts), the amount is deposited to the warehouse as a fallback.
+recipient is a contract that reverts), the amount is deposited to the warehouse as a fallback. ERC20 transfers have no
+such fallback.
 
 **Tradeoffs:**
 
 - Simpler for few recipients (one-step process).
 - Higher gas cost per recipient (external transfers).
-- Can fail or behave unexpectedly if a recipient contract reverts on ERC20 transfers.
+- Distribution is atomic: a single recipient that reverts blocks payment to everyone. See
+  [Push vs Pull: Decision Guide](./integration-patterns.md#6-pull-vs-push-decision-guide) for recipient-trust and
+  recovery details.
 - Immediate delivery -- recipients do not need to claim.
 
 ---
@@ -146,7 +149,9 @@ source.
 ### [PushSplit](../src/splitters/push/PushSplit.sol)
 
 Split wallet that distributes funds directly to recipients (push model). Withdraws any warehouse balance first, then
-sends tokens via direct transfers. For native ETH, falls back to warehouse deposit if direct transfer fails.
+sends tokens via direct transfers. For native ETH, falls back to warehouse deposit if direct transfer fails; ERC20
+transfers have no fallback, so a single reverting recipient reverts the whole distribution. See
+[Push vs Pull: Decision Guide](./integration-patterns.md#6-pull-vs-push-decision-guide).
 
 **Key Functions:**
 
