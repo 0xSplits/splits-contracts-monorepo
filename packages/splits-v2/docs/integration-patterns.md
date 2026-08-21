@@ -151,9 +151,9 @@ Fee-on-transfer, rebasing, and non-transferable tokens are **not supported**:
   recipients unable to withdraw; a positive rebase strands the incremental yield in the warehouse.
 - **Non-transferable:** tokens sent to a split are permanently stuck unless the split has an owner who can recover them
   via `execCalls()`.
-- **Mainnet USDT** is not a standard ERC20 and is not compatible with Splits V2.0 or V2.1.
+- **Mainnet USDT** is not a standard ERC20 and is not compatible with Splits V2.0 or V2.1 (fixed in V2.2).
 
-See also the [public protocol docs](https://splits.org/protocol/docs/core/split-v2) for the same warnings.
+See also the [public protocol docs](https://splits.org/protocol/docs/core/split-v2) for more information.
 
 **Integration checklist:**
 
