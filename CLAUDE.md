@@ -88,6 +88,7 @@ source .env && FOUNDRY_PROFILE=optimized forge script script/SplitsWarehouse.s.s
 - PullSplit deposits to warehouse first; PushSplit sends directly to recipients
 - SmartVault uses ERC-4337 v0.7 EntryPoint (`0x0000000071727De22E5E9d8BAf0edAc6f37da032`)
 - Native ETH is wrapped as WETH internally by the warehouse
+- Fee-on-transfer, rebasing, and non-transferable tokens are NOT supported (see `packages/splits-v2/docs/integration-patterns.md`)
 - Split distributions include an optional distributor incentive (reward for calling distribute)
 - Optimizer runs: 5,000,000 (optimized for runtime gas, not deploy cost)
 
