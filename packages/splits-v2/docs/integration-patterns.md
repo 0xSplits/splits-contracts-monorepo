@@ -140,6 +140,21 @@ token. Prefer PullSplit unless you specifically need direct sends.
   (both `onlyOwner`). An immutable Split (`owner == address(0)`) has no owner-based recovery and no
   `depositToWarehouse()` escape hatch.
 
+**Token compatibility:**
+
+Fee-on-transfer, rebasing, and non-transferable tokens are **not supported**:
+
+- **Fee-on-transfer:** the warehouse credits recipients the pre-fee `amount` while receiving less, so the accounting
+  goes insolvent and the last recipients to withdraw cannot claim. With PushSplit, each recipient transfer pays the fee
+  again, so recipients receive less than their allocation.
+- **Rebasing:** warehouse ERC6909 balances are fixed at deposit time and do not rebase. A negative rebase leaves some
+  recipients unable to withdraw; a positive rebase strands the incremental yield in the warehouse.
+- **Non-transferable:** tokens sent to a split are permanently stuck unless the split has an owner who can recover them
+  via `execCalls()`.
+- **Mainnet USDT** is not a standard ERC20 and is not compatible with Splits V2.0 or V2.1 (fixed in V2.2).
+
+See also the [public protocol docs](https://splits.org/protocol/docs/core/split-v2) for more information.
+
 **Integration checklist:**
 
 - Validate your split struct off-chain before submitting (check allocations sum to totalAllocation).

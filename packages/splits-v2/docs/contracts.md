@@ -53,7 +53,9 @@ such fallback.
 ### [SplitsWarehouse](../src/SplitsWarehouse.sol)
 
 Central ERC6909-compliant token warehouse that holds deposited tokens on behalf of split wallets and recipients. Token
-IDs are derived from token addresses via `uint256(uint160(address))`.
+IDs are derived from token addresses via `uint256(uint160(address))`. Deposits assume the amount received equals the
+amount transferred, so fee-on-transfer and rebasing tokens are not supported (see
+[integration patterns](integration-patterns.md#7-security-considerations)).
 
 **Inherits:** `ERC6909X`
 
