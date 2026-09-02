@@ -53,13 +53,19 @@ Manages an m-of-n threshold signer set:
 - Threshold cannot be zero and cannot exceed `signerCount`.
 - Removing a signer when `signerCount == threshold` reverts.
 
+**Signer uniqueness is not enforced onchain.** `initializeSigners`, `addSigner`, and the factory's `validateSigners`
+accept the same EOA or passkey at multiple indices. This is by design: the contract leaves signer-set configuration
+entirely to the owner. The consequence is that a key present at `k` indices can supply `k` of the `threshold`
+signatures, so duplicates lower the effective threshold. Integrators that want uniqueness must enforce it offchain. No
+change is planned for v1.1.
+
 Signature validation supports two modes:
 
 1. **Single-hash**: All signers verify the same hash (used for ERC-1271).
 2. **Front/back hash split**: First `threshold - 1` signers verify a "front hash" (light hash), final signer verifies
    the "back hash" (full userOp hash). This enables gas validation (see below).
 
-A bitmask prevents duplicate signers within a single validation.
+A bitmask prevents the same signer index from being used twice within a single validation (`DuplicateSigner`).
 
 ## UserOp Validation Flow
 
