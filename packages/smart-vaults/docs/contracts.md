@@ -56,8 +56,7 @@ Manages an m-of-n threshold signer set:
 **Signer uniqueness is not enforced onchain.** `initializeSigners`, `addSigner`, and the factory's `validateSigners`
 accept the same EOA or passkey at multiple indices. This is by design: the contract leaves signer-set configuration
 entirely to the owner. The consequence is that a key present at `k` indices can supply `k` of the `threshold`
-signatures, so duplicates lower the effective threshold. Integrators that want uniqueness must enforce it offchain. No
-change is planned for v1.1.
+signatures, so duplicates lower the effective threshold. Integrators that want uniqueness must enforce it offchain.
 
 Signature validation supports two modes:
 
