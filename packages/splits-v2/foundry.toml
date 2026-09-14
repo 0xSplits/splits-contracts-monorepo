@@ -65,6 +65,7 @@ polygon = "${POLYGON_RPC_URL}"                   # 137
 shape = "${SHAPE_RPC_URL}"                       # 360
 world = "${WORLD_RPC_URL}"                       # 480
 abstract = "${ABSTRACT_RPC_URL}"                 # 2741
+robinhood = "${ROBINHOOD_RPC_URL}"               # 4663
 world-sepolia = "${WORLD_SEPOLIA_RPC_URL}"       # 4801
 base = "${BASE_RPC_URL}"                         # 8453
 abstract-sepolia = "${ABSTRACT_SEPOLIA_RPC_URL}" # 11124
