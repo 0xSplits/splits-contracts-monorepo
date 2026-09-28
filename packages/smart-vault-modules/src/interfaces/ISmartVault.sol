@@ -18,4 +18,13 @@ interface ISmartVault {
 
     /// @notice Disables a module on the vault. Can only be called by the vault itself.
     function disableModule(address module_) external;
+
+    /// @notice Executes a call from the vault. Can only be called by the EntryPoint or the vault's owner.
+    function execute(Call calldata call_) external payable;
+
+    /// @notice Returns true if `module_` is enabled on the vault.
+    function isModuleEnabled(address module_) external view returns (bool);
+
+    /// @notice Returns the owner of the vault.
+    function owner() external view returns (address);
 }
