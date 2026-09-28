@@ -98,14 +98,14 @@ warehouse.setWithdrawConfig(ISplitsWarehouse.WithdrawConfig({
 
 ## 6. Pull vs Push: Decision Guide
 
-| Factor                      | Pull (PullSplit)                                  | Push (PushSplit)                                            |
-| --------------------------- | ------------------------------------------------- | ----------------------------------------------------------- |
-| Gas cost per distribution   | Lower (internal balance transfers)                | Higher (external token transfers)                           |
-| Recipient count             | Better for many recipients                        | Better for few recipients                                   |
-| Recipient must claim?       | Yes (call warehouse.withdraw)                     | No (tokens arrive directly)                                 |
+| Factor                      | Pull (PullSplit)                                  | Push (PushSplit)                                                                            |
+| --------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Gas cost per distribution   | Lower (internal balance transfers)                | Higher (external token transfers)                                                           |
+| Recipient count             | Better for many recipients                        | Better for few recipients                                                                   |
+| Recipient must claim?       | Yes (call warehouse.withdraw)                     | No (tokens arrive directly)                                                                 |
 | Risk of failed distribution | None (warehouse accounting)                       | A single recipient that reverts blocks the whole distribution (see Security Considerations) |
-| Composability               | Recipients can use warehouse balances via ERC6909 | Standard token transfers                                    |
-| Best for                    | Protocols, DAOs, many-party splits                | Simple 2-3 party splits, EOA recipients                     |
+| Composability               | Recipients can use warehouse balances via ERC6909 | Standard token transfers                                                                    |
+| Best for                    | Protocols, DAOs, many-party splits                | Simple 2-3 party splits, EOA recipients                                                     |
 
 **Default recommendation:** Use PullSplit unless you have a specific reason to prefer push (e.g., simple 2-party split
 with EOA recipients). PushSplit requires trusting that every recipient can receive each distributed token; see Security
