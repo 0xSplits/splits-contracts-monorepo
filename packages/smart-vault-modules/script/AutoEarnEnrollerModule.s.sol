@@ -7,14 +7,12 @@ import { AutoEarnModule } from "src/AutoEarnModule.sol";
 import { BaseScript } from "./Base.s.sol";
 
 contract AutoEarnEnrollerModuleScript is BaseScript {
-    /// @dev Thrown when the recorded AutoEarnModuleV2, or its asset or vault, has no code on this chain.
+    /// @dev Thrown when the supplied AutoEarnModuleV2, or its asset or vault, has no code on this chain.
     error AutoEarnModuleV2NotLive();
 
-    function run() public {
-        // The enroller is immutably bound to the AutoEarnModuleV2 recorded in this chain's deployments file. Deploy
-        // that first with `AutoEarnModuleV2.s.sol`.
-        string memory file = string.concat(vm.projectRoot(), "/deployments/", vm.toString(block.chainid), ".json");
-        AutoEarnModule autoEarnModuleV2 = AutoEarnModule(vm.parseJsonAddress(vm.readFile(file), ".AutoEarnModuleV2"));
+    /// @param autoEarnModule_ The AutoEarnModuleV2 address already deployed on the selected chain.
+    function run(address autoEarnModule_) public {
+        AutoEarnModule autoEarnModuleV2 = AutoEarnModule(autoEarnModule_);
         if (address(autoEarnModuleV2).code.length == 0) revert AutoEarnModuleV2NotLive();
         if (autoEarnModuleV2.ASSET().code.length == 0) revert AutoEarnModuleV2NotLive();
         if (autoEarnModuleV2.VAULT().code.length == 0) revert AutoEarnModuleV2NotLive();
