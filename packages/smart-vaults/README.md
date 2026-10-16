@@ -80,6 +80,55 @@ Properties excluded:
 
 `pnpm format`
 
+## Deployment
+
+One transaction through the CREATE2 deployer (`0x4e59b44847b379578588920cA78FbF26c0B4956C`) deploys both contracts:
+SmartVaultFactory at `0x8E6Af8Ed94E87B4402D0272C5D6b0D47F0483e7C`, whose constructor deploys the SmartVault
+implementation at `0x15ec0Fa66A0D96a64d67C58368641fBE9325F3FA`. A vault has the same address on every chain only if the
+factory does, so never deploy SmartVault on its own.
+
+The script deploys the recorded init code in `deployments/initcode/SmartVaultFactory.json`, not a build of `src`. The
+factory's address commits to its compiled bytecode, and the bytecode's metadata hash changes with any edit to the source
+text, formatting included: the `forge fmt` pass in #76 moved it, and so does a dependency file that differs from the one
+the original build used. The verification input reproduces the recorded init code with solc 0.8.23 (forge installs it at
+`~/.svm/0.8.23/solc-0.8.23`):
+
+```bash
+solc --standard-json < deployments/standard-input/vaultFactory.verify.json \
+  | jq -r '"0x" + .contracts["src/vault/SmartVaultFactory.sol"].SmartVaultFactory.evm.bytecode.object'
+```
+
+### Requirements
+
+1. The CREATE2 deployer and EntryPoint v0.7 (`0x0000000071727De22E5E9d8BAf0edAc6f37da032`) have code on the chain, and
+   the chain supports the `Shanghai` EVM version.
+2. The deployer account holds enough of the gas token. The deployment uses about 5.3M gas, but forge reserves about 7.6M
+   at roughly twice the base fee.
+
+### Deploy
+
+Set up `.env` from `.env.sample` and import the deployer with `cast wallet import SPLITS_DEPLOYER --interactive`. Then:
+
+`pnpm deploy:VaultFactory:test <rpc url>` for a dry run
+
+`pnpm deploy:VaultFactory <rpc url>` to deploy
+
+The script checks that the init code hashes to the canonical address, sends nothing if the factory is already deployed,
+and writes `deployments/<chainId>.json`. Commit that file. Afterward, both addresses must have code.
+
+### Verify
+
+Many explorers match the already-verified bytecode on their own; if there's a "verify cross-chain" or "similar match"
+option, use it. Otherwise, verify each contract with "Verify and Publish":
+
+- Compiler type: Solidity (Standard-Json-Input)
+- Compiler version: `v0.8.23+commit.f704f362`
+- License: GNU GPLv3
+- Standard input: `deployments/standard-input/vaultFactory.verify.json` for SmartVaultFactory and `vault.verify.json`
+  for SmartVault
+
+Blockscout sometimes has trouble showing newly deployed contracts; use the chain's Etherscan explorer when there is one.
+
 ## Developers/Integrators
 
 ### Foundry
