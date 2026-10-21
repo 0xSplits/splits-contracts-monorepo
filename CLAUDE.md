@@ -91,6 +91,9 @@ source .env && FOUNDRY_PROFILE=optimized forge script script/SplitsWarehouse.s.s
 - Fee-on-transfer, rebasing, and non-transferable tokens are NOT supported (see `packages/splits-v2/docs/integration-patterns.md`)
 - Split distributions include an optional distributor incentive (reward for calling distribute)
 - Optimizer runs: 5,000,000 (optimized for runtime gas, not deploy cost)
+- CREATE2 addresses commit to the exact compiled bytecode, metadata hash included, so any source edit, even `forge fmt`,
+  moves them. Deploy an existing contract to a new chain from its recorded init code (smart-vaults:
+  `deployments/initcode/`) or a pre-#76 commit (splits-v2: `5ba2ffa`, per #88), never from `main`.
 
 ## Deeper References
 
